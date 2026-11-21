@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPSCON · AugieLab</title>
+<meta name="description" content="A make-believe operations console for a spare monitor. Nothing here is real.">
+<meta property="og:title" content="OPSCON">
+<meta property="og:description" content="Panes of green phosphor: satellites, intrusions, maps and matrix rain. All simulated.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root { --g: #39FF6A; --g2: #22C24E; --dim: #167A35; --faint: #0C3D1C; --bg: #010805; --amber: #FFB43A; --hot: #E9FFE9; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--g); overflow: hidden;
+    font: 15px/1.3 "IBM Plex Mono", ui-monospace, monospace; }
+  body { display: grid; grid-template-rows: auto 1fr auto; }
+
+  .bar { display: flex; justify-content: space-between; gap: 18px; padding: 4px 10px; white-space: nowrap; overflow: hidden;
+    background: var(--g); color: #021A09; font-weight: 600; }
+  .bar span { overflow: hidden; text-overflow: ellipsis; }
+  .bar .tab { padding: 0 6px; }
+  .bar .tab.act { background: #021A09; color: var(--g); }
+
+  #grid { display: grid; gap: 6px; padding: 6px; min-height: 0; }
+  .pane { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    border: 1px solid var(--dim); box-shadow: inset 0 0 22px rgba(57,255,106,.06); }
+  .ph { display: flex; justify-content: space-between; padding: 2px 8px; color: var(--g2); border-bottom: 1px solid var(--faint); white-space: nowrap; overflow: hidden; }
+  .ph b { color: var(--g); font-weight: 600; }
+  .pb { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .pb pre { position: absolute; inset: 6px 8px; font: inherit; white-space: pre; overflow: hidden; text-shadow: 0 0 6px rgba(57,255,106,.45); }
+  .pb canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .glitch { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg);
+    color: var(--g2); z-index: 3; }
+
+  .d { color: var(--dim); } .a { color: var(--amber); text-shadow: 0 0 6px rgba(255,180,58,.5); }
+  .h { color: var(--hot); text-shadow: 0 0 8px var(--g); } .inv { background: var(--g); color: #021A09; text-shadow: none; }
+
+  .banner { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; padding: 10px 26px;
+    font: 400 clamp(34px, 5vw, 64px)/1 "VT323", monospace; letter-spacing: .06em; color: #021A09; background: var(--g);
+    box-shadow: 0 0 30px var(--g); animation: blinkb .5s steps(1) 4; white-space: nowrap; }
+  @keyframes blinkb { 50% { background: transparent; color: var(--g); } }
+
+  /* CRT glass */
+  .crt { position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px),
+                radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.55) 100%);
+    animation: flicker 6s infinite; }
+  @keyframes flicker { 0%,100% { opacity: 1; } 47% { opacity: .93; } 48% { opacity: 1; } 76% { opacity: .96; } }
+  .hint { position: fixed; right: 16px; bottom: 34px; z-index: 11; padding: 6px 10px; border: 1px solid var(--dim); background: rgba(1,8,5,.9);
+    color: var(--g2); transition: opacity 1s; }
+  .hint.gone { opacity: 0; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .crt { animation: none; } .banner { animation: none; } }
+</style>
+</head>
+<body>
+<div class="bar"><span id="topL">OPSCON 2.6 :: session augie@lab-07</span><span id="topM">◉ SAT-LINK NOMINAL</span><span id="clock">--:--:--</span></div>
+<main id="grid"></main>
+<div class="bar"><span id="tabs"></span><span>SIMULATION · NOTHING HERE IS REAL</span></div>
+<div class="crt"></div>
+<div class="hint" id="hint">F = full screen &nbsp;·&nbsp; <a href="/" style="color:inherit">AugieLab</a></div>
+
+<script>
+(() => {
+'use strict';
+const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1)), pick = a => a[Math.floor(Math.random() * a.length)];
+const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+const c = (t, cls) => `<span class="${cls}">${esc(t)}</span>`;
+const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n), lpad = (s, n) => (' '.repeat(n) + s).slice(-n);
+const hex = n => Math.floor(Math.random() * 16 ** n).toString(16).padStart(n, '0');
+const ip = () => pick(['10.', '172.16.', '192.168.']) + ri(0, 254) + '.' + ri(1, 254) + (Math.random() < .5 ? '' : '');
+const now = () => new Date().toTimeString().slice(0, 8);
+const HOSTS = ['orion-7.deepspace.sim', 'kestrel-vault.sim', 'atlas-relay-03.sim', 'nebula-core.sim', 'halcyon-db.sim', 'polaris-gw.sim'];
+let CW = 9, CH = 19.5;
+function measure() { const s = document.createElement('span'); s.textContent = 'M'.repeat(50); s.style.cssText = 'position:absolute;visibility:hidden;font:15px/1.3 "IBM Plex Mono",monospace';
+  document.body.appendChild(s); const r = s.getBoundingClientRect(); CW = r.width / 50; CH = r.height; s.remove(); }
+const dims = el => ({ cols: Math.max(10, Math.floor((el.clientWidth - 16) / CW)), rows: Math.max(4, Math.floor((el.clientHeight - 12) / CH)) });
+
+/* ---------------- modules: each returns a stop() ---------------- */
+const M = {};
+
+M.matrix = { title: 'matrix', make(body) {
+  const cv = document.createElement('canvas'); body.appendChild(cv); const x = cv.getContext('2d');
+  const glyphs = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜ0123456789ZΣΛΞ:.=*+-<>';
+  let drops = [], fs = 17, raf, last = 0;
+  function fit() { const w = body.clientWidth, h = body.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; x.fillStyle = '#010805'; x.fillRect(0, 0, w, h);
+    drops = Array.from({ length: Math.ceil(w / fs) }, () => rnd(-30, 0)); } }
+  function frame(t) { raf = requestAnimationFrame(frame); if (t - last < 50) return; last = t; fit();
+    x.fillStyle = 'rgba(1,8,5,0.12)'; x.fillRect(0, 0, cv.width, cv.height); x.font = fs + 'px monospace';
+    drops.forEach((d, i) => { const y = d * fs; x.fillStyle = '#E9FFE9'; x.fillText(pick([...glyphs]), i * fs, y);
+      x.fillStyle = '#39FF6A'; x.fillText(pick([...glyphs]), i * fs, y - fs);
+      drops[i] = y > cv.height && Math.random() > .975 ? 0 : d + 1; }); }
+  raf = requestAnimationFrame(frame); return () => cancelAnimationFrame(raf); } };
+
+M.intrude = { title: 'intrude', dur: 26000, make(body) {
+  const pre = document.createElement('pre'); body.appendChild(pre); let lines = [], dead = false; const timers = [];
+  const wait = ms => new Promise(r => timers.push(setTimeout(r, ms)));
+  const draw = () => { const { rows } = dims(body); pre.innerHTML = lines.slice(-rows).join('\n'); };
+  const say = h => { lines.push(h); draw(); };
+  async function type(prompt, cmd) { let s = ''; say(c(prompt, 'd') + ' '); for (const ch of cmd) { if (dead) return; s += ch; lines[lines.length - 1] = c(prompt, 'd') + ' ' + c(s, 'h') + '▌'; draw(); await wait(rnd(30, 90)); }
+    lines[lines.length - 1] = c(prompt, 'd') + ' ' + c(s, 'h'); draw(); await wait(300); }
+  async function run() {
+    while (!dead) {
+      const host = pick(HOSTS), user = pick(['admin', 'root', 'svc_backup', 'operator']);
+      await type('ops$', `scan --stealth ${host}`);
+      for (const p of [22, 80, 443, ri(2000, 9999)]) { await wait(260); say(`  ${lpad(p, 5)}/tcp  ${c('open', 'h')}   ${pick(['ssh', 'http', 'https', 'vault-api', 'telemetry'])}`); }
+      await type('ops$', `crack --user ${user} --wordlist cosmic.lst ${host}`);
+      const len = ri(9, 13), target = Array.from({ length: len }, () => pick([...'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789$#@!'])).join('');
+      say(''); let tries = 0;
+      for (let i = 0; i <= len && !dead; i++) {
+        for (let k = 0; k < 9 && !dead; k++) { tries += ri(4000, 26000);
+          const guess = target.slice(0, i) + Array.from({ length: len - i }, () => pick([...'abcdefghijklmnopqrstuvwxyz0123456789#$%&'])).join('');
+          lines[lines.length - 1] = `  password: ${c(target.slice(0, i), 'h')}${c(guess.slice(i), 'd')}   ${c('tries ' + tries.toLocaleString(), 'd')}`; draw(); await wait(45); }
+      }
+      say(`  ${c('[+] credential match for ' + user, 'a')}`); await wait(400);
+      const b = document.createElement('div'); b.className = 'banner'; b.textContent = 'ACCESS GRANTED'; body.appendChild(b); await wait(2400); b.remove();
+      await type(`${user}@${host.split('.')[0]}#`, 'decrypt /vault/manifest.enc');
+      say(''); for (let p = 0; p <= 100 && !dead; p += ri(3, 9)) { const w = 24, f = Math.round(Math.min(p, 100) / 100 * w);
+        lines[lines.length - 1] = `  [${c('█'.repeat(f), 'h')}${c('░'.repeat(w - f), 'd')}] ${lpad(Math.min(p, 100), 3)}%  blocks ${hex(6)}`; draw(); await wait(120); }
+      say(`  ${c('decrypted 4,096 blocks. erasing footprints...', 'd')}`); await wait(900);
+      say(`  ${c('[✓] session closed. no trace.', 'h')}`); say(''); await wait(1800);
+    } }
+  run(); return () => { dead = true; timers.forEach(clearTimeout); }; } };
+
+M.geo = { title: 'geotrace', make(body) {
+  const pre = document.createElement('pre'); body.appendChild(pre);
+  const MAP = [
+    '                  ###                                            ',
+    '   ###########   #####          ####   #################         ',
+    ' ################ ###          ## ### #######################    ',
+    '   ##############            ###########################  ##     ',
+    '    ###########              #########################           ',
+    '     ########               #### #####################           ',
+    '      #####                ######## ###############              ',
+    '       ###                ###########  ######   ##               ',
+    '        ##  ###           ###########    ###     #               ',
+    '           ######          #########      #     ##               ',
+    '           ########         #######              ####            ',
+    '            ######           #####              ######           ',
+    '             ####            ####                #####           ',
+    '             ###              ##                  ##     #       ',
+    '             ##                                                  ',
+    '              #                                                  '];
+  const NODES = [[8, 3, 'PDX'], [13, 5, 'NYC'], [33, 3, 'LON'], [38, 5, 'FRA'], [54, 4, 'TOK'], [47, 8, 'SIN'], [52, 11, 'SYD'], [16, 11, 'GRU'], [31, 9, 'NBO'], [44, 3, 'MOW']];
+  let links = [], t = 0;
+  const iv = setInterval(() => {
+    const { cols, rows } = dims(body); t++;
+    if (links.length < 4 && Math.random() < .2) { const a = pick(NODES), b = pick(NODES); if (a !== b) links.push({ a, b, p: 0 }); }
+    const W = MAP[0].length, H = MAP.length, sx = Math.min(1, (cols) / W), sy = Math.min(1, (rows - 3) / H);
+    const g = Array.from({ length: H }, (_, y) => [...MAP[y]].map(ch => ch === '#' ? c(':', 'd') : ' '));
+    links.forEach(L => { L.p += .06; const steps = 40; for (let i = 0; i <= steps * Math.min(L.p, 1); i++) { const k = i / steps;
+        const x = Math.round(L.a[0] + (L.b[0] - L.a[0]) * k), y = Math.round(L.a[1] + (L.b[1] - L.a[1]) * k - Math.sin(k * Math.PI) * 2.5);
+        if (g[y] && g[y][x] !== undefined) g[y][x] = i === Math.floor(steps * Math.min(L.p, 1)) ? c('●', 'h') : c('·', 'a'); } });
+    links = links.filter(L => L.p < 1.8);
+    NODES.forEach(([x, y, n]) => { g[y][x] = c(t % 6 < 3 ? '◆' : '◇', 'h'); n.split('').forEach((ch, i) => { if (g[y + 1] && x + i - 1 < W) g[y + 1][x + i - 1] = c(ch, 'd'); }); });
+    let out = g.map(r => r.join(''));
+    if (sx < 1) out = out.map(r => r); // narrow panes just crop
+    const hdr = `${c('GLOBAL RELAY TRACE', 'h')}  ${c(links.length + ' active routes', 'd')}`;
+    const ftr = links.slice(0, 2).map(L => `${c(L.a[2], 'h')} → ${c(L.b[2], 'h')}  ${c(ri(40, 380) + 'ms  hop ' + ri(3, 17), 'd')}`).join('   ');
+    pre.innerHTML = [hdr, ''].concat(out).concat(['', ftr]).slice(0, rows).join('\n');
+  }, 160);
+  return () => clearInterval(iv); } };
+
+M.netstat = { title: 'netstat', make(body) {
+  const pre = document.createElement('pre'); body.appendChild(pre); const bars = '▁▂▃▄▅▆▇█';
+  const ifs = ['eth0', 'wlan0', 'tun0', 'sat-ku'].map(n => ({ n, v: rnd(2, 6), h: [] }));
+  let conns = Array.from({ length: 8 }, () => ({ r: ip() + ':' + ri(1024, 65000), s: pick(['ESTABLISHED', 'SYN_SENT', 'TIME_WAIT', 'LISTEN']) }));
+  const iv = setInterval(() => {
+    const { cols, rows } = dims(body), n = Math.max(8, cols - 26);
+    const out = [c('INTERFACE THROUGHPUT', 'h')];
+    ifs.forEach(f => { f.v = Math.max(0, Math.min(7.99, f.v + rnd(-1.4, 1.4))); f.h.push(f.v); if (f.h.length > n) f.h.splice(0, f.h.length - n);
+      out.push(`${pad(f.n, 7)}${lpad((f.v * 137).toFixed(0), 5)} Mb/s ${c(f.h.map(v => bars[Math.floor(v)]).join(''), f.v > 6.5 ? 'a' : 'h')}`); });
+    if (Math.random() < .25) conns[ri(0, conns.length - 1)] = { r: ip() + ':' + ri(1024, 65000), s: pick(['ESTABLISHED', 'SYN_SENT', 'TIME_WAIT', 'LISTEN', 'CLOSE_WAIT']) };
+    out.push('', c(pad('PROTO  REMOTE', 30) + 'STATE', 'd'));
+    conns.forEach(k => out.push(`tcp    ${pad(k.r, 23)}${k.s === 'ESTABLISHED' ? c(k.s, 'h') : k.s === 'SYN_SENT' ? c(k.s, 'a') : k.s}`));
+    pre.innerHTML = out.slice(0, rows).join('\n');
+  }, 220);
+  return () => clearInterval(iv); } };
+
+M.hexdump = { title: 'hexdump', make(body) {
+  const pre = document.createElement('pre'); body.appendChild(pre); let lines = [], addr = ri(0x100000, 0xfff000);
+  const iv = setInterval(() => {
+    const { cols, rows } = dims(body), per = cols > 74 ? 16 : 8;
+    const bytes = Array.from({ length: per }, () => ri(0, 255));
+    const asc = bytes.map(b => b > 32 && b < 127 ? String.fromCharCode(b) : '.').join('');
+    let line = c(addr.toString(16).padStart(8, '0'), 'd') + '  ' + bytes.map(b => b.toString(16).padStart(2, '0')).join(' ') + '  ' + c('|' + asc + '|', 'd');
+    if (Math.random() < .05) line = c(addr.toString(16).padStart(8, '0') + '  ' + bytes.map(b => b.toString(16).padStart(2, '0')).join(' '), 'a') + '  ' + c('<< signature match', 'a');
+    addr += per; lines.push(line); if (lines.length > rows) lines.shift(); pre.innerHTML = lines.join('\n');
+  }, 70);
+  return () => clearInterval(iv); } };
+
+M.sats = { title: 'orbital', make(body) {
+  const cv = document.createElement('canvas'); body.appendChild(cv); const x = cv.getContext('2d'); let raf, t0 = performance.now();
+  const sats = [0, 1, 2, 3, 4].map(i => ({ n: 'SAT-' + String(ri(1, 99)).padStart(2, '0'), tilt: rnd(-.9, .9), r: rnd(1.25, 1.75), sp: rnd(.25, .6) * (i % 2 ? 1 : -1), ph: rnd(0, 6.28) }));
+  function frame(t) { raf = requestAnimationFrame(frame);
+    const w = body.clientWidth, h = body.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const s = (t - t0) / 1000, cx = w * .42, cy = h * .54, R = Math.min(w, h) * .24;
+    x.clearRect(0, 0, w, h); x.lineWidth = 1; x.font = '13px "IBM Plex Mono", monospace';
+    x.strokeStyle = '#167A35'; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.stroke();
+    for (let k = 0; k < 6; k++) { const a = (s * .3 + k * Math.PI / 6) % Math.PI; x.beginPath(); x.ellipse(cx, cy, Math.abs(Math.cos(a)) * R, R, 0, 0, 7); x.stroke(); }
+    for (let k = -2; k <= 2; k++) { const y = cy + k * R * .38, rr = Math.sqrt(Math.max(0, R * R - (y - cy) ** 2)); x.beginPath(); x.ellipse(cx, y, rr, rr * .12, 0, 0, 7); x.stroke(); }
+    sats.forEach((o, i) => {
+      x.save(); x.translate(cx, cy); x.rotate(o.tilt); x.strokeStyle = 'rgba(57,255,106,.25)'; x.beginPath(); x.ellipse(0, 0, R * o.r, R * o.r * .32, 0, 0, 7); x.stroke();
+      const a = o.ph + s * o.sp, px = Math.cos(a) * R * o.r, py = Math.sin(a) * R * o.r * .32; x.restore();
+      const X = cx + px * Math.cos(o.tilt) - py * Math.sin(o.tilt), Y = cy + px * Math.sin(o.tilt) + py * Math.cos(o.tilt);
+      x.fillStyle = '#E9FFE9'; x.shadowColor = '#39FF6A'; x.shadowBlur = 10; x.beginPath(); x.arc(X, Y, 3.5, 0, 7); x.fill(); x.shadowBlur = 0;
+      x.fillStyle = '#39FF6A'; x.fillText(o.n, X + 8, Y - 6);
+      const tx = w - 170, ty = 22 + i * 42; if (tx > cx + R) { x.fillStyle = '#22C24E'; x.fillText(`${o.n} ALT ${(400 + o.r * 300).toFixed(0)}km`, tx, ty);
+        const sig = Math.round(6 + 4 * Math.sin(s * 2 + i)); x.fillStyle = sig > 8 ? '#FFB43A' : '#39FF6A'; x.fillText('SIG ' + '▮'.repeat(sig) + '▯'.repeat(10 - sig), tx, ty + 16); }
+    });
+    x.fillStyle = '#39FF6A'; x.fillText('ORBITAL TRACK · ' + sats.length + ' ASSETS', 10, 18);
+  }
+  raf = requestAnimationFrame(frame); return () => cancelAnimationFrame(raf); } };
+
+M.top = { title: 'top', make(body) {
+  const pre = document.createElement('pre'); body.appendChild(pre);
+  const names = ['photon-relay', 'decryptd', 'orbital-sync', 'quantum-splitter', 'tomato-critter', 'nixie-clockd', 'geo-tracer', 'sat-uplink', 'entropy-pool', 'warp-cache', 'kernel-weaver', 'hash-forge'];
+  const procs = names.map(n => ({ pid: ri(200, 9999), n, cpu: rnd(0, 60), mem: rnd(.2, 9) }));
+  const iv = setInterval(() => {
+    const { cols, rows } = dims(body), bw = Math.max(6, Math.min(30, cols - 40));
+    procs.forEach(p => { p.cpu = Math.max(0, Math.min(99, p.cpu + rnd(-12, 12))); p.mem = Math.max(.1, p.mem + rnd(-.3, .3)); });
+    const sorted = [...procs].sort((a, b) => b.cpu - a.cpu);
+    const load = (sorted.reduce((s, p) => s + p.cpu, 0) / 100).toFixed(2);
+    const out = [`${c('load ' + load, 'h')}  ${c('tasks ' + ri(310, 340) + '  up 41d 07:' + ri(10, 59), 'd')}`, c('  PID  CPU%  MEM%  COMMAND' + ' '.repeat(Math.max(1, cols - 44)) , 'inv')];
+    sorted.forEach(p => { const f = Math.round(p.cpu / 100 * bw);
+      out.push(`${lpad(p.pid, 5)} ${lpad(p.cpu.toFixed(1), 5)} ${lpad(p.mem.toFixed(1), 5)}  ${pad(p.n, 17)}${c('█'.repeat(f), p.cpu > 80 ? 'a' : 'h')}${c('·'.repeat(bw - f), 'd')}`); });
+    pre.innerHTML = out.slice(0, rows).join('\n');
+  }, 650);
+  return () => clearInterval(iv); } };
+
+M.logs = { title: 'syslog', make(body) {
+  const pre = document.createElement('pre'); body.appendChild(pre); let lines = [];
+  const msgs = [() => `kernel: link up sat-ku ${ri(1, 9)}.${ri(0, 9)}Gbps`, () => `sshd[${ri(900, 9999)}]: accepted key for ops from ${ip()}`,
+    () => `entropy: pool refilled ${ri(512, 4096)} bits (quantum)`, () => `relay: route ${pick(['PDX', 'LON', 'TOK', 'SYD'])}→${pick(['FRA', 'SIN', 'NYC', 'GRU'])} ${ri(30, 300)}ms`,
+    () => `cron: rotated keys on ${pick(HOSTS)}`, () => `orbital-sync: SAT-${ri(1, 99)} handoff complete`, () => `firewall: dropped ${ri(2, 90)} packets from ${ip()}`];
+  const iv = setInterval(() => {
+    const { rows } = dims(body), r = Math.random();
+    const lvl = r < .08 ? c('ALERT', 'a') : r < .2 ? c('WARN ', 'a') : c('INFO ', 'd');
+    lines.push(`${c('[' + now() + '.' + String(ri(0, 999)).padStart(3, '0') + ']', 'd')} ${lvl} ${esc(pick(msgs)())}`);
+    while (lines.length > rows) lines.shift(); pre.innerHTML = lines.join('\n');
+  }, 380);
+  return () => clearInterval(iv); } };
+
+/* ---------------- panes, rotation, layouts ---------------- */
+const LAYOUTS = [
+  { cols: '1fr 1fr 1fr', rows: '1fr 1fr', areas: '"a b c" "d e f"' },
+  { cols: '1.3fr 1.3fr 1fr', rows: '1fr 1fr 1fr', areas: '"a a b" "a a c" "d e f"' },
+  { cols: '1fr 1.4fr 1fr', rows: '1fr 1fr 1fr', areas: '"a b c" "d b e" "d f e"' },
+  { cols: '1fr 1fr 1fr 1fr', rows: '1.2fr 1fr', areas: '"a a b c" "d e f f"' }];
+const grid = document.getElementById('grid');
+const names = Object.keys(M);
+const panes = 'abcdef'.split('').map((area, i) => {
+  const el = document.createElement('section'); el.className = 'pane'; el.style.gridArea = area;
+  el.innerHTML = `<div class="ph"><span>[${i}] <b class="nm"></b></span><span class="pid"></span></div><div class="pb"></div>`;
+  grid.appendChild(el); return { el, body: el.querySelector('.pb'), mod: null, stop: null, until: 0, idx: i };
+});
+let lastChanged = 0;
+function mount(p, name) {
+  if (p.stop) p.stop(); p.body.innerHTML = ''; p.mod = name;
+  p.el.querySelector('.nm').textContent = M[name].title; p.el.querySelector('.pid').textContent = 'pid ' + ri(1000, 39999);
+  const g = document.createElement('div'); g.className = 'glitch'; g.textContent = '[ reattaching session… ]'; p.body.appendChild(g);
+  setTimeout(() => { g.remove(); }, 380);
+  p.stop = M[name].make(p.body); p.until = Date.now() + (M[name].dur || rnd(14000, 18000)); lastChanged = p.idx; paintTabs();
+}
+function paintTabs() { document.getElementById('tabs').innerHTML = '[ops] ' + panes.map(p => `<span class="tab${p.idx === lastChanged ? ' act' : ''}">${p.idx}:${M[p.mod] ? M[p.mod].title : ''}</span>`).join(''); }
+function rotate() {
+  const t = Date.now();
+  panes.forEach(p => { if (t >= p.until) { const used = panes.map(q => q.mod); const free = names.filter(n => !used.includes(n)); mount(p, free.length ? pick(free) : pick(names)); } });
+}
+let li = 0;
+function layout() { const L = LAYOUTS[li % LAYOUTS.length]; li++;
+  if (innerWidth < 760) { grid.style.gridTemplateColumns = '1fr'; grid.style.gridTemplateRows = 'repeat(3, minmax(220px, 1fr))'; grid.style.gridTemplateAreas = '"a" "b" "c"';
+    panes.forEach((p, i) => p.el.style.display = i < 3 ? '' : 'none'); return; }
+  panes.forEach(p => p.el.style.display = '');
+  grid.style.gridTemplateColumns = L.cols; grid.style.gridTemplateRows = L.rows; grid.style.gridTemplateAreas = L.areas; }
+
+/* ---------------- chrome ---------------- */
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '  ' + now();
+  if (Math.random() < .05) document.getElementById('topM').textContent = pick(['◉ SAT-LINK NOMINAL', '◉ 6 RELAYS ONLINE', '◉ ENTROPY 99.7%', '◉ UPLINK ' + ri(800, 1400) + ' Mb/s']); }, 1000);
+let wake = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+function full() { keepAwake(); try { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } catch (e) {} }
+addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') full(); });
+addEventListener('dblclick', full);
+addEventListener('click', keepAwake, { once: true });
+setTimeout(() => document.getElementById('hint').classList.add('gone'), 9000);
+addEventListener('mousemove', () => { const h = document.getElementById('hint'); h.classList.remove('gone'); clearTimeout(h._t); h._t = setTimeout(() => h.classList.add('gone'), 4000); });
+addEventListener('resize', () => { li--; layout(); });
+
+const start = () => { measure(); layout(); const order = ['matrix', 'intrude', 'geo', 'netstat', 'sats', 'logs'];
+  panes.forEach((p, i) => { mount(p, order[i]); p.until = Date.now() + 9000 + i * 2600; }); paintTabs();
+  setInterval(rotate, 500); setInterval(layout, 60000); };
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(start);
+})();
+</script>
+</body>
+</html>
