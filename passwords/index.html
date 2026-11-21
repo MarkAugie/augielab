@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum Passwords · AugieLab</title>
+<meta name="description" content="Strong passwords and passphrases, made in your browser and never sent anywhere.">
+<meta property="og:title" content="Quantum Passwords">
+<meta property="og:description" content="Strong passwords and passphrases, punched out on label tape. Made in your browser, never sent anywhere.">
+<meta property="og:url" content="https://augielab.dev/passwords/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bench: #23252A; --bench2: #2C2F35; --hole: #17181B; --chalk: #EEF0F2; --dim: #A9B0BA; --tape: #B3122B; --ok: #6FDC8C; --warn: #F2B84B; --bad: #FF7A6B; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; }
+  body { min-height: 100vh; color: var(--chalk); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 48px;
+    background: var(--bench) radial-gradient(circle, var(--hole) 0 2.5px, transparent 3px) 0 0 / 30px 30px; }   /* pegboard */
+  .wrap { max-width: 980px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--chalk); }
+  h1 { font: 700 clamp(2rem, 5vw, 3rem)/1 "IBM Plex Sans Condensed", sans-serif; }
+
+  .panel { background: var(--bench2); border: 1px solid #3B3F47; border-radius: 6px; padding: 22px; box-shadow: 0 16px 30px -18px rgba(0,0,0,.7); }
+  .modes { display: inline-flex; border: 1px solid #4A4F58; border-radius: 999px; padding: 4px; gap: 4px; margin-bottom: 22px; }
+  .modes button { border: 0; background: none; color: var(--dim); padding: 9px 20px; border-radius: 999px; font: 600 1rem "IBM Plex Sans", sans-serif; cursor: pointer; }
+  .modes button[aria-pressed="true"] { background: var(--chalk); color: #1D1F23; }
+
+  /* the label-maker tape */
+  .tapeholder { min-height: 7.5rem; display: flex; align-items: center; }
+  .tape { display: inline-block; max-width: 100%; background: var(--tape); color: #fff; padding: 16px 22px; border-radius: 4px; transform: rotate(-.6deg);
+    font: 600 clamp(1.35rem, 3.4vw, 2.1rem)/1.35 "IBM Plex Mono", monospace; letter-spacing: .06em; word-break: break-all;
+    text-shadow: 0 1px 0 rgba(0,0,0,.4), 0 -1px 0 rgba(255,255,255,.22);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.25), 0 3px 8px rgba(0,0,0,.45); }
+  .tape .ch { display: inline-block; }
+  .tape .ch.new { animation: punch .12s ease-out; }
+  @keyframes punch { from { transform: translateY(-5px) scale(1.25); opacity: 0; } to { transform: none; opacity: 1; } }
+  .tape .sep { opacity: .65; }
+  .tape.phrase { word-break: normal; overflow-wrap: anywhere; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 6px; }
+  .btn { font: 600 1.05rem "IBM Plex Sans", sans-serif; padding: 13px 22px; border-radius: 6px; cursor: pointer; border: 1px solid #555B66; background: #353943; color: var(--chalk); }
+  .btn:hover { border-color: var(--chalk); }
+  .btn.primary { background: var(--chalk); color: #1D1F23; border-color: var(--chalk); }
+  .btn:focus-visible, .modes button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+  .copied { color: var(--ok); font-weight: 600; align-self: center; min-width: 6rem; }
+
+  .strength { margin-top: 18px; }
+  .meter { height: 12px; border-radius: 6px; background: #1B1C20; overflow: hidden; }
+  .meter b { display: block; height: 100%; width: 0; transition: width .4s, background .4s; }
+  .verdict { margin-top: 8px; font-size: 1.02rem; }
+  .verdict strong { font-weight: 600; }
+  .verdict span { color: var(--dim); }
+
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 30px; margin-top: 26px; padding-top: 22px; border-top: 1px solid #3B3F47; }
+  .opt { display: flex; align-items: center; gap: 12px; }
+  .opt label { cursor: pointer; }
+  input[type="range"] { flex: 1; accent-color: var(--chalk); height: 28px; }
+  input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--tape); }
+  select { font: inherit; padding: 7px 10px; background: #1F2125; color: var(--chalk); border: 1px solid #555B66; border-radius: 6px; }
+  .val { min-width: 2.4rem; text-align: right; font: 600 1.05rem "IBM Plex Mono", monospace; }
+  [hidden] { display: none !important; }
+
+  .notes { margin-top: 22px; display: grid; gap: 10px; color: var(--dim); font-size: .95rem; max-width: 68ch; }
+  .source { display: flex; gap: 10px; align-items: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: var(--warn); flex: none; }
+  .source.quantum i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .notes a { color: var(--dim); }
+  .why { background: none; border: 0; color: var(--warn); font: 600 1rem "IBM Plex Sans", sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start; padding: 0; }
+
+  #info { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(10,11,13,.8); opacity: 0; pointer-events: none; transition: opacity .3s; }
+  #info.open { opacity: 1; pointer-events: auto; }
+  #info .box { position: relative; width: min(660px, 100%); max-height: 88vh; overflow-y: auto; background: var(--bench2); border: 1px solid #4A4F58; border-radius: 6px; padding: 2rem 1.7rem 1.6rem; }
+  #info h2 { font: 700 1.7rem "IBM Plex Sans Condensed", sans-serif; margin-bottom: .6rem; padding-right: 3rem; }
+  #info h3 { font-size: 1.05rem; color: var(--warn); margin: 1.2rem 0 .3rem; }
+  #info p { color: #D9DDE3; }
+  #info .close { position: absolute; top: 12px; right: 12px; width: 46px; height: 46px; padding: 0; font-size: 1.6rem; line-height: 1; }
+  @media (prefers-reduced-motion: reduce) { .tape .ch.new { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>Quantum passwords</h1><a href="/">AugieLab</a></div>
+
+  <section class="panel">
+    <div class="modes" role="group" aria-label="What to make">
+      <button id="mPass" aria-pressed="true">Password</button>
+      <button id="mPhrase" aria-pressed="false">Passphrase</button>
+    </div>
+
+    <div class="tapeholder"><div class="tape" id="tape" aria-live="polite" aria-label="Generated password"></div></div>
+
+    <div class="actions">
+      <button class="btn primary" id="gen">Make another</button>
+      <button class="btn" id="copy">Copy</button>
+      <span class="copied" id="copied" aria-live="polite"></span>
+    </div>
+
+    <div class="strength">
+      <div class="meter"><b id="bar"></b></div>
+      <p class="verdict" id="verdict"></p>
+    </div>
+
+    <div class="opts" id="passOpts">
+      <div class="opt"><label for="len">Length</label><input type="range" id="len" min="12" max="48" value="20"><span class="val" id="lenV">20</span></div>
+      <div class="opt"><input type="checkbox" id="upper" checked><label for="upper">Capital letters</label></div>
+      <div class="opt"><input type="checkbox" id="digits" checked><label for="digits">Numbers</label></div>
+      <div class="opt"><input type="checkbox" id="symbols" checked><label for="symbols">Symbols</label></div>
+      <div class="opt"><input type="checkbox" id="clear" checked><label for="clear">Skip look-alikes (l, 1, I, O, 0)</label></div>
+    </div>
+
+    <div class="opts" id="phraseOpts" hidden>
+      <div class="opt"><label for="words">Words</label><input type="range" id="words" min="4" max="10" value="6"><span class="val" id="wordsV">6</span></div>
+      <div class="opt"><label for="sep">Between words</label>
+        <select id="sep"><option value="-">dash</option><option value=" ">space</option><option value=".">dot</option><option value="_">underscore</option></select></div>
+      <div class="opt"><input type="checkbox" id="caps"><label for="caps">Capitalize words</label></div>
+      <div class="opt"><input type="checkbox" id="num"><label for="num">Add a number</label></div>
+    </div>
+  </section>
+
+  <div class="notes">
+    <p>Made right here in your browser. Nothing you see on this page is sent anywhere or saved.</p>
+    <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's secure generator.</span></p>
+    <button class="why" id="whyBtn">How does this work?</button>
+    <p>Passphrase words come from the <a href="https://www.eff.org/dice">EFF long wordlist</a> (CC BY 3.0).</p>
+  </div>
+</div>
+
+<div id="info" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+  <div class="box">
+    <button class="btn close" id="infoClose" aria-label="Close">×</button>
+    <h2 id="infoTitle">What makes a password strong</h2>
+    <h3>Unpredictability beats cleverness</h3>
+    <p>A password is strong when there are so many possibilities that guessing would take forever. Swapping letters for symbols in a real word doesn't help much, because attackers try those tricks first. Pure randomness does.</p>
+    <h3>Passwords or passphrases?</h3>
+    <p>A random password packs a lot of strength into a short string, which suits a password manager. A passphrase strings together random words like <em>staple-ocean-bravery-lantern-quartz-hammock</em>. It's long but easy to type and remember, and six random words are already very hard to guess.</p>
+    <h3>Where the quantum part comes in</h3>
+    <p>Computers usually make random numbers from a formula. This lab is connecting a real quantum random number generator, so each character can come from a quantum measurement. When it's online, the quantum numbers are mixed with your browser's own secure randomness, so the result is never weaker than either one, and nobody along the way can work out your password.</p>
+    <h3>The strength meter</h3>
+    <p>The estimate assumes an attacker who can try 100 billion guesses a second, about what a serious cracking rig can manage against a weak password store.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ================= Randomness source =================
+  // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
+  // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT. Quantum bytes are XOR-mixed with the
+  // browser's own secure randomness, so the result is never weaker than either source.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let qpool = [], quantumLive = false;
+  async function refill() {
+    if (!SOURCE.ENDPOINT) return;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { qpool.push(...j.values); quantumLive = true; } } catch (e) { quantumLive = false; }
+    paintSource();
+  }
+  function rand16() {   // one random 16-bit value
+    const a = new Uint8Array(2); crypto.getRandomValues(a);
+    if (qpool.length >= 2) { a[0] ^= qpool.shift(); a[1] ^= qpool.shift(); }
+    return a[0] * 256 + a[1];
+  }
+  function below(n) {   // unbiased integer in [0, n) by rejection sampling
+    const lim = 65536 - (65536 % n); let v;
+    do { v = rand16(); } while (v >= lim);
+    return v % n;
+  }
+  function paintSource() {
+    document.getElementById('source').classList.toggle('quantum', quantumLive);
+    document.getElementById('sourceText').textContent = quantumLive
+      ? `Randomness: quantum, from the ${SOURCE.NAME}, mixed with your browser's own.`
+      : SOURCE.ENDPOINT ? "Randomness: the quantum generator is offline, so this is your browser's secure generator."
+      : "Randomness: demo mode, from your browser's secure generator.";
+  }
+
+  // ================= Generators =================
+  const $ = id => document.getElementById(id);
+  let words = null, mode = 'pass', current = '';
+  fetch('words.json').then(r => r.json()).then(w => { words = w; if (mode === 'phrase') make(); }).catch(() => {});
+
+  function charset() {
+    let lower = 'abcdefghijkmnopqrstuvwxyz', upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ', digits = '23456789';
+    if (!$('clear').checked) { lower += 'l'; upper += 'IO'; digits += '01'; }
+    const symbols = '!@#$%^&*-_=+?';
+    const groups = [lower]; if ($('upper').checked) groups.push(upper); if ($('digits').checked) groups.push(digits); if ($('symbols').checked) groups.push(symbols);
+    return groups;
+  }
+  function makePassword() {
+    const groups = charset(), all = groups.join(''), len = +$('len').value;
+    let out;
+    do { out = Array.from({ length: len }, () => all[below(all.length)]).join(''); }
+    while (!groups.every(g => [...out].some(ch => g.includes(ch))));   // make sure each chosen kind appears
+    return { text: out, bits: len * Math.log2(all.length) };
+  }
+  function makePhrase() {
+    if (!words) return { text: 'loading…', bits: 0 };
+    const n = +$('words').value, caps = $('caps').checked;
+    const list = Array.from({ length: n }, () => { const w = words[below(words.length)]; return caps ? w[0].toUpperCase() + w.slice(1) : w; });
+    let bits = n * Math.log2(words.length);
+    if ($('num').checked) { const i = below(n); list[i] += below(10); bits += Math.log2(10 * n); }
+    return { text: list.join($('sep').value), bits };
+  }
+
+  // ================= Display =================
+  function show(text) {
+    const tape = $('tape'); tape.innerHTML = ''; tape.setAttribute('aria-label', 'Generated: ' + text);
+    const sep = mode === 'phrase' ? $('sep').value : null;
+    [...text].forEach((ch, i) => {
+      const s = document.createElement('span'); s.className = 'ch' + (sep !== null && ch === sep ? ' sep' : ''); s.textContent = ch === ' ' ? ' ' : ch;
+      tape.appendChild(s); setTimeout(() => s.classList.add('new'), i * 18);
+      if (sep !== null && ch === sep) tape.appendChild(document.createElement('wbr'));
+    });
+    tape.classList.toggle('phrase', sep !== null);
+  }
+  function human(sec) {
+    if (sec / 31557600 > 1e12) return 'far longer than the universe has existed';
+    const u = [['seconds', 60], ['minutes', 60], ['hours', 24], ['days', 365], ['years', 1e3], ['thousand years', 1e3], ['million years', 1e3], ['billion years', 1e3], ['trillion years', Infinity]];
+    let v = sec, i = 0; while (v >= u[i][1] && i < u.length - 1) { v /= u[i][1]; i++; }
+    return v < 1 ? 'under a second' : `${v < 10 ? v.toFixed(1) : Math.round(v).toLocaleString()} ${u[i][0]}`;
+  }
+  function rate(bits) {
+    const sec = Math.pow(2, bits - 1) / 1e11;
+    const [label, color, pct] = bits < 50 ? ['Weak', 'var(--bad)', 25] : bits < 70 ? ['Fair', 'var(--warn)', 50] : bits < 100 ? ['Strong', 'var(--ok)', 78] : ['Excellent', 'var(--ok)', 100];
+    $('bar').style.width = pct + '%'; $('bar').style.background = color;
+    $('verdict').innerHTML = `<strong style="color:${color}">${label}</strong> <span>· ${Math.round(bits)} bits · ${human(sec).startsWith('far') ? 'would take ' + human(sec) + ' to crack' : 'about ' + human(sec) + ' to crack on average'}</span>`;
+  }
+  async function make() {
+    if (SOURCE.ENDPOINT && qpool.length < 256) await refill();
+    const r = mode === 'pass' ? makePassword() : makePhrase();
+    current = r.text; show(current); rate(r.bits); $('copied').textContent = '';
+  }
+
+  // ================= Controls =================
+  function setMode(m) { mode = m; $('mPass').setAttribute('aria-pressed', m === 'pass'); $('mPhrase').setAttribute('aria-pressed', m === 'phrase');
+    $('passOpts').hidden = m !== 'pass'; $('phraseOpts').hidden = m !== 'phrase'; make(); }
+  $('mPass').onclick = () => setMode('pass'); $('mPhrase').onclick = () => setMode('phrase');
+  $('gen').onclick = make;
+  $('len').oninput = () => { $('lenV').textContent = $('len').value; make(); };
+  $('words').oninput = () => { $('wordsV').textContent = $('words').value; make(); };
+  ['upper', 'digits', 'symbols', 'clear', 'caps', 'num', 'sep'].forEach(id => $(id).onchange = make);
+  $('copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(current); $('copied').textContent = 'Copied'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($('tape')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent = 'Selected, press Ctrl+C'; }
+    setTimeout(() => $('copied').textContent = '', 3000);
+  };
+  const info = $('info');
+  $('whyBtn').onclick = () => { info.classList.add('open'); $('infoClose').focus(); };
+  const close = () => { info.classList.remove('open'); $('whyBtn').focus(); };
+  $('infoClose').onclick = close; info.addEventListener('click', e => { if (e.target === info) close(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && info.classList.contains('open')) close(); });
+
+  paintSource(); make();
+})();
+</script>
+</body>
+</html>
