@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Universe Splitter</title>
+<meta name="description" content="Having a bad day? Somewhere, another you isn't. Split the universe with a real quantum measurement.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://augielab.dev/split/">
+<meta property="og:title" content="The Universe Splitter">
+<meta property="og:description" content="Having a bad day? Somewhere, another you isn't. Split the universe with a real quantum measurement.">
+<meta property="og:image" content="https://augielab.dev/split/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://augielab.dev/split/og-image.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --glow: #9fe8ff; --violet: #b48cff; --ink: #eef2ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #02030a; color: var(--ink); font-family: Inter, system-ui, sans-serif; font-size: 20px; overflow: hidden; }
+
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; animation: drift 60s ease-in-out infinite alternate; transform-origin: 50% 50%; transition: opacity .4s; }
+  @keyframes drift { from { transform: scale(1.02); } to { transform: scale(1.12) rotate(1.5deg); } }
+
+  /* the light pouring through the rift */
+  #riftLight { position: fixed; top: 0; bottom: 0; left: 50%; width: 40vw; transform: translateX(-50%); opacity: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, #ffffff 0%, #bff3ff 12%, rgba(140,120,255,.55) 35%, rgba(20,10,60,0) 70%); transition: opacity .8s; }
+
+  .half { position: fixed; inset: 0; background-size: 100% 100%; will-change: transform, filter, opacity;
+    transition: transform 1.6s cubic-bezier(.2,.8,.2,1), filter 1.2s, opacity 1.2s; }
+  .half .label { position: absolute; top: 50%; transform: translateY(-50%); width: 32vw; max-width: 420px; text-align: center; opacity: 0; transition: opacity .8s .9s; }
+  .half.left .label { left: 16vw; }
+  .half.right .label { right: 16vw; }
+  .label .tag { font-family: Cinzel, serif; font-size: .8rem; letter-spacing: .15em; color: var(--glow); }
+  .label .choice { font-family: Cinzel, serif; font-size: clamp(1.05rem, 4.2vw, 2.4rem); font-weight: 700; margin-top: .4rem; text-shadow: 0 0 24px rgba(160,200,255,.7); word-wrap: break-word; }
+
+  svg#crack { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #crack polyline { fill: none; stroke: #fff; stroke-width: 3; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; filter: drop-shadow(0 0 6px #9fe8ff) drop-shadow(0 0 18px #b48cff); }
+  #crack.draw polyline { transition: stroke-dashoffset .7s ease-in; stroke-dashoffset: 0; }
+  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  #flash.go { animation: flash .9s ease-out; }
+  @keyframes flash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
+
+  .panel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; transition: opacity .6s, transform .6s; }
+  .panel.hidden { opacity: 0; transform: scale(.96); pointer-events: none; }
+  .card { width: min(640px, 100%); text-align: center; position: relative; }
+  #intro .card::before { content: ""; position: absolute; inset: -40px -60px; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(3,4,16,.55) 0%, rgba(3,4,16,.35) 55%, rgba(3,4,16,0) 75%); }
+  h1 { font-family: Cinzel, serif; font-weight: 700; font-size: clamp(2.1rem, 7vw, 3.6rem); letter-spacing: .06em; line-height: 1.1;
+    background: linear-gradient(180deg, #fff 30%, #b9c7ff); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 0 40px rgba(150,170,255,.35); }
+  .tagline { margin-top: 1rem; font-family: Cinzel, serif; font-size: clamp(1.1rem, 3.6vw, 1.45rem); color: #ffd9f2; text-shadow: 0 0 18px rgba(255,170,230,.55); }
+  .sub { margin: .8rem auto 2rem; max-width: 34ch; font-size: 1.05rem; line-height: 1.5; color: #c9d2f0; }
+  form { display: grid; gap: 1rem; text-align: left; }
+  label { font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: var(--glow); }
+  input { width: 100%; margin-top: .4rem; padding: 1rem 1.1rem; font: inherit; font-size: 1.1rem; color: #fff; background: rgba(10,14,40,.55);
+    border: 1px solid rgba(160,190,255,.35); border-radius: 14px; outline: none; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  input:focus { border-color: var(--glow); box-shadow: 0 0 0 3px rgba(159,232,255,.2); }
+  button { margin-top: .6rem; padding: 1.1rem 1.4rem; font-family: Cinzel, serif; font-weight: 700; font-size: 1.2rem; letter-spacing: .12em; color: #0a0820; cursor: pointer;
+    border: 0; border-radius: 999px; background: linear-gradient(90deg, #9fe8ff, #c8b2ff, #ffb8e8); box-shadow: 0 0 30px rgba(170,180,255,.55); transition: transform .15s, box-shadow .2s; }
+  button:hover { transform: translateY(-1px); box-shadow: 0 0 46px rgba(170,180,255,.8); }
+  .err { min-height: 1.4em; color: #ffb3c7; font-size: .95rem; text-align: center; }
+
+  #status { position: fixed; left: 0; right: 0; bottom: 12vh; text-align: center; font-family: Cinzel, serif; font-size: 1.15rem; letter-spacing: .15em; color: var(--glow); opacity: 0; transition: opacity .4s; pointer-events: none; }
+  #status.on { opacity: 1; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+
+  #result .card { background: rgba(6,8,28,.62); border: 1px solid rgba(160,190,255,.3); border-radius: 22px; padding: 2rem 1.6rem; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #result h2 { font-family: Cinzel, serif; font-size: clamp(1.5rem, 5vw, 2.2rem); line-height: 1.25; }
+  #result .you { margin-top: .8rem; font-size: 1.35rem; font-weight: 600; color: #fff; }
+  #result .other { margin-top: 1rem; font-size: 1.1rem; color: #c9d2f0; line-height: 1.5; }
+  #result .proof { margin-top: 1.4rem; font-size: .9rem; color: #9aa6cc; line-height: 1.5; }
+  #result .proof b { color: var(--glow); font-weight: 600; }
+  .count { position: fixed; top: 14px; right: 18px; font-size: .8rem; letter-spacing: .12em; color: #8f9bc6; }
+  footer { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; font-size: .75rem; color: #6f7aa6; padding: 0 12px; }
+
+  /* "What's happening?" button and window */
+  #infoBtn { position: fixed; left: 16px; bottom: 16px; z-index: 20; margin: 0; padding: .7rem 1.1rem; font-family: Inter, sans-serif; font-weight: 600;
+    font-size: 1rem; letter-spacing: .02em; color: #e8ecff; background: rgba(10,14,40,.7); border: 1px solid rgba(160,190,255,.45);
+    box-shadow: 0 0 18px rgba(140,160,255,.35); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: opacity .4s; }
+  #infoBtn:hover { box-shadow: 0 0 28px rgba(140,160,255,.6); }
+  body.splitting #infoBtn { opacity: 0; pointer-events: none; }
+  #info { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 18px;
+    background: rgba(1,2,10,.72); opacity: 0; pointer-events: none; transition: opacity .35s; }
+  #info.open { opacity: 1; pointer-events: auto; }
+  #info .box { position: relative; width: min(680px, 100%); max-height: 88vh; overflow-y: auto; padding: 2.2rem 1.8rem 1.8rem;
+    background: linear-gradient(160deg, rgba(20,16,56,.97), rgba(8,10,34,.97)); border: 1px solid rgba(170,190,255,.4); border-radius: 22px;
+    box-shadow: 0 0 60px rgba(120,110,255,.35); transform: translateY(14px) scale(.98); transition: transform .35s; text-align: left; }
+  #info.open .box { transform: none; }
+  #info h2 { font-family: Cinzel, serif; font-size: clamp(1.5rem, 5vw, 2rem); margin-bottom: 1rem; padding-right: 2.5rem; }
+  #info h3 { font-family: Cinzel, serif; font-size: 1.1rem; color: var(--glow); letter-spacing: .06em; margin: 1.4rem 0 .4rem; }
+  #info p { font-size: 1.08rem; line-height: 1.6; color: #dfe5ff; }
+  #info .close { position: absolute; top: 14px; right: 14px; margin: 0; width: 46px; height: 46px; padding: 0; border-radius: 50%;
+    font-family: Inter, sans-serif; font-size: 1.6rem; line-height: 1; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.3); box-shadow: none; }
+  #info .close:hover { background: rgba(255,255,255,.18); transform: none; }
+  footer { text-align: right; padding: 0 16px 0 200px; }
+  @media (max-width: 600px) { footer { display: none; } #intro { padding-bottom: 84px; } }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="riftLight"></div>
+<div id="halves"></div>
+<svg id="crack" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline pathLength="1" points=""/></svg>
+<div id="flash"></div>
+<div class="count" id="count"></div>
+
+<section class="panel" id="intro">
+  <div class="card">
+    <h1>The Universe<br>Splitter</h1>
+    <p class="tagline">Having a bad day? Somewhere, another you isn't.</p>
+    <p class="sub">Can't decide? Don't. Do both. Type two choices. A quantum measurement picks one, and under the many-worlds idea, the other one happens in another universe.</p>
+    <form id="form" autocomplete="off">
+      <div><label for="a">In one universe, I will…</label><input id="a" maxlength="60" placeholder="Get a pizza"></div>
+      <div><label for="b">In the other, I will…</label><input id="b" maxlength="60" placeholder="Skip the pizza"></div>
+      <button type="submit">Split the Universe</button>
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+</section>
+
+<div id="status">Measuring the quantum vacuum…</div>
+
+<section class="panel hidden" id="result">
+  <div class="card">
+    <h2>The universe has split.</h2>
+    <p class="you" id="you"></p>
+    <p class="other" id="other"></p>
+    <p class="other" style="font-style: italic; color: #ffd9f2;">Now follow through. Don't cheat: the other you is counting on you.</p>
+    <p class="proof" id="proof"></p>
+    <button id="again">Split Again</button>
+  </div>
+</section>
+
+<button id="infoBtn" type="button" aria-haspopup="dialog">✦ What's happening?</button>
+
+<div id="info" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+  <div class="box">
+    <button class="close" id="infoClose" type="button" aria-label="Close">×</button>
+    <h2 id="infoTitle">So… did you just split the universe?</h2>
+
+    <h3>The weird part of physics</h3>
+    <p>At the tiniest scale, nature doesn't behave like everyday life. A single particle of light or energy doesn't "decide" what it will do until something measures it, and the result is truly random. Not hard to predict. Impossible to predict, even in principle.</p>
+
+    <h3>The Many-Worlds idea</h3>
+    <p>In 1957, physicist Hugh Everett proposed a wild answer to that randomness: nothing is ever chosen at all. Every possible outcome happens, and the universe branches so each one gets its own world. One you sees heads. Another you, just as real, sees tails.</p>
+
+    <h3>What this site actually does</h3>
+    <p>When you press the button, this site asks a real quantum random number generator for a number. It's a physics lab at the Australian National University that measures the tiny, flickering energy of empty space itself. No computer formula, no dice, no trick. Even number: Universe A. Odd number: Universe B.</p>
+
+    <h3>So is it real?</h3>
+    <p>If Many-Worlds is right, yes. There's now another you out there living the other choice. If it's wrong, you still handed your decision to the laws of physics, which is pretty cool on its own. Scientists are still debating it, and no experiment can settle it yet.</p>
+
+    <h3>Fun fact</h3>
+    <p>By this theory, the universe already splits countless times every second on its own, from starlight, radioactive atoms, even the atoms in your body. You just picked one of those moments and attached your pizza to it.</p>
+  </div>
+</div>
+
+<footer><a href="/" style="color:inherit">AugieLab</a> · a thought experiment in quantum mechanics</footer>
+
+<script>
+(() => {
+  const sky = document.getElementById('sky');
+  let skyURL = '';
+  let splits = 0;
+
+  // Seeded random so the universe looks the same each redraw
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  function drawUniverse() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = innerWidth, h = innerHeight;
+    sky.width = w * dpr; sky.height = h * dpr;
+    const c = sky.getContext('2d');
+    c.scale(dpr, dpr);
+    const r = rng(1979);
+
+    const bg = c.createRadialGradient(w*.5, h*.45, 0, w*.5, h*.5, Math.max(w,h)*.8);
+    bg.addColorStop(0, '#120a2e'); bg.addColorStop(.5, '#070720'); bg.addColorStop(1, '#010108');
+    c.fillStyle = bg; c.fillRect(0, 0, w, h);
+
+    // nebula clouds
+    c.globalCompositeOperation = 'lighter';
+    const hues = [[120,60,255],[255,70,180],[40,160,255],[60,230,220],[180,90,255]];
+    for (let i = 0; i < 70; i++) {
+      const x = w * (.15 + r()*.7), y = h * (.1 + r()*.8);
+      const rad = Math.max(w,h) * (.06 + r()*.22);
+      const [R,G,B] = hues[i % hues.length];
+      const g = c.createRadialGradient(x, y, 0, x, y, rad);
+      g.addColorStop(0, `rgba(${R},${G},${B},${.05 + r()*.07})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, rad, 0, Math.PI*2); c.fill();
+    }
+    // galactic core
+    const core = c.createRadialGradient(w*.52, h*.46, 0, w*.52, h*.46, Math.min(w,h)*.35);
+    core.addColorStop(0, 'rgba(255,240,255,.55)'); core.addColorStop(.2, 'rgba(200,170,255,.25)'); core.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = core; c.fillRect(0, 0, w, h);
+
+    // keep the text column readable
+    const colW = Math.min(w, 700) / 2 + 40;
+    const inText = (x, y) => Math.abs(x - w/2) < colW && y > h*.04 && y < h*.96;
+
+    // stars
+    const n = Math.floor(w*h/900);
+    for (let i = 0; i < n; i++) {
+      const x = r()*w, y = r()*h; let s = Math.pow(r(), 6)*2.2 + .3;
+      if (inText(x, y)) s = Math.min(s, .9);
+      c.fillStyle = `rgba(${220+r()*35|0},${220+r()*35|0},255,${.4 + r()*.6})`;
+      c.beginPath(); c.arc(x, y, s, 0, Math.PI*2); c.fill();
+    }
+    // bright stars with flares
+    let placed = 0;
+    for (let tries = 0; tries < 200 && placed < 14; tries++) {
+      const x = r()*w, y = r()*h;
+      let s = 2 + r()*3, a = .9;
+      if (inText(x, y)) { if (w > 760) continue; s = 1 + r(); a = .3; }  // phones: keep only faint ones
+      placed++;
+      const g = c.createRadialGradient(x, y, 0, x, y, s*8);
+      g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(1, 'rgba(160,200,255,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, s*8, 0, Math.PI*2); c.fill();
+      c.strokeStyle = `rgba(220,235,255,${a*.55})`; c.lineWidth = .8;
+      c.beginPath(); c.moveTo(x - s*10, y); c.lineTo(x + s*10, y); c.moveTo(x, y - s*10); c.lineTo(x, y + s*10); c.stroke();
+    }
+    c.globalCompositeOperation = 'source-over';
+    skyURL = sky.toDataURL('image/jpeg', .9);
+  }
+  drawUniverse();
+  let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawUniverse, 250); });
+
+  // Quantum source: your server's qrng.php (ANU). Falls back to browser randomness for demos.
+  async function getQuantum() {
+    try {
+      const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 7000);
+      const res = await fetch('https://aughenbaugh.com/qrng.php', { cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(to);
+      if (res.ok) { const j = await res.json(); if (j.ok && Number.isInteger(j.value)) return { value: j.value, quantum: true }; }
+    } catch (e) {}
+    const a = new Uint8Array(1); crypto.getRandomValues(a);
+    return { value: a[0], quantum: false };
+  }
+
+  const $ = id => document.getElementById(id);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const intro = $('intro'), result = $('result'), status = $('status'), halves = $('halves');
+  const crack = $('crack'), line = crack.querySelector('polyline'), flash = $('flash'), riftLight = $('riftLight');
+  let busy = false;
+
+  function makeHalves(a, b) {
+    const pts = []; for (let y = 0; y <= 100; y += 4) pts.push([50 + (Math.random()*5 - 2.5), y]);
+    pts[0][1] = -1; pts[pts.length-1][1] = 101;
+    const path = pts.map(p => `${p[0]}% ${p[1]}%`).join(',');
+    line.setAttribute('points', pts.map(p => p.join(',')).join(' '));
+    halves.innerHTML = '';
+    [['left', `0% 0%,${path},0% 100%`, 'Universe A', a], ['right', `100% 0%,${path},100% 100%`, 'Universe B', b]].forEach(([side, clip, tag, choice]) => {
+      const d = document.createElement('div'); d.className = 'half ' + side;
+      d.style.backgroundImage = `url(${skyURL})`; d.style.clipPath = `polygon(${clip})`; d.style.webkitClipPath = `polygon(${clip})`;
+      d.innerHTML = '<div class="label"><div class="tag"></div><div class="choice"></div></div>';
+      d.querySelector('.tag').textContent = tag; d.querySelector('.choice').textContent = choice;
+      halves.appendChild(d);
+    });
+    return halves.children;
+  }
+
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault(); if (busy) return;
+    const a = $('a').value.trim() || $('a').placeholder, b = $('b').value.trim() || $('b').placeholder;
+    if (a.toLowerCase() === b.toLowerCase()) { $('err').textContent = 'Give two different choices.'; return; }
+    $('err').textContent = ''; busy = true;
+
+    intro.classList.add('hidden'); document.body.classList.add('splitting');
+    status.textContent = 'Measuring the quantum vacuum…'; status.classList.add('on');
+    const [q] = await Promise.all([getQuantum(), wait(1800)]);
+    status.classList.remove('on');
+
+    const [L, R] = makeHalves(a, b);
+    sky.style.opacity = 0;
+    await wait(50);
+    crack.classList.add('draw');            // the crack races down the sky
+    await wait(700);
+    flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+    riftLight.style.opacity = 1;
+    L.style.transform = 'translateX(-14vw) rotate(-2.5deg) scale(.94)';
+    R.style.transform = 'translateX(14vw) rotate(2.5deg) scale(.94)';
+    crack.style.opacity = 0;
+    L.querySelector('.label').style.opacity = 1; R.querySelector('.label').style.opacity = 1;
+    await wait(2600);
+
+    const pickA = q.value % 2 === 0;
+    const [mine, theirs] = pickA ? [L, R] : [R, L];
+    theirs.style.opacity = .25; theirs.style.filter = 'blur(6px) saturate(.4)';
+    theirs.style.transform += pickA ? ' translateX(10vw)' : ' translateX(-10vw)';
+    mine.style.filter = 'brightness(1.25) saturate(1.2)';
+    await wait(1400);
+
+    splits++; $('count').textContent = `Universes split: ${splits}`;
+    $('you').textContent = `You are in ${pickA ? 'Universe A' : 'Universe B'}: ${pickA ? a : b}.`;
+    $('other').textContent = `In the other universe, another you is going to ${(pickA ? b : a).replace(/^./, s => s.toLowerCase())}.`;
+    $('proof').innerHTML = q.quantum
+      ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), from the ANU lab measuring vacuum fluctuations in Canberra, Australia.`
+      : `Demo mode reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}). This used browser randomness. On the live site, every split comes from ANU's quantum lab.`;
+    result.classList.remove('hidden'); document.body.classList.remove('splitting');
+  });
+
+  $('again').addEventListener('click', async () => {
+    result.classList.add('hidden');
+    [...halves.children].forEach(h => { h.style.opacity = 0; });
+    riftLight.style.opacity = 0;
+    await wait(700);
+    halves.innerHTML = ''; crack.classList.remove('draw'); crack.style.opacity = 1;
+    sky.style.opacity = 1; intro.classList.remove('hidden'); document.body.classList.remove('splitting'); busy = false;
+  });
+  // Info window
+  const info = $('info'), infoBtn = $('infoBtn');
+  const openInfo = () => { info.classList.add('open'); $('infoClose').focus(); };
+  const closeInfo = () => { info.classList.remove('open'); infoBtn.focus(); };
+  infoBtn.addEventListener('click', openInfo);
+  $('infoClose').addEventListener('click', closeInfo);
+  info.addEventListener('click', e => { if (e.target === info) closeInfo(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && info.classList.contains('open')) closeInfo(); });
+})();
+</script>
+</body>
+</html>
