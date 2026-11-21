@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum Dice · AugieLab</title>
+<meta name="description" content="Dice, coin flips and a lottery quick pick, rolled with true randomness.">
+<meta property="og:title" content="Quantum Dice">
+<meta property="og:description" content="Dice, coin flips and a photon-picked lottery line. Same odds, better story.">
+<meta property="og:url" content="https://augielab.dev/dice/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=Alfa+Slab+One&display=swap" rel="stylesheet">
+<style>
+  :root { --felt: #0F4D3A; --felt2: #0B3D2E; --rail: #5B3A1E; --brass: #D9B26A; --chalk: #F3EEDF; --dim: #B9CBBF; --red: #C8283A; --ivory: #FBF7EC; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; }
+  body { min-height: 100vh; color: var(--chalk); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 100px;
+    background: radial-gradient(ellipse at 50% 30%, #146A50 0%, var(--felt) 45%, var(--felt2) 100%); }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .18;   /* felt texture */
+    background: repeating-radial-gradient(circle at 30% 40%, rgba(0,0,0,.25) 0 1px, transparent 1px 3px); }
+  .wrap { position: relative; max-width: 980px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--chalk); }
+  h1 { font: 400 clamp(2.1rem, 5.5vw, 3.2rem)/1 "Alfa Slab One", serif; letter-spacing: .01em; color: var(--brass); text-shadow: 0 2px 0 rgba(0,0,0,.35); }
+
+  .tabs { display: inline-flex; gap: 6px; padding: 5px; border-radius: 999px; background: rgba(0,0,0,.25); border: 1px solid rgba(217,178,106,.4); margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs button { border: 0; background: none; color: var(--dim); font: 600 1.02rem "IBM Plex Sans", sans-serif; padding: 10px 22px; border-radius: 999px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--brass); color: #2A1C08; }
+
+  .table { border-radius: 18px; padding: 28px; border: 10px solid var(--rail);
+    box-shadow: inset 0 0 40px rgba(0,0,0,.35), 0 18px 30px -16px rgba(0,0,0,.7); background: rgba(0,0,0,.12); }
+  [hidden] { display: none !important; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .chip { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 9px 15px; border-radius: 999px; cursor: pointer; color: var(--chalk);
+    background: rgba(0,0,0,.25); border: 1px solid rgba(243,238,223,.35); }
+  .chip[aria-pressed="true"] { background: var(--chalk); color: #12382B; border-color: var(--chalk); }
+  .stepper { display: inline-flex; align-items: center; gap: 10px; margin-left: 10px; }
+  .stepper button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(243,238,223,.5); background: rgba(0,0,0,.25); color: var(--chalk); font: 700 1.2rem sans-serif; cursor: pointer; }
+  .stepper output { font: 600 1.1rem "IBM Plex Sans", sans-serif; min-width: 4.5rem; text-align: center; }
+
+  .go { margin-top: 22px; font: 400 1.4rem "Alfa Slab One", serif; letter-spacing: .03em; color: #2A1C08; cursor: pointer; padding: 14px 36px; border-radius: 999px; border: 0;
+    background: radial-gradient(ellipse at 50% 25%, #F6DFA8, var(--brass) 55%, #9C7530); box-shadow: 0 5px 0 #6B4F1E, 0 10px 18px rgba(0,0,0,.45); }
+  .go:active { transform: translateY(4px); box-shadow: 0 1px 0 #6B4F1E, 0 4px 8px rgba(0,0,0,.45); }
+  button:focus-visible { outline: 3px solid #FFE7A3; outline-offset: 3px; }
+
+  /* dice */
+  .tray { min-height: 180px; display: flex; flex-wrap: wrap; gap: 22px; align-items: center; justify-content: center; margin: 26px 0 8px; }
+  .die { position: relative; width: 112px; height: 112px; filter: drop-shadow(0 8px 6px rgba(0,0,0,.45)); }
+  .die svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .die .n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 400 2.5rem "Alfa Slab One", serif; color: #1A1A1A; padding-top: var(--nudge, 0); }
+  .die.rolling { animation: tumble .7s cubic-bezier(.3,.7,.3,1); }
+  @keyframes tumble { 0% { transform: translate(-40px, -30px) rotate(-200deg) scale(.7); opacity: .3; } 70% { transform: translate(4px, 3px) rotate(14deg); opacity: 1; } 100% { transform: none; } }
+  .total { text-align: center; font-size: 1.15rem; color: var(--dim); min-height: 1.8em; }
+  .total b { font: 400 1.9rem "Alfa Slab One", serif; color: var(--chalk); margin-left: 6px; }
+
+  /* coin */
+  .coinstage { perspective: 900px; display: flex; justify-content: center; margin: 26px 0 10px; }
+  .coin { width: 190px; height: 190px; position: relative; transform-style: preserve-3d; transition: transform 1.6s cubic-bezier(.2,.75,.25,1); }
+  .face { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: radial-gradient(circle at 35% 30%, #FFF1C4, #E3BE6E 45%, #A87D33 100%); box-shadow: inset 0 0 0 7px #B98D3E, inset 0 0 0 10px #F3D58F, 0 10px 18px rgba(0,0,0,.45);
+    color: #5A3E10; font: 400 1.35rem "Alfa Slab One", serif; letter-spacing: .04em; }
+  .face svg { width: 76px; height: 76px; }
+  .face.tails { transform: rotateY(180deg); }
+  .tally { text-align: center; color: var(--dim); font-size: 1.1rem; }
+  .tally b { color: var(--chalk); }
+
+  /* lotto */
+  .balls { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin: 28px 0 12px; min-height: 92px; }
+  .ball { width: 82px; height: 82px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 400 1.9rem "Alfa Slab One", serif; color: #1E1E1E;
+    background: radial-gradient(circle at 34% 30%, #FFFFFF, var(--ivory) 40%, #CFC8B4 100%); box-shadow: 0 8px 10px rgba(0,0,0,.4); animation: drop .5s cubic-bezier(.3,1.4,.5,1) both; }
+  .ball.special { background: radial-gradient(circle at 34% 30%, #FF9AA6, var(--red) 45%, #7E1020 100%); color: #fff; }
+  .ball.gold { background: radial-gradient(circle at 34% 30%, #FFF0B8, #F2C443 45%, #A57A12 100%); }
+  @keyframes drop { from { transform: translateY(-70px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  .odds { max-width: 62ch; margin: 10px auto 0; text-align: center; color: var(--dim); }
+  .odds b { color: var(--chalk); }
+
+  .source { margin-top: 22px; display: flex; gap: 10px; align-items: center; justify-content: center; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #F2C443; flex: none; }
+  .source.quantum i { background: #7CF2A2; box-shadow: 0 0 8px #7CF2A2; }
+  @media (max-width: 600px) { html { font-size: 17px; } .tabs { flex-wrap: nowrap; } .tabs button { padding: 9px 13px; font-size: .92rem; white-space: nowrap; } .table { padding: 18px; border-width: 7px; } .die { width: 88px; height: 88px; } .die .n { font-size: 2rem; } .ball { width: 66px; height: 66px; font-size: 1.5rem; } }
+  @media (prefers-reduced-motion: reduce) { .die.rolling, .ball { animation: none; } .coin { transition-duration: .01s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>Quantum dice</h1><a href="/">AugieLab</a></div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="dice">Dice</button>
+    <button role="tab" aria-selected="false" data-tab="coin">Coin flip</button>
+    <button role="tab" aria-selected="false" data-tab="lotto">Lottery pick</button>
+  </div>
+
+  <section class="table" id="tab-dice">
+    <div class="row" id="dieTypes" aria-label="Kind of die"></div>
+    <div class="row" style="margin-top:14px">How many
+      <span class="stepper"><button id="less" aria-label="Fewer dice">−</button><output id="count">2 dice</output><button id="more" aria-label="More dice">+</button></span>
+    </div>
+    <div class="tray" id="tray" aria-live="polite"></div>
+    <div class="total" id="total"></div>
+    <div style="text-align:center"><button class="go" id="roll">Roll</button></div>
+  </section>
+
+  <section class="table" id="tab-coin" hidden>
+    <div class="coinstage"><div class="coin" id="coin">
+      <div class="face heads"><svg viewBox="0 0 80 80" aria-hidden="true"><g fill="none" stroke="#5A3E10" stroke-width="3.5">
+        <ellipse cx="40" cy="40" rx="33" ry="12"/><ellipse cx="40" cy="40" rx="33" ry="12" transform="rotate(60 40 40)"/><ellipse cx="40" cy="40" rx="33" ry="12" transform="rotate(-60 40 40)"/></g>
+        <circle cx="40" cy="40" r="6" fill="#5A3E10"/></svg>Heads</div>
+      <div class="face tails"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="45" r="25" fill="none" stroke="#5A3E10" stroke-width="3.5"/>
+        <path d="M40 20 l-9 -7 l7 9 l-11 2 l11 3 l-4 8 l6 -6 l6 6 l-4 -8 l11 -3 l-11 -2 l7 -9z" fill="#5A3E10"/></svg>Tails</div>
+    </div></div>
+    <p class="tally" id="tally" aria-live="polite">Flip to start.</p>
+    <div style="text-align:center"><button class="go" id="flip">Flip</button></div>
+  </section>
+
+  <section class="table" id="tab-lotto" hidden>
+    <div class="row" id="games" aria-label="Lottery game"></div>
+    <div class="balls" id="balls" aria-live="polite"></div>
+    <div style="text-align:center"><button class="go" id="pick">Pick my numbers</button></div>
+    <p class="odds" id="odds"></p>
+    <p class="odds" style="font-size:.9rem;margin-top:12px">Just for fun. Not affiliated with any lottery. If you play, play for fun and within your budget.</p>
+  </section>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's secure generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>Right now: demo mode</h3>
+  <p>Today every roll, flip and lottery pick comes from your web browser's built-in random number maker. It's fair, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, every result will come from a quantum measurement, and the dot at the bottom will turn from yellow to green.</p>
+  <h3>Why quantum dice are different</h3>
+  <p>A real die is only "random" because nobody can track exactly how it tumbles. Physics says a perfect measurement could predict it. A quantum measurement is different: nothing in the universe decides the result ahead of time, not even in principle. Einstein famously didn't like that idea, saying God doesn't play dice. These dice are the kind he was talking about.</p>
+  <h3>About the lottery pick</h3>
+  <p>A quantum pick can't improve your odds. Every combination has exactly the same chance, whether it's chosen by photons, by the store's Quick Pick or by your birthday. The one real advantage of a random pick: it avoids popular choices like birthdays and patterns, so if you do win, you're less likely to split the prize.</p>
+  <h3>The dice shapes</h3>
+  <p>D4, d6, d8, d10, d12 and d20 are the classic tabletop game dice, named for how many sides they have. Each one is drawn as its shape seen from above.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+
+<script>
+(() => {
+  // ================= Randomness source =================
+  // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
+  // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], quantum = false;
+  async function topUp(n) {
+    if (!SOURCE.ENDPOINT || pool.length >= n) return;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=' + Math.max(256, n), { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { pool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    paintSource();
+  }
+  function byte() {
+    if (quantum && pool.length) return pool.shift();
+    const a = new Uint8Array(1); crypto.getRandomValues(a); return a[0];
+  }
+  function below(n) {   // unbiased integer 0..n-1 from 16-bit values, rejection sampling
+    const lim = 65536 - (65536 % n); let v;
+    do { v = byte() * 256 + byte(); } while (v >= lim);
+    return v % n;
+  }
+  function paintSource() {
+    document.getElementById('source').classList.toggle('quantum', quantum);
+    document.getElementById('sourceText').textContent = quantum ? `Randomness: quantum, from the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? "Randomness: the quantum generator is offline, so this is your browser's secure generator."
+      : "Randomness: demo mode, from your browser's secure generator.";
+  }
+  paintSource();
+  const $ = id => document.getElementById(id);
+
+  // ================= Tabs =================
+  document.querySelectorAll('[data-tab]').forEach(t => t.onclick = () => {
+    document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', b === t));
+    ['dice', 'coin', 'lotto'].forEach(k => $('tab-' + k).hidden = k !== t.dataset.tab);
+  });
+
+  // ================= Dice =================
+  const SHAPES = {   // polygon outlines in a 100x100 box, plus a nudge so the number sits nicely
+    4:  { pts: '50,8 94,88 6,88', fill: '#F2C443', nudge: '22%' },
+    6:  { pts: '12,12 88,12 88,88 12,88', fill: '#FBF7EC', nudge: '0' , round: 14 },
+    8:  { pts: '50,4 94,50 50,96 6,50', fill: '#7CC7F2', nudge: '0' },
+    10: { pts: '50,4 92,40 50,96 8,40', fill: '#B794F6', nudge: '-6%' },
+    12: { pts: '50,5 93,36 76,92 24,92 7,36', fill: '#7CF2A2', nudge: '6%' },
+    20: { pts: '50,4 90,27 90,73 50,96 10,73 10,27', fill: '#FF8A7A', nudge: '0' }
+  };
+  let sides = 6, count = 2;
+  const types = $('dieTypes');
+  Object.keys(SHAPES).forEach(s => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = 'd' + s; b.setAttribute('aria-pressed', +s === sides);
+    b.onclick = () => { sides = +s; [...types.children].forEach(c => c.setAttribute('aria-pressed', c === b)); drawDice(Array(count).fill(null)); }; types.appendChild(b); });
+  function dieHTML(s, value) {
+    const sh = SHAPES[s];
+    const shape = sh.round ? `<rect x="10" y="10" width="80" height="80" rx="${sh.round}" fill="${sh.fill}" stroke="rgba(0,0,0,.35)" stroke-width="2"/>`
+      : `<polygon points="${sh.pts}" fill="${sh.fill}" stroke="rgba(0,0,0,.35)" stroke-width="2" stroke-linejoin="round"/>`;
+    return `<svg viewBox="0 0 100 100" aria-hidden="true">${shape}<ellipse cx="38" cy="30" rx="16" ry="7" fill="rgba(255,255,255,.35)"/></svg><span class="n" style="--nudge:${sh.nudge}">${value ?? ''}</span>`;
+  }
+  function drawDice(values, animate) {
+    $('tray').innerHTML = '';
+    values.forEach((v, i) => { const d = document.createElement('div'); d.className = 'die' + (animate ? ' rolling' : ''); d.style.animationDelay = (i * 60) + 'ms';
+      d.innerHTML = dieHTML(sides, v); d.setAttribute('role', 'img'); d.setAttribute('aria-label', v == null ? `d${sides}` : `d${sides} showing ${v}`); $('tray').appendChild(d); });
+  }
+  function paintCount() { $('count').textContent = count + (count === 1 ? ' die' : ' dice'); }
+  $('less').onclick = () => { count = Math.max(1, count - 1); paintCount(); drawDice(Array(count).fill(null)); $('total').textContent = ''; };
+  $('more').onclick = () => { count = Math.min(8, count + 1); paintCount(); drawDice(Array(count).fill(null)); $('total').textContent = ''; };
+  $('roll').onclick = async () => {
+    await topUp(count * 8);
+    const vals = Array.from({ length: count }, () => below(sides) + 1);
+    drawDice(vals, true);
+    $('total').innerHTML = count > 1 ? `Total <b>${vals.reduce((a, b) => a + b, 0)}</b>` : '';
+  };
+  paintCount(); drawDice(Array(count).fill(null));
+
+  // ================= Coin =================
+  let spin = 0, heads = 0, tails = 0, streak = 0, last = null;
+  $('flip').onclick = async () => {
+    await topUp(8);
+    const isHeads = below(2) === 0;
+    let base = spin + 1800; base -= base % 360; spin = base + (isHeads ? 0 : 180);   // five full turns, land on the right face
+    $('coin').style.transform = `rotateY(${spin}deg)`;
+    $('flip').disabled = true;
+    setTimeout(() => {
+      $('flip').disabled = false;
+      if (isHeads) heads++; else tails++;
+      streak = last === isHeads ? streak + 1 : 1; last = isHeads;
+      $('tally').innerHTML = `<b>${isHeads ? 'Heads' : 'Tails'}</b>. Heads ${heads}, tails ${tails}` + (streak > 1 ? ` · ${streak} in a row` : '');
+    }, 1650);
+  };
+
+  // ================= Lottery =================
+  const GAMES = {
+    powerball: { name: 'Powerball', main: [5, 69], extra: [1, 26], extraName: 'Powerball', extraClass: 'special', odds: 292201338 },
+    mega:      { name: 'Mega Millions', main: [5, 70], extra: [1, 24], extraName: 'Mega Ball', extraClass: 'gold', odds: 290472336 },
+    megabucks: { name: 'Oregon Megabucks', main: [6, 48], extra: null, odds: 12271512 }
+  };
+  let game = 'powerball';
+  const gamesEl = $('games');
+  Object.entries(GAMES).forEach(([k, g]) => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = g.name; b.setAttribute('aria-pressed', k === game);
+    b.onclick = () => { game = k; [...gamesEl.children].forEach(c => c.setAttribute('aria-pressed', c === b)); $('balls').innerHTML = ''; paintOdds(); }; gamesEl.appendChild(b); });
+  function drawDistinct(k, n) { const s = new Set(); while (s.size < k) s.add(below(n) + 1); return [...s].sort((a, b) => a - b); }
+  function paintOdds() { const g = GAMES[game];
+    $('odds').innerHTML = `${g.name}: pick ${g.main[0]} from 1–${g.main[1]}${g.extra ? ` plus a ${g.extraName} from 1–${g.extra[1]}` : ''}. Jackpot odds are <b>1 in ${g.odds.toLocaleString()}</b> for every ticket, random or not.`; }
+  $('pick').onclick = async () => {
+    await topUp(64);
+    const g = GAMES[game], main = drawDistinct(g.main[0], g.main[1]), extra = g.extra ? below(g.extra[1]) + 1 : null;
+    $('balls').innerHTML = '';
+    main.forEach((n, i) => { const b = document.createElement('div'); b.className = 'ball'; b.textContent = n; b.style.animationDelay = (i * 160) + 'ms'; $('balls').appendChild(b); });
+    if (extra) { const b = document.createElement('div'); b.className = 'ball ' + g.extraClass; b.textContent = extra; b.title = g.extraName; b.style.animationDelay = (main.length * 160 + 120) + 'ms'; $('balls').appendChild(b); }
+    $('balls').setAttribute('aria-label', `${g.name} numbers ${main.join(', ')}${extra ? `, ${g.extraName} ${extra}` : ''}`);
+  };
+  paintOdds();
+})();
+</script>
+</body>
+</html>
