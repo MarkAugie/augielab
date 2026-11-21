@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AugieLab</title>
+<meta name="description" content="Small things Mark Aughenbaugh builds, mostly for fun: quantum experiments, everyday tools and family history.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://augielab.dev/">
+<meta property="og:title" content="AugieLab">
+<meta property="og:description" content="Small things Mark builds, mostly for fun. Pick a unit off the rack.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --room: #D5DBE1;        /* lab wall */
+    --rack: #262B31;        /* rack frame */
+    --plate: #3B434C;       /* faceplate */
+    --plate-hi: #4A535D;
+    --ink: #EEF1F4;         /* text on faceplates */
+    --ink-dim: #B7C0CA;
+    --tape: #B3122B;        /* label-maker tape */
+    --led-live: #3BE37A;
+    --led-build: #F6A623;
+    --page-ink: #1E242B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; }
+  body { background: var(--room); color: var(--page-ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5;
+    min-height: 100vh; padding: 48px 20px 64px; overflow-x: hidden; }
+
+  header { max-width: 980px; margin: 0 auto 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  h1 { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 700; font-size: clamp(3rem, 9vw, 5.2rem); line-height: .9; letter-spacing: -.01em; }
+  .intro { max-width: 30ch; font-size: 1.05rem; color: #3D4651; }
+
+  /* ---------- the rack ---------- */
+  .rack { max-width: 980px; margin: 0 auto; background: var(--rack); border-radius: 6px; padding: 14px 0;
+    display: grid; grid-template-columns: 38px minmax(0,1fr) 38px;
+    box-shadow: 0 24px 50px -20px rgba(20,30,40,.55); }
+  .rail { background:
+      radial-gradient(circle at 50% 50%, #12161A 0 4px, transparent 4.5px) center top / 38px 22px repeat-y,
+      linear-gradient(90deg, #2E343B, #353C44 50%, #2E343B); }
+  .bay { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+
+  .blank { height: 58px; background: #2F363E; border-radius: 2px; display: flex; align-items: center; padding: 0 22px;
+    font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 600; font-size: .95rem; color: #9AA5B1; letter-spacing: .02em;
+    border-top: 1px solid #3A424B; border-bottom: 1px solid #23292F; }
+
+  .unit { position: relative; display: grid; grid-template-columns: 22px 16.5rem 1fr auto; align-items: center; gap: 22px;
+    min-height: 96px; padding: 14px 24px 14px 22px; border-radius: 2px; color: var(--ink); text-decoration: none;
+    background: linear-gradient(180deg, var(--plate-hi), var(--plate) 18%, var(--plate) 82%, #333A42);
+    border-top: 1px solid #56606B; border-bottom: 1px solid #262C32;
+    transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s; }
+  a.unit { cursor: pointer; }
+  a.unit:hover, a.unit:focus-visible { transform: translateX(-18px); box-shadow: 18px 0 0 -6px #1A1E23, 0 10px 22px -10px rgba(0,0,0,.6); }
+  a.unit:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 3px; }
+
+  .led { width: 14px; height: 14px; border-radius: 50%; justify-self: center; }
+  .live .led { background: var(--led-live); box-shadow: 0 0 10px 2px rgba(59,227,122,.55); animation: activity 2.6s steps(1) infinite; }
+  .building .led { background: var(--led-build); box-shadow: 0 0 8px 1px rgba(246,166,35,.45); }
+  @keyframes activity { 0%,100% { opacity: 1; } 12% { opacity: .35; } 16% { opacity: 1; } 47% { opacity: .4; } 50% { opacity: 1; } 53% { opacity: .5; } 56% { opacity: 1; } }
+
+  .tape { justify-self: start; display: inline-block; white-space: nowrap; background: var(--tape); color: #FFF; padding: 7px 14px 6px;
+    font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 700; font-size: 1.05rem; letter-spacing: .07em; text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(0,0,0,.35), 0 -1px 0 rgba(255,255,255,.25); border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -2px 0 rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.4); }
+  .desc { font-size: 1rem; color: var(--ink-dim); max-width: 42ch; }
+  .state { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 600; font-size: .95rem; white-space: nowrap; }
+  .live .state { color: var(--led-live); }
+  .building .state { color: var(--led-build); }
+  .building { opacity: .9; }
+
+  footer { max-width: 980px; margin: 26px auto 0; font-size: .9rem; color: #4A5562; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .key { display: flex; gap: 20px; }
+  .key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .key .k-live::before { background: #25B85C; }
+  .key .k-build::before { background: #D98A0B; }
+
+  @media (max-width: 720px) {
+    html { font-size: 18px; }
+    body { padding: 28px 10px 48px; }
+    .rack { grid-template-columns: 18px minmax(0,1fr) 18px; }
+    .tape { white-space: normal; }
+    .rail { background-size: 18px 22px; background-image:
+      radial-gradient(circle at 50% 50%, #12161A 0 3px, transparent 3.5px), linear-gradient(90deg, #2E343B, #353C44 50%, #2E343B); }
+    .unit { grid-template-columns: 18px 1fr; gap: 10px 14px; padding: 16px 16px; }
+    .unit .desc, .unit .state { grid-column: 2; }
+    a.unit:hover, a.unit:focus-visible { transform: translateX(-8px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .live .led { animation: none; }
+    .unit { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AugieLab</h1>
+  <p class="intro">Small things Mark builds, mostly for fun. Pick a unit off the rack.</p>
+</header>
+
+<main class="rack" aria-label="Projects">
+  <div class="rail" aria-hidden="true"></div>
+  <div class="bay">
+
+    <div class="blank" role="heading" aria-level="2">Quantum experiments</div>
+
+    <a class="unit live" href="https://aughenbaugh.com/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Split the universe</span>
+      <span class="desc">Give two choices. A real quantum measurement picks one; the other happens in another universe.</span>
+      <span class="state">Live</span>
+    </a>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Feel the future</span>
+      <span class="desc">Guess a sealed quantum coin flip. Can anyone beat 50 percent?</span>
+      <span class="state">In the works</span>
+    </div>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Simulation detector</span>
+      <span class="desc">Two quantum sources on opposite sides of the planet, watched for any sign of a glitch.</span>
+      <span class="state">In the works</span>
+    </div>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Quantum darts</span>
+      <span class="desc">Estimate pi by throwing truly random darts at a circle.</span>
+      <span class="state">In the works</span>
+    </div>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Quantum passwords</span>
+      <span class="desc">Strong passwords and passphrases made from true randomness.</span>
+      <span class="state">In the works</span>
+    </div>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Quantum dice</span>
+      <span class="desc">Dice, coin flips and a photon-picked lottery line. Same odds, better story.</span>
+      <span class="state">In the works</span>
+    </div>
+
+    <div class="blank" role="heading" aria-level="2">Everyday tools</div>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Pomodoro timer</span>
+      <span class="desc">Work in focused 25-minute rounds with short breaks between.</span>
+      <span class="state">In the works</span>
+    </div>
+
+    <div class="blank" role="heading" aria-level="2">Family</div>
+
+    <div class="unit building">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Family tree</span>
+      <span class="desc">The Aughenbaugh family, pieced together from scanned records.</span>
+      <span class="state">In the works</span>
+    </div>
+
+  </div>
+  <div class="rail" aria-hidden="true"></div>
+</main>
+
+<footer>
+  <div class="key"><span class="k-live">Live</span><span class="k-build">In the works</span></div>
+  <div>Built by Mark Aughenbaugh</div>
+</footer>
+
+</body>
+</html>
