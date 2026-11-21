@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feel the Future · AugieLab</title>
+<meta name="description" content="A random answer is chosen and sealed before you guess. Can you beat chance?">
+<meta property="og:title" content="Feel the Future">
+<meta property="og:description" content="The answer is sealed before you choose. Can anyone beat 50 percent?">
+<meta property="og:url" content="https://augielab.dev/future/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --night: #0D1326; --deep: #151E3B; --gold: #E7C26A; --gold-dk: #9C7A2E; --text: #F1EEE6; --dim: #BCC3D6;
+    --hit: #6EF0A0; --miss: #FF8A8A; --wax: #A3142B; --card: #F6EFDD; --glow: #8FB8FF; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; background: var(--night); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 16px 100px;
+    background: radial-gradient(ellipse 120% 900px at 50% 0%, #2A3A73 0%, var(--deep) 45%, var(--night) 100%) no-repeat, var(--night); }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  .top span { color: var(--dim); }
+  header { text-align: center; margin-bottom: 20px; }
+  h1 { font: 400 clamp(2.4rem, 8vw, 4.2rem)/1.05 "Limelight", serif; color: var(--gold); letter-spacing: .02em;
+    text-shadow: 0 0 22px rgba(231,194,106,.35), 0 3px 0 #5A4413; }
+  .sub { margin-top: 8px; color: var(--dim); font-size: 1.12rem; }
+
+  .modes { display: flex; justify-content: center; margin: 0 auto 20px; width: max-content; max-width: 100%; border: 2px solid var(--gold); border-radius: 12px; overflow: hidden; }
+  .modes button { cursor: pointer; border: 0; padding: 12px 20px; font: 600 1.02rem "IBM Plex Sans", sans-serif; color: var(--text); background: rgba(0,0,0,.25); }
+  .modes button + button { border-left: 1px solid rgba(231,194,106,.5); }
+  .modes button small { display: block; font: 500 .8rem "IBM Plex Mono", monospace; color: var(--dim); }
+  .modes button[aria-pressed="true"] { background: var(--gold); color: #2A1F06; }
+  .modes button[aria-pressed="true"] small { color: #5A4413; }
+
+  /* ---------- the table ---------- */
+  .table { position: relative; border-radius: 22px; padding: 26px 24px 24px;
+    background: radial-gradient(ellipse at 50% 30%, #23305C, #161F3E 70%);
+    border: 2px solid rgba(231,194,106,.55); box-shadow: inset 0 0 0 6px rgba(13,19,38,.6), inset 0 0 0 7px rgba(231,194,106,.25), 0 24px 50px -20px rgba(0,0,0,.8); }
+  .stage { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; }
+  .slot { text-align: center; }
+  .slot .cap { font: 700 .88rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+
+  .envelope { position: relative; width: 230px; height: 150px; margin: 0 auto; border-radius: 8px;
+    background: linear-gradient(160deg, #F3E7C8, #D9C79C); box-shadow: 0 14px 26px -10px rgba(0,0,0,.7); overflow: hidden; }
+  .envelope::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom right, transparent 49.5%, rgba(120,96,50,.35) 50%, transparent 50.5%),
+    linear-gradient(to bottom left, transparent 49.5%, rgba(120,96,50,.35) 50%, transparent 50.5%); }
+  .flap { position: absolute; left: 0; right: 0; top: 0; height: 88px; background: linear-gradient(180deg, #E9DAB3, #D5C291);
+    clip-path: polygon(0 0, 100% 0, 50% 100%); transform-origin: top; transition: transform .45s ease; }
+  .wax { position: absolute; left: 50%; top: 62px; width: 58px; height: 58px; margin-left: -29px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #E0455E, var(--wax) 55%, #5E0816); box-shadow: 0 3px 6px rgba(0,0,0,.5), inset 0 -3px 6px rgba(0,0,0,.35);
+    display: grid; place-items: center; font: 400 1.5rem "Limelight", serif; color: rgba(255,220,220,.75); transition: transform .3s, opacity .3s; }
+  .envelope.fresh .wax { animation: stamp .45s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes stamp { from { transform: scale(1.8); opacity: 0; } }
+  .fp { margin-top: 12px; font: 500 .92rem "IBM Plex Mono", monospace; color: var(--gold); letter-spacing: .04em; }
+  .fp span { color: var(--dim); }
+
+  .face { width: 150px; height: 150px; margin: 0 auto; display: grid; place-items: center; }
+  .coin { width: 140px; height: 140px; border-radius: 50%; display: grid; place-items: center; font: 400 3.4rem "Limelight", serif; color: #5A4413;
+    background: radial-gradient(circle at 35% 30%, #FFF1C2, var(--gold) 45%, #A9812E); box-shadow: inset 0 0 0 6px rgba(90,68,19,.35), inset 0 0 0 9px rgba(255,241,194,.5), 0 10px 22px -8px rgba(0,0,0,.7); }
+  .zcard { width: 110px; height: 150px; border-radius: 10px; background: var(--card); display: grid; place-items: center; box-shadow: 0 10px 22px -8px rgba(0,0,0,.7); }
+  .zcard svg { width: 76px; height: 76px; }
+  .face .empty { width: 140px; height: 140px; border-radius: 50%; border: 2px dashed rgba(188,195,214,.35); display: grid; place-items: center; color: var(--dim); font-size: .95rem; padding: 14px; }
+  .face .pop { animation: reveal .5s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes reveal { from { transform: rotateY(90deg) scale(.8); opacity: .2; } }
+  .verdict { margin-top: 10px; font: 700 1.4rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; min-height: 2.1rem; }
+  .verdict.hit { color: var(--hit); text-shadow: 0 0 14px rgba(110,240,160,.5); }
+  .verdict.miss { color: var(--miss); }
+
+  .orb { width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(circle at 36% 30%, #FFFFFF, #BFD6FF 18%, #5D7FD1 55%, #1F2E66);
+    box-shadow: 0 0 40px 6px rgba(143,184,255,.35); animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 50% { box-shadow: 0 0 60px 14px rgba(143,184,255,.5); } }
+  .orb.flash { animation: flash .6s ease-out; }
+  @keyframes flash { 30% { box-shadow: 0 0 90px 30px rgba(231,194,106,.8); } }
+
+  .ask { text-align: center; margin: 24px 0 12px; font-size: 1.2rem; }
+  .ask b { color: var(--gold); }
+  .choices { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+  .choice { cursor: pointer; border: 0; background: transparent; color: var(--text); font: 600 1.05rem "IBM Plex Sans", sans-serif; display: grid; justify-items: center; gap: 8px;
+    padding: 10px; border-radius: 16px; transition: transform .15s; }
+  .choice:hover { transform: translateY(-4px); }
+  .choice:active { transform: translateY(2px); }
+  .choice .coin { width: 120px; height: 120px; font-size: 3rem; }
+  .choice .zcard { width: 92px; height: 124px; }
+  .choice .zcard svg { width: 60px; height: 60px; }
+  .choice kbd { font: 500 .8rem "IBM Plex Mono", monospace; color: var(--dim); border: 1px solid rgba(188,195,214,.4); border-radius: 5px; padding: 1px 7px; }
+  .choice:disabled { opacity: .5; cursor: wait; transform: none; }
+
+  /* ---------- scores ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+  .tile { background: rgba(0,0,0,.3); border: 1px solid rgba(231,194,106,.3); border-radius: 12px; padding: 12px 14px; }
+  .tile .k { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  .tile .v { font: 700 1.75rem/1.2 "IBM Plex Sans Condensed", sans-serif; color: #fff; }
+  .luck { margin-top: 16px; padding: 16px 20px; border-radius: 12px; background: rgba(231,194,106,.1); border: 1px solid rgba(231,194,106,.4); font-size: 1.1rem; }
+  .luck b { color: var(--gold); }
+  .panel { margin-top: 16px; background: rgba(0,0,0,.3); border: 1px solid rgba(231,194,106,.3); border-radius: 12px; padding: 16px 20px; }
+  .panel h2 { font: 700 1.15rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .03em; color: var(--gold); margin-bottom: 6px; }
+  .panel p { color: #E2E5EE; font-size: 1.02rem; }
+  canvas#chart { display: block; width: 100%; height: 240px; margin-top: 8px; }
+  .chartkey { display: flex; gap: 18px; flex-wrap: wrap; color: var(--dim); font-size: .92rem; margin-top: 6px; }
+  .chartkey i { display: inline-block; width: 22px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+  .proof { font: 500 .9rem/1.7 "IBM Plex Mono", monospace; color: var(--dim); overflow-wrap: anywhere; margin-top: 6px; }
+  .proof b { color: var(--text); font-weight: 500; }
+  .proof .ok { color: var(--hit); }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .reset { cursor: pointer; padding: 9px 14px; border-radius: 9px; border: 1px solid rgba(188,195,214,.5); background: transparent; color: var(--text); font: 600 .95rem "IBM Plex Sans", sans-serif; }
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 16px; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #FFC46B; flex: none; }
+  .source.quantum i { background: var(--hit); box-shadow: 0 0 8px var(--hit); }
+  button:focus-visible { outline: 3px solid var(--glow); outline-offset: 3px; }
+
+  @media (max-width: 760px) {
+    html { font-size: 17px; } body { padding: 14px 10px 100px; }
+    .table { padding: 18px 12px; }
+    .stage { grid-template-columns: 1fr 1fr; } .stage .mid { display: none; }
+    .envelope { width: 150px; height: 104px; } .flap { height: 62px; } .wax { top: 40px; width: 46px; height: 46px; margin-left: -23px; font-size: 1.2rem; }
+    .face { width: 120px; height: 120px; } .face .coin, .face .empty { width: 110px; height: 110px; } .face .coin { font-size: 2.6rem; }
+    .face .zcard { width: 84px; height: 116px; } .fp { font-size: .78rem; }
+    .choice .coin { width: 104px; height: 104px; } .choice .zcard { width: 58px; height: 82px; } .choice .zcard svg { width: 40px; height: 40px; }
+    .choices { gap: 6px; } .choice { padding: 6px 2px; } .choice kbd { display: none; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tiles .tile:last-child { grid-column: 1 / -1; }
+    .modes button { padding: 10px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .orb, .orb.flash, .face .pop, .envelope.fresh .wax { animation: none; } .flap { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>The answer is sealed before you choose</span></div>
+  <header>
+    <h1>Feel the Future</h1>
+    <p class="sub">A random answer is picked and sealed in the envelope first. Then you guess. Can you beat chance?</p>
+  </header>
+
+  <div class="modes" id="modes" role="group" aria-label="Game"></div>
+
+  <section class="table">
+    <div class="stage">
+      <div class="slot">
+        <div class="cap">Sealed answer</div>
+        <div class="envelope" id="env"><div class="flap"></div><div class="wax" aria-hidden="true">?</div></div>
+        <div class="fp" id="fp" aria-label="Seal fingerprint"></div>
+      </div>
+      <div class="slot mid" aria-hidden="true"><div class="orb" id="orb"></div></div>
+      <div class="slot">
+        <div class="cap">Last answer</div>
+        <div class="face" id="last"><div class="empty">Make your first guess</div></div>
+        <div class="verdict" id="verdict" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+    <p class="ask" id="ask"></p>
+    <div class="choices" id="choices"></div>
+  </section>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Guesses</div><div class="v" id="tN">0</div></div>
+    <div class="tile"><div class="k">Right</div><div class="v" id="tK">0</div></div>
+    <div class="tile"><div class="k">Your score</div><div class="v" id="tP">—</div></div>
+    <div class="tile"><div class="k">Luck alone</div><div class="v" id="tE">50%</div></div>
+    <div class="tile"><div class="k">Best streak</div><div class="v" id="tS">0</div></div>
+  </div>
+  <p class="luck" id="luck"></p>
+
+  <section class="panel">
+    <div class="row"><h2>Your score over time</h2><button class="reset" id="reset">Start over</button></div>
+    <canvas id="chart" aria-label="Chart of your score after each guess, with the range that luck alone usually stays inside"></canvas>
+    <div class="chartkey"><span><i style="background:var(--gold)"></i>your score</span><span><i style="background:rgba(143,184,255,.25)"></i>where luck alone lands 95% of the time</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Check the seal</h2>
+    <p>Before each guess, the answer is locked with a fingerprint (a SHA-256 hash) shown on the envelope. After you guess, the secret is shown so you can see the fingerprint matches. It proves the answer was already fixed and didn't change after you chose.</p>
+    <div class="proof" id="proof">Your first guess will show its proof here.</div>
+  </section>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The game</h3>
+  <p>Before you choose, the page picks a random answer: heads or tails, or one of five symbol cards. It's sealed in the envelope right away. Then you guess. If nothing spooky is going on, you'll be right half the time with the coin, and one time in five with the cards. The question is whether anyone can do better.</p>
+  <h3>The seal</h3>
+  <p>How do you know the answer wasn't swapped after you picked? The page takes the answer plus a long secret number and runs them through SHA-256, the same kind of math that protects banking and Bitcoin. That gives a fingerprint, shown on the envelope before you guess. Changing the answer even slightly would give a completely different fingerprint. After you guess, the secret is revealed and the fingerprint is checked again in front of you.</p>
+  <h3>Is this real science?</h3>
+  <p>Sort of! In 2011 a Cornell psychologist, Daryl Bem, published a paper called "Feeling the Future" claiming people guessed slightly better than chance. It caused a huge stir. Many other labs repeated the tests carefully and mostly found nothing, and the paper helped start a big push in science to double-check surprising results. The five symbol cards are Zener cards, used in ESP tests since the 1930s.</p>
+  <h3>Reading your score</h3>
+  <p>Luck goes up and down a lot over a few guesses, so being at 70% after 10 coin flips means very little. The shaded band on the chart shows where pure luck usually lands. The line under the scores tells you how often luck alone would do as well as you did. If it says "about 1 time in 1,000" after hundreds of guesses, that's worth telling someone about.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Today the answers are picked by your web browser's built-in random number maker, a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. Then the answers will come from real quantum events, which nothing, not even the computer, could know in advance. The dot at the bottom will turn from yellow to green.</p>
+  <h3>Tips</h3>
+  <p>Go with your first feeling and keep a steady pace. On a keyboard, press H or T for the coin, or 1 to 5 for the cards. Your score is saved on this device, so you can come back and keep going.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
+  // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], quantum = false, fetching = false;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 128) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=256', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { pool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    fetching = false; paintSource();
+  }
+  function byte() {
+    let b;
+    if (quantum && pool.length) { b = pool.shift(); } else { const a = new Uint8Array(1); crypto.getRandomValues(a); b = a[0]; }
+    if (pool.length < 64) topUp();
+    return b;
+  }
+  function pick(n) { const lim = 256 - (256 % n); let b; do { b = byte(); } while (b >= lim); return b % n; }   // no bias
+  function paintSource() {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Randomness: quantum, from the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? 'Randomness: the quantum generator is offline, so this is demo mode.' : "Randomness: demo mode, from your browser's generator.";
+  }
+  paintSource(); topUp();
+
+  // ================= Games =================
+  const Z = {   // Zener symbols
+    circle: '<circle cx="50" cy="50" r="34" fill="none" stroke="#1F2E66" stroke-width="8"/>',
+    cross:  '<path d="M50 14v72M14 50h72" stroke="#1F2E66" stroke-width="9" stroke-linecap="round"/>',
+    waves:  '<path d="M12 30q9.5-12 19 0t19 0 19 0 19 0M12 50q9.5-12 19 0t19 0 19 0 19 0M12 70q9.5-12 19 0t19 0 19 0 19 0" fill="none" stroke="#1F2E66" stroke-width="6" stroke-linecap="round"/>',
+    square: '<rect x="18" y="18" width="64" height="64" fill="none" stroke="#1F2E66" stroke-width="8"/>',
+    star:   '<path d="M50 10l11 26 28 2-21 18 7 28-25-15-25 15 7-28-21-18 28-2z" fill="none" stroke="#1F2E66" stroke-width="6" stroke-linejoin="round"/>'
+  };
+  const GAMES = {
+    coin:  { label: 'Coin flip', odds: '1 in 2', ask: 'Heads or tails?', items: [['heads', 'Heads', 'H'], ['tails', 'Tails', 'T']] },
+    zener: { label: 'Symbol cards', odds: '1 in 5', ask: 'Which card is in the envelope?', items: [['circle', 'Circle', '1'], ['cross', 'Cross', '2'], ['waves', 'Waves', '3'], ['square', 'Square', '4'], ['star', 'Star', '5']] }
+  };
+  const art = (g, id, cls = '') => g === 'coin'
+    ? `<div class="coin ${cls}">${id === 'heads' ? 'H' : 'T'}</div>`
+    : `<div class="zcard ${cls}"><svg viewBox="0 0 100 100" aria-hidden="true">${Z[id]}</svg></div>`;
+
+  // ================= Saved scores =================
+  const blank = () => ({ hist: [], streak: 0, best: 0 });
+  let saved = { coin: blank(), zener: blank() }, game = 'coin';
+  try { const s = JSON.parse(localStorage.getItem('lab-future') || 'null'); if (s && s.coin && s.zener) saved = s; if (s && s.game) game = s.game; } catch (e) {}
+  const save = () => { try { localStorage.setItem('lab-future', JSON.stringify({ ...saved, game })); } catch (e) {} };
+
+  // ================= Sealing =================
+  const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  async function sha(text) { return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))); }
+  let sealed = null, sealNo = 0, busy = false;
+  async function seal() {
+    const items = GAMES[game].items, answer = items[pick(items.length)][0];
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    const text = `augielab-future|${answer}|${salt}`;
+    sealed = { game, answer, salt, text, hash: await sha(text) }; sealNo++;
+    const env = $('env'); env.classList.remove('fresh'); void env.offsetWidth; env.classList.add('fresh');
+    env.querySelector('.flap').style.transform = '';
+    $('fp').innerHTML = `<span>Seal #${sealNo}</span> ${sealed.hash.slice(0, 16).match(/.{4}/g).join(' ')}`;
+    setChoices(true);
+  }
+
+  async function guess(id) {
+    if (busy || !sealed) return; busy = true; setChoices(false);
+    const s = sealed, hit = id === s.answer;
+    $('env').querySelector('.flap').style.transform = 'rotateX(180deg)';
+    $('orb').classList.remove('flash'); void $('orb').offsetWidth; $('orb').classList.add('flash');
+    const check = await sha(s.text);
+    const rec = saved[s.game]; rec.hist.push(hit ? 1 : 0); if (rec.hist.length > 5000) rec.hist.shift();
+    rec.streak = hit ? rec.streak + 1 : 0; rec.best = Math.max(rec.best, rec.streak); save();
+    window.labTrack && labTrack('guess');
+    const name = GAMES[s.game].items.find(x => x[0] === s.answer)[1], mine = GAMES[s.game].items.find(x => x[0] === id)[1];
+    $('last').innerHTML = art(s.game, s.answer, 'pop');
+    const v = $('verdict'); v.className = 'verdict ' + (hit ? 'hit' : 'miss');
+    v.textContent = hit ? (rec.streak > 2 ? `Right! ${rec.streak} in a row` : 'Right!') : `It was ${name}`;
+    $('proof').innerHTML = `Seal #${sealNo}: you picked <b>${mine}</b>, the envelope held <b>${name}</b>.<br>` +
+      `Secret: <b>${s.text}</b><br>Fingerprint before you guessed: <b>${s.hash}</b><br>Fingerprint of the secret now: <b>${check}</b><br>` +
+      (check === s.hash ? '<span class="ok">✓ They match. The answer was fixed before you chose.</span>' : '✗ They do not match.');
+    paintScores();
+    setTimeout(async () => { await seal(); busy = false; }, 900);
+  }
+
+  function setChoices(on) { $('choices').querySelectorAll('button').forEach(b => b.disabled = !on); }
+
+  function buildGame() {
+    const G = GAMES[game];
+    $('ask').innerHTML = `<b>${G.ask}</b> Trust your first feeling.`;
+    $('choices').innerHTML = G.items.map(([id, label, k]) => `<button class="choice" data-id="${id}" aria-label="${label}">${art(game, id)}<span>${label}</span><kbd>${k}</kbd></button>`).join('');
+    $('choices').querySelectorAll('button').forEach(b => b.onclick = () => guess(b.dataset.id));
+    [...$('modes').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.g === game));
+    $('last').innerHTML = '<div class="empty">Make your first guess</div>'; $('verdict').textContent = '';
+    document.querySelector('.wax').textContent = '?';
+    paintScores(); seal();
+  }
+  Object.entries(GAMES).forEach(([k, G]) => { const b = document.createElement('button'); b.dataset.g = k; b.innerHTML = `${G.label}<small>luck: ${G.odds}</small>`;
+    b.onclick = () => { if (busy || game === k) return; game = k; save(); buildGame(); }; $('modes').appendChild(b); });
+
+  // ================= Scores and the odds =================
+  function lnChoose(n, k) { let s = 0; for (let i = 1; i <= k; i++) s += Math.log(n - k + i) - Math.log(i); return s; }
+  function tailAtLeast(n, k, p) {   // chance that luck alone gets k or more right out of n
+    let tot = 0; for (let j = k; j <= n; j++) tot += Math.exp(lnChoose(n, j) + j * Math.log(p) + (n - j) * Math.log(1 - p)); return Math.min(1, tot);
+  }
+  const pct = x => (Math.round(x * 1000) / 10).toFixed(1).replace(/\.0$/, '') + '%';
+  function paintScores() {
+    const rec = saved[game], n = rec.hist.length, k = rec.hist.reduce((a, b) => a + b, 0), p = 1 / GAMES[game].items.length;
+    $('tN').textContent = n.toLocaleString(); $('tK').textContent = k.toLocaleString();
+    $('tP').textContent = n ? pct(k / n) : '—'; $('tE').textContent = pct(p); $('tS').textContent = rec.best;
+    let msg;
+    if (n < 10) msg = `Make at least 10 guesses and this line will tell you how your score compares with plain luck.`;
+    else if (k <= n * p) msg = `You're at or below what luck alone gives. Nothing unusual yet. Keep going!`;
+    else {
+      const t = tailAtLeast(n, k, p), oneIn = 1 / t;
+      const word = oneIn < 5 ? 'That happens all the time.' : oneIn < 20 ? 'Interesting, but luck does this fairly often.' : oneIn < 1000 ? '<b>That is unusual!</b> Keep going and see if it holds up.' : '<b>That is remarkable.</b> Scientists would want to see you do it again.';
+      msg = `Luck alone would score this well or better about <b>1 time in ${oneIn < 100 ? oneIn.toFixed(1).replace(/\.0$/, '') : Math.round(oneIn).toLocaleString()}</b>. ${word}`;
+    }
+    $('luck').innerHTML = msg;
+    chart();
+  }
+  $('reset').onclick = () => { if (busy) return; saved[game] = blank(); save(); paintScores(); };
+
+  function chart() {
+    const cv = $('chart'), x = cv.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, 2);
+    const W = cv.clientWidth * dpr, H = cv.clientHeight * dpr; if (!W) return; cv.width = W; cv.height = H; x.clearRect(0, 0, W, H);
+    const hist = saved[game].hist, p = 1 / GAMES[game].items.length, n = Math.max(20, hist.length);
+    const padL = 48 * dpr, padB = 26 * dpr, padT = 10 * dpr, cw = W - padL - 10 * dpr, ch = H - padB - padT;
+    const X = i => padL + (i / n) * cw, Y = v => padT + (1 - v) * ch;
+    x.font = `${13 * dpr}px "IBM Plex Mono", monospace`; x.fillStyle = '#9AA3BD'; x.strokeStyle = 'rgba(188,195,214,.15)'; x.lineWidth = dpr;
+    [0, .25, .5, .75, 1].forEach(v => { x.beginPath(); x.moveTo(padL, Y(v)); x.lineTo(W - 10 * dpr, Y(v)); x.stroke(); x.fillText(Math.round(v * 100) + '%', 2 * dpr, Y(v) + 4 * dpr); });
+    x.fillText('guess 1', padL, H - 6 * dpr); const lbl = n.toLocaleString(); x.fillText(lbl, W - 10 * dpr - x.measureText(lbl).width, H - 6 * dpr);
+    // luck band
+    x.beginPath(); for (let i = 1; i <= n; i++) x.lineTo(X(i), Y(Math.min(1, p + 1.96 * Math.sqrt(p * (1 - p) / i))));
+    for (let i = n; i >= 1; i--) x.lineTo(X(i), Y(Math.max(0, p - 1.96 * Math.sqrt(p * (1 - p) / i)))); x.closePath();
+    x.fillStyle = 'rgba(143,184,255,.18)'; x.fill();
+    x.strokeStyle = 'rgba(143,184,255,.7)'; x.setLineDash([6 * dpr, 6 * dpr]); x.beginPath(); x.moveTo(padL, Y(p)); x.lineTo(W - 10 * dpr, Y(p)); x.stroke(); x.setLineDash([]);
+    if (!hist.length) return;
+    x.strokeStyle = '#E7C26A'; x.lineWidth = 3 * dpr; x.lineJoin = 'round'; x.beginPath(); let k = 0;
+    hist.forEach((h, i) => { k += h; const px = X(i + 1), py = Y(k / (i + 1)); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.stroke();
+    x.fillStyle = '#E7C26A'; x.beginPath(); x.arc(X(hist.length), Y(k / hist.length), 5 * dpr, 0, 7); x.fill();
+  }
+  addEventListener('resize', chart);
+
+  // ================= Keyboard =================
+  addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea')) return;
+    const key = e.key.toUpperCase(), item = GAMES[game].items.find(it => it[2] === key);
+    if (item) { e.preventDefault(); guess(item[0]); }
+  });
+
+  buildGame();
+})();
+</script>
+</body>
+</html>
