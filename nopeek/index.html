@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seven Card No Peek · AugieLab</title>
+<meta name="description" content="Play Seven Card No Peek, queens wild, against the computer, with a live coach showing your odds on every flip.">
+<meta property="og:title" content="Seven Card No Peek">
+<meta property="og:description" content="Queens are wild. Nobody looks. A live coach shows your odds on every flip.">
+<meta property="og:url" content="https://augielab.dev/nopeek/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --felt: #123A5A; --felt-dk: #0A2238; --rail: #5A1420; --gold: #F5C451; --text: #F3F1EA; --dim: #BFCCD9; --red: #C8102E; --ink: #14181D; --good: #5EE39A; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; background: var(--felt-dk); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 18px 14px 100px;
+    background: radial-gradient(ellipse 140% 1000px at 50% 0%, #1D5583, var(--felt) 45%, var(--felt-dk) 100%) no-repeat, var(--felt-dk); }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  .top span { color: var(--dim); }
+  header { text-align: center; margin-bottom: 14px; }
+  h1 { font: 400 clamp(2rem, 7vw, 3.6rem)/1.05 "Alfa Slab One", serif; color: var(--gold); letter-spacing: .01em; text-shadow: 0 3px 0 #7A1A28, 0 8px 20px rgba(0,0,0,.45); }
+  .sub { color: var(--dim); font-size: 1.1rem; margin-top: 6px; }
+  .sub b { color: var(--gold); }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 12px 18px; justify-content: center; align-items: center; margin: 12px 0 16px; }
+  .btn { cursor: pointer; border: 0; border-radius: 12px; padding: 13px 22px; font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; color: #fff;
+    background: var(--red); box-shadow: 0 4px 0 #6E0818, 0 8px 16px rgba(0,0,0,.35); }
+  .btn.gold { background: var(--gold); color: #3A2400; box-shadow: 0 4px 0 #9C7414, 0 8px 16px rgba(0,0,0,.35); }
+  .btn:active { transform: translateY(3px); }
+  .btn:disabled { opacity: .45; cursor: default; transform: none; }
+  .pill { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.25); border-radius: 999px; padding: 6px 8px 6px 16px; font-weight: 600; }
+  .pill button { width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer; font: 700 1.3rem/1 "IBM Plex Sans", sans-serif; background: rgba(255,255,255,.14); color: #fff; }
+  .pill b { min-width: 1.4em; text-align: center; font-size: 1.2rem; }
+  .seg { display: flex; border: 2px solid rgba(245,196,81,.7); border-radius: 10px; overflow: hidden; }
+  .seg button { cursor: pointer; border: 0; padding: 9px 14px; font: 600 .95rem "IBM Plex Sans", sans-serif; background: transparent; color: #fff; }
+  .seg button[aria-pressed="true"] { background: var(--gold); color: #3A2400; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+
+  /* ---------- the table ---------- */
+  .table { border-radius: 26px; padding: 16px 16px 12px; background: radial-gradient(ellipse at 50% 35%, #1E5E8E, #13426A 75%);
+    border: 10px solid var(--rail); box-shadow: inset 0 0 0 2px rgba(255,255,255,.08), inset 0 0 40px rgba(0,0,0,.45), 0 0 0 3px #2D0910, 0 24px 44px -18px rgba(0,0,0,.8); }
+  .seat { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 10px 12px; border-radius: 14px; border: 2px solid transparent; transition: background .3s, border-color .3s, opacity .3s; }
+  .seat + .seat { margin-top: 6px; }
+  .seat .who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .seat .face { font-size: 1.5rem; line-height: 1; }
+  .seat .name { font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .02em; }
+  .seat .wins { font: 600 .82rem "IBM Plex Mono", monospace; color: var(--dim); background: rgba(0,0,0,.25); padding: 2px 8px; border-radius: 999px; }
+  .seat .hand { margin-left: auto; font-weight: 600; color: #fff; font-size: 1rem; }
+  .seat .crown { display: none; font-size: 1.2rem; }
+  .seat.leader { border-color: var(--gold); background: rgba(245,196,81,.12); }
+  .seat.leader .crown { display: inline; }
+  .seat.leader .hand { color: var(--gold); }
+  .seat.turn { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.55); }
+  .seat.done:not(.leader) { opacity: .55; }
+  .seat.me .name::after { content: " (you)"; color: var(--gold); font-weight: 600; }
+
+  .cards { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; max-width: 520px; }
+  .seat.me .cards { max-width: 600px; gap: 8px; }
+  .card { position: relative; aspect-ratio: 5 / 7; perspective: 600px; }
+  .card .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .45s cubic-bezier(.3,.7,.3,1); }
+  .card.up .in { transform: rotateY(180deg); }
+  .card .back, .card .front { position: absolute; inset: 0; border-radius: 8%/6%; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
+  .card .back { border: 3px solid #fff; background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.13) 0 3px, transparent 3px 9px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,.13) 0 3px, transparent 3px 9px), linear-gradient(160deg, #B3122B, #6E0818); }
+  .card .front { transform: rotateY(180deg); background: linear-gradient(180deg, #FFFFFF, #EFEDE6); color: var(--ink); display: grid; place-items: center; overflow: hidden; }
+  .card .front.red { color: #C8102E; }
+  .card .rk { position: absolute; top: 4%; left: 8%; font: 700 clamp(.85rem, 3.4vw, 1.35rem)/1 "IBM Plex Sans Condensed", sans-serif; text-align: center; }
+  .card .rk small { display: block; font-size: .8em; }
+  .card .pip { font-size: clamp(1.3rem, 6vw, 2.3rem); line-height: 1; margin-top: 14%; }
+  .card .front.wild { background: linear-gradient(160deg, #FFF3C9, #F5C451); }
+  .card .wildtag { position: absolute; bottom: 4%; left: 0; right: 0; text-align: center; font: 700 clamp(.5rem, 1.9vw, .72rem) "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; color: #6E4A00; }
+  .card.hit .front { box-shadow: 0 0 0 3px var(--good), 0 0 16px rgba(94,227,154,.8); }
+  .seat.me .card.next { cursor: pointer; animation: nudge 1.2s ease-in-out infinite; }
+  .seat.me .card.next .back { box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(245,196,81,.8); }
+  @keyframes nudge { 50% { transform: translateY(-6px); } }
+
+  .log { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.28); min-height: 4.6rem; font-size: 1rem; }
+  .log p { color: var(--dim); } .log p:first-child { color: #fff; font-weight: 600; }
+  .quick { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(6,20,34,.7); font-size: 1.02rem; text-align: center; }
+  .quick.show { display: block; } .quick b { color: var(--gold); } .quick .big { font: 400 1.4rem "Alfa Slab One", serif; color: #fff; }
+  .myturn { display: none; justify-content: center; margin-top: 10px; }
+  .myturn.show { display: flex; }
+
+  .banner { margin-top: 10px; border-radius: 14px; padding: 14px 16px; text-align: center; background: linear-gradient(160deg, #FFE8A3, var(--gold)); color: #3A2400; display: none; }
+  .banner.show { display: block; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+  .banner b { display: block; font: 400 1.5rem "Alfa Slab One", serif; }
+  @keyframes pop { from { transform: scale(.9); opacity: 0; } }
+
+  /* ---------- the coach ---------- */
+  .coach { border-radius: 18px; padding: 18px; background: rgba(6,20,34,.72); border: 1px solid rgba(191,204,217,.25); box-shadow: 0 20px 40px -20px rgba(0,0,0,.8); }
+  .lbl { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  .coach h2 { font: 400 1.35rem "Alfa Slab One", serif; color: var(--gold); margin: 2px 0 10px; }
+  .vs { display: grid; gap: 8px; }
+  .vs div { background: rgba(255,255,255,.06); border-radius: 10px; padding: 8px 12px; }
+  .vs b { display: block; font-size: 1.12rem; }
+  .vs .beat b { color: var(--gold); }
+  .chance { margin: 14px 0 6px; }
+  .chance .num { font: 400 2.6rem/1 "Alfa Slab One", serif; color: #fff; }
+  .meter { height: 14px; border-radius: 7px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 8px; }
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #E0475B, var(--gold) 50%, var(--good)); transition: width .5s; }
+  .next { margin-top: 8px; color: var(--dim); font-size: .98rem; }
+  .next b { color: #fff; }
+  .could { margin-top: 14px; }
+  .could h3 { font: 700 1rem "IBM Plex Sans", sans-serif; margin-bottom: 6px; }
+  .could h3 small { display: block; color: var(--dim); font-weight: 500; font-size: .88rem; }
+  .crow { display: grid; grid-template-columns: 9.5rem 1fr 3.6rem; gap: 8px; align-items: center; font-size: .95rem; margin-top: 5px; }
+  .crow .t { height: 12px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .crow .t i { display: block; height: 100%; background: #7FB7FF; border-radius: 6px; transition: width .5s; }
+  .crow span:last-child { font: 600 .9rem "IBM Plex Mono", monospace; text-align: right; }
+  .crow.have { color: var(--gold); } .crow.have .t i { background: var(--gold); }
+  .tip { margin-top: 14px; padding: 10px 12px; border-left: 4px solid var(--gold); background: rgba(245,196,81,.1); border-radius: 6px; font-size: .98rem; }
+  .idle { color: var(--dim); }
+
+  /* ---------- rankings and scores ---------- */
+  .lower { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; margin-top: 18px; }
+  .panel { border-radius: 18px; padding: 16px 18px; background: rgba(6,20,34,.6); border: 1px solid rgba(191,204,217,.2); }
+  .panel h2 { font: 400 1.25rem "Alfa Slab One", serif; color: var(--gold); margin-bottom: 4px; }
+  .panel > p { color: var(--dim); font-size: .95rem; margin-bottom: 8px; }
+  .ranks { list-style: none; display: grid; gap: 6px; counter-reset: r 11; }
+  .ranks li { display: grid; grid-template-columns: 2rem 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); }
+  .ranks li::before { counter-increment: r -1; content: counter(r); font: 700 1rem "IBM Plex Mono", monospace; color: var(--dim); text-align: center; }
+  .ranks b { display: block; font-size: 1.05rem; }
+  .ranks small { color: var(--dim); font-size: .9rem; }
+  .ranks .ex { font: 600 .95rem "IBM Plex Mono", monospace; white-space: nowrap; text-align: right; }
+  .ranks .ex em { font-style: normal; display: block; color: var(--dim); font-size: .8rem; font-family: "IBM Plex Sans", sans-serif; }
+  .ranks .ex .r { color: #FF7A8A; }
+  .ranks li.lead { outline: 2px solid var(--gold); background: rgba(245,196,81,.12); }
+  .ranks li.mine { outline: 2px solid var(--good); }
+  .ranks .tags { font-size: .8rem; font-weight: 700; }
+  .ranks .tags span { margin-right: 6px; padding: 1px 7px; border-radius: 999px; }
+  .tag-lead { background: var(--gold); color: #3A2400; } .tag-mine { background: var(--good); color: #062; }
+  .scores { list-style: none; display: grid; gap: 6px; }
+  .scores li { display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: 1.05rem; }
+  .scores li b { font-family: "IBM Plex Mono", monospace; }
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 18px; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #FFC46B; flex: none; }
+  .source.quantum i { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  button:focus-visible { outline: 3px solid #9FE8FF; outline-offset: 3px; }
+
+  @media (max-width: 900px) { .layout, .lower { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) {
+    html { font-size: 17px; } body { padding: 12px 6px 100px; }
+    .table { padding: 10px 6px 8px; border-width: 7px; border-radius: 18px; }
+    .seat { padding: 8px 6px; } .cards { gap: 4px; } .seat.me .cards { gap: 5px; }
+    .crow { grid-template-columns: 7.6rem 1fr 3.2rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .card .in { transition: none; } .seat.me .card.next { animation: none; } .banner.show { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>Queens are wild. Nobody looks.</span></div>
+  <header>
+    <h1>Seven Card No Peek</h1>
+    <p class="sub">Everyone gets 7 cards face down. Flip until you beat the best hand showing. <b>Queens are wild.</b></p>
+  </header>
+
+  <div class="bar">
+    <button class="btn" id="deal">Deal a hand</button>
+    <div class="pill">Players <button id="pMinus" aria-label="Fewer players">−</button><b id="pN">5</b><button id="pPlus" aria-label="More players">+</button></div>
+    <div class="seg" role="group" aria-label="Computer speed"><button data-s="1300">Relaxed</button><button data-s="800" aria-pressed="true">Normal</button><button data-s="300">Fast</button></div>
+  </div>
+
+  <div class="layout">
+    <section class="table" aria-label="The card table">
+      <div id="seats"></div>
+      <div class="quick" id="quick" aria-hidden="true"></div>
+      <div class="myturn" id="myturn"><button class="btn gold" id="flip">Flip my next card</button></div>
+      <div class="banner" id="banner" role="status"></div>
+      <div class="log" id="log" aria-live="polite"><p>Press “Deal a hand” to start.</p></div>
+    </section>
+
+    <aside class="coach" id="coach" aria-live="polite">
+      <div class="lbl">The coach</div>
+      <h2 id="cTitle">Ready when you are</h2>
+      <div id="cBody"><p class="idle">Deal a hand. While anyone is flipping, the coach shows what they need to beat, the odds of beating it, and what their remaining cards could turn into.</p></div>
+    </aside>
+  </div>
+
+  <div class="lower">
+    <section class="panel">
+      <h2>What beats what</h2>
+      <p>Best at the top. With queens wild, “five of a kind” is possible and beats everything. The odds show how often you'd get each hand (or better) with all 7 cards turned up.</p>
+      <ol class="ranks" id="ranks"></ol>
+    </section>
+    <section class="panel">
+      <h2>Scoreboard</h2>
+      <p>Hands won this visit.</p>
+      <ul class="scores" id="scores"></ul>
+    </section>
+  </div>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Shuffling: demo mode, from your browser's generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>How the game works</h3>
+  <p>Everybody gets seven cards face down, and nobody looks at them. The first player turns over one card. That's the hand to beat. The next player turns over cards, one at a time, until their best five-card hand beats it, or until they run out of cards. Then the next player has to beat the new best hand, and so on around the table, again and again, until nobody else has cards left to flip. Whoever holds the best hand at the end wins.</p>
+  <h3>Queens are wild</h3>
+  <p>A queen can stand in for any card you want. A pair of 9s plus a queen is three 9s. Five cards of the same rank, called five of a kind, can only happen with wild cards, and it beats everything, even a royal flush.</p>
+  <h3>The coach</h3>
+  <p>Whenever someone is flipping, the coach works out the odds by playing out thousands of possible futures using the cards nobody has seen yet. It shows the chance they'll beat the best hand, the chance the very next card does it, and what their hand could grow into if they turned over everything they have left. It's a good way to learn which hands are strong and how much a single queen changes things.</p>
+  <h3>Why there are no choices</h3>
+  <p>In No Peek, the cards make every decision. The only real choices at a home game are the bets. So this page lets you sit back, flip, and learn the odds. You can flip your own cards when it's your turn; the computer players flip theirs.</p>
+  <h3>Where the shuffles come from</h3>
+  <p>Today the deck is shuffled with your browser's random number maker. When this lab's <strong>quantum random number generator</strong> is online, a small USB stick from Crypta Labs that measures tiny particles of light, it will shuffle every deck, and the dot at the bottom will turn green.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // ================= Randomness =================
+  // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let qpool = [], quantum = false, fetching = false;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || qpool.length > 256) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { qpool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    fetching = false; paintSource();
+  }
+  function paintSource() {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Shuffling: quantum, from the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? 'Shuffling: the quantum generator is offline, so this is demo mode.' : "Shuffling: demo mode, from your browser's generator.";
+  }
+  paintSource(); topUp();
+  function qInt(n) { const lim = 256 - (256 % n);
+    for (;;) { let b; if (quantum && qpool.length) b = qpool.shift(); else { const a = new Uint8Array(1); crypto.getRandomValues(a); b = a[0]; }
+      if (qpool.length < 128) topUp(); if (b < lim) return b % n; } }
+  const u32 = new Uint32Array(8192); let up = u32.length;
+  const fastInt = n => { if (up >= u32.length) { crypto.getRandomValues(u32); up = 0; } return Math.floor(u32[up++] / 4294967296 * n); };
+
+  // ================= Cards =================
+  const SUITS = ['♠', '♥', '♦', '♣'], RN = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+  const rname = r => RN[r] || String(r);
+  const plural = r => ({ 11: 'Jacks', 12: 'Queens', 13: 'Kings', 14: 'Aces', 6: 'Sixes' }[r] || r + 's');
+  const single = r => ({ 11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace' }[r] || String(r));
+  const DECK = []; for (let s = 0; s < 4; s++) for (let r = 2; r <= 14; r++) DECK.push({ r, s, id: s * 13 + r - 2 });
+  const isWild = c => c.r === 12;
+
+  // ================= Hand evaluator (queens wild, best 5 of up to 7) =================
+  const CAT = ['High card', 'One pair', 'Two pair', 'Three of a kind', 'Straight', 'Flush', 'Full house', 'Four of a kind', 'Straight flush', 'Five of a kind'];
+  const STRAIGHTS = []; for (let h = 14; h >= 5; h--) STRAIGHTS.push([h, h === 5 ? [5, 4, 3, 2, 14] : [h, h - 1, h - 2, h - 3, h - 4]]);
+  function evaluate(cards) {
+    const n = cards.length; if (!n) return { cat: -1, tb: [], score: -1 };
+    let w = 0; const cnt = new Array(15).fill(0), suit = [new Set(), new Set(), new Set(), new Set()], nat = [];
+    for (const c of cards) { if (isWild(c)) w++; else { cnt[c.r]++; suit[c.s].add(c.r); nat.push(c.r); } }
+    nat.sort((a, b) => b - a);
+    const has = new Set(nat);
+    const kick = (ex, k) => nat.filter(r => !ex.includes(r)).slice(0, Math.max(0, k));
+    const mk = (cat, tb) => { let s = cat; for (let i = 0; i < 5; i++) s = s * 15 + (tb[i] || 0); return { cat, tb, score: s }; };
+    const five = Math.min(5, n);
+    if (n >= 5) for (let r = 14; r >= 2; r--) if (cnt[r] + w >= 5) return mk(9, [r]);
+    if (n >= 5) { let best = 0;
+      for (let s = 0; s < 4; s++) for (const [h, rs] of STRAIGHTS) { if (h <= best) break; if (rs.filter(x => !suit[s].has(x)).length <= w) { best = h; break; } }
+      if (best) return mk(8, [best]); }
+    if (n >= 4) for (let r = 14; r >= 2; r--) if (cnt[r] + w >= 4) return mk(7, [r, ...kick([r], five - 4)]);
+    if (n >= 5) for (let a = 14; a >= 2; a--) for (let b = 14; b >= 2; b--) {
+      if (a === b) continue; if (Math.max(0, 3 - cnt[a]) + Math.max(0, 2 - cnt[b]) <= w) return mk(6, [a, b]); }
+    if (n >= 5) { let best = null;
+      for (let s = 0; s < 4; s++) { const nr = [...suit[s]].sort((a, b) => b - a); if (nr.length + w < 5) continue;
+        let extra = w; for (let r = 14; r >= 2 && extra > 0; r--) if (!suit[s].has(r)) { nr.push(r); extra--; }
+        const top = nr.sort((a, b) => b - a).slice(0, 5);
+        if (!best || cmpList(top, best) > 0) best = top; }
+      if (best) return mk(5, best); }
+    if (n >= 5) for (const [h, rs] of STRAIGHTS) if (rs.filter(x => !has.has(x)).length <= w) return mk(4, [h]);
+    if (n >= 3) for (let r = 14; r >= 2; r--) if (cnt[r] + w >= 3) return mk(3, [r, ...kick([r], five - 3)]);
+    if (w === 0 && n >= 4) { const pairs = []; for (let r = 14; r >= 2; r--) if (cnt[r] >= 2) pairs.push(r);
+      if (pairs.length >= 2) return mk(2, [pairs[0], pairs[1], ...kick([pairs[0], pairs[1]], five - 4)]); }
+    if (n >= 2) for (let r = 14; r >= 2; r--) if (cnt[r] + w >= 2) return mk(1, [r, ...kick([r], five - 2)]);
+    return mk(0, nat.length ? nat.slice(0, five) : [14]);
+  }
+  function cmpList(a, b) { for (let i = 0; i < Math.max(a.length, b.length); i++) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d; } return 0; }
+  function describe(ev) {
+    const t = ev.tb;
+    switch (ev.cat) {
+      case -1: return 'No cards yet';
+      case 0: return `${single(t[0])} high`;
+      case 1: return `Pair of ${plural(t[0])}`;
+      case 2: return `Two pair, ${plural(t[0])} and ${plural(t[1])}`;
+      case 3: return `Three ${plural(t[0])}`;
+      case 4: return `Straight to the ${single(t[0])}`;
+      case 5: return `Flush, ${single(t[0])} high`;
+      case 6: return `Full house, ${plural(t[0])} over ${plural(t[1])}`;
+      case 7: return `Four ${plural(t[0])}`;
+      case 8: return t[0] === 14 ? 'Royal flush!' : `Straight flush to the ${single(t[0])}`;
+      case 9: return `Five ${plural(t[0])}!`;
+    }
+  }
+
+  // ================= Baseline odds for the rankings list =================
+  const ATLEAST = new Array(10).fill(0);
+  (function baseline() {
+    const N = 30000, counts = new Array(10).fill(0), ids = DECK.map((_, i) => i);
+    for (let k = 0; k < N; k++) { const h = []; for (let i = 0; i < 7; i++) { const j = i + fastInt(52 - i); [ids[i], ids[j]] = [ids[j], ids[i]]; h.push(DECK[ids[i]]); } counts[evaluate(h).cat]++; }
+    let acc = 0; for (let c = 9; c >= 0; c--) { acc += counts[c]; ATLEAST[c] = acc / N; }
+  })();
+  const EX = ['K♠ 9♦ 7♣ 4♥ 2♠', '8♣ 8♥ K♠ 6♦ 3♣', 'J♠ J♦ 5♣ 5♥ 9♠', '7♣ 7♦ 7♠ A♥ 4♣', '5♦ 6♣ 7♥ 8♠ 9♦', 'A♥ J♥ 9♥ 6♥ 3♥', '10♠ 10♥ 10♦ 4♣ 4♠', 'K♣ K♦ K♥ K♠ 8♦', '5♣ 6♣ 7♣ 8♣ 9♣', 'A♠ A♥ A♦ A♣ Q♥'];
+  const PLAIN = ['nothing matches; your highest card counts', 'two cards of the same rank', 'two different pairs', 'three cards of the same rank', 'five in a row, any suits', 'five of the same suit', 'three of a kind plus a pair', 'four cards of the same rank', 'five in a row, all one suit', 'only possible with a wild queen'];
+  const pct = p => p >= .995 ? '100%' : p === 0 ? '0%' : p < .001 ? '<0.1%' : p < .1 ? (p * 100).toFixed(1) + '%' : Math.round(p * 100) + '%';
+  function paintRanks(leadCat, myCat) {
+    $('ranks').innerHTML = [...CAT.keys()].reverse().map(c => {
+      const tags = (c === leadCat ? '<span class="tag-lead">👑 best showing</span>' : '') + (c === myCat ? '<span class="tag-mine">you</span>' : '');
+      const ex = EX[c].replace(/(\S+[♥♦])/g, '<span class="r">$1</span>');
+      return `<li class="${c === leadCat ? 'lead' : ''} ${c === myCat ? 'mine' : ''}"><div><b>${CAT[c]}</b><small>${PLAIN[c]}</small>${tags ? `<div class="tags">${tags}</div>` : ''}</div><div class="ex">${ex}<em>${pct(ATLEAST[c])} with 7 cards</em></div></li>`;
+    }).join('');
+  }
+
+  // ================= Players =================
+  const NAMES = [['🙂', 'You', true], ['👵', 'Grandma Dot'], ['🤠', 'Big Earl'], ['🦊', 'Sneaky Pete'], ['🎩', 'Lucky Lou'], ['🐻', 'Bear'], ['🌵', 'Rosa']];
+  let nPlayers = 5, speed = 800, players = [], dealer = -1, leader = -1, turn = -1, gameId = 0, playing = false, waitFlip = null;
+  const wins = {};
+  function makePlayers() { players = NAMES.slice(0, nPlayers).map(([face, name, human]) => ({ face, name, human: !!human, cards: [], up: 0 })); dealer = -1; buildSeats(); paintScores(); }
+  function buildSeats() {
+    $('seats').innerHTML = players.map((p, i) => `<div class="seat ${p.human ? 'me' : ''}" id="seat${i}"><div class="who"><span class="face" aria-hidden="true">${p.face}</span><span class="name">${p.name}</span><span class="crown" title="Best hand showing">👑</span><span class="wins" id="w${i}"></span><span class="hand" id="h${i}"></span></div>
+      <div class="cards" id="c${i}">${'<div class="card"><div class="in"><div class="back"></div><div class="front"></div></div></div>'.repeat(7)}</div></div>`).join('');
+    players.forEach((p, i) => { if (p.human) $('c' + i).querySelectorAll('.card').forEach((el, k) => el.onclick = () => { if (waitFlip && k === players[i].up) waitFlip(); }); });
+  }
+  const upCards = p => p.cards.slice(0, p.up);
+  const evOf = p => evaluate(upCards(p));
+  function paintSeats() {
+    players.forEach((p, i) => {
+      const seat = $('seat' + i), ev = evOf(p);
+      seat.classList.toggle('leader', i === leader); seat.classList.toggle('turn', i === turn && playing); seat.classList.toggle('done', p.up === 7);
+      $('h' + i).textContent = p.up ? describe(ev) : '';
+      $('w' + i).textContent = (wins[p.name] || 0) + ' won';
+      $('c' + i).querySelectorAll('.card').forEach((el, k) => {
+        const c = p.cards[k], isUp = k < p.up; el.classList.toggle('up', isUp);
+        el.classList.toggle('next', p.human && playing && i === turn && k === p.up && !!waitFlip);
+        el.setAttribute('aria-label', isUp ? `${rname(c.r)} of ${['spades', 'hearts', 'diamonds', 'clubs'][c.s]}` : 'Face-down card');
+        if (isUp && el.dataset.id !== String(c.id)) {
+          el.dataset.id = c.id; const f = el.querySelector('.front');
+          f.className = 'front' + (c.s === 1 || c.s === 2 ? ' red' : '') + (isWild(c) ? ' wild' : '');
+          f.innerHTML = `<span class="rk">${rname(c.r)}<small>${SUITS[c.s]}</small></span><span class="pip">${SUITS[c.s]}</span>${isWild(c) ? '<span class="wildtag">WILD</span>' : ''}`;
+        }
+        if (!isUp) el.dataset.id = '';
+      });
+    });
+    const me = players.find(p => p.human), lead = players[leader];
+    paintRanks(lead && lead.up ? evOf(lead).cat : -1, me && me.up ? evOf(me).cat : -1);
+  }
+  function paintScores() { $('scores').innerHTML = players.map(p => `<li><span>${p.face} ${p.name}</span><b>${wins[p.name] || 0}</b></li>`).join(''); }
+  function say(msg) { const l = $('log'); const p = document.createElement('p'); p.innerHTML = msg; l.prepend(p); while (l.children.length > 3) l.lastChild.remove(); }
+
+  // ================= The coach =================
+  function coach(i) {
+    const p = players[i], lead = players[leader], mine = evOf(p), left = 7 - p.up;
+    const who = p.human ? 'You' : p.name, you = p.human;
+    $('cTitle').textContent = you ? "It's your turn" : `Watching ${p.name}`;
+    if (!lead || i === leader) { $('quick').classList.remove('show'); $('cBody').innerHTML = `<p class="idle">${who} ${you ? 'have' : 'has'} the best hand showing.</p>`; return; }
+    const target = evOf(lead);
+    // unseen cards: everything not face up anywhere
+    const seen = new Set(); players.forEach(q => upCards(q).forEach(c => seen.add(c.id)));
+    const unseen = DECK.filter(c => !seen.has(c.id));
+    // next card
+    let nextWins = 0; const cur = upCards(p);
+    unseen.forEach(c => { if (evaluate([...cur, c]).score > target.score) nextWins++; });
+    const queens = unseen.filter(isWild).length;
+    // play out the remaining cards many times
+    const N = 2500, atLeast = new Array(10).fill(0); let beat = 0; const ids = unseen.map((_, k) => k), U = unseen.length;
+    for (let s = 0; s < N; s++) {
+      const h = cur.slice(); for (let k = 0; k < left; k++) { const j = k + fastInt(U - k); [ids[k], ids[j]] = [ids[j], ids[k]]; h.push(unseen[ids[k]]); }
+      const ev = evaluate(h); if (ev.score > target.score) beat++; for (let c = 0; c <= ev.cat; c++) atLeast[c]++;
+    }
+    const pb = beat / N, nowCat = Math.max(0, mine.cat);
+    $('quick').innerHTML = `${you ? 'You need' : p.name + ' needs'} to beat <b>${describe(target)}</b> · chance: <span class="big">${left ? pct(pb) : '0%'}</span>`; $('quick').classList.add('show');
+    const rows = []; for (let c = nowCat; c <= 9; c++) { const v = atLeast[c] / N; if (c > nowCat && v < .0005) continue; rows.push(`<div class="crow ${c === nowCat ? 'have' : ''}"><span>${CAT[c]}${c === nowCat ? ' ✓' : ''}</span><span class="t"><i style="width:${Math.max(1, v * 100)}%"></i></span><span>${pct(v)}</span></div>`); }
+    let tip;
+    if (queens && mine.cat >= 1 && mine.cat < 3) tip = `A single wild queen would turn ${you ? 'your' : 'this'} ${CAT[mine.cat].toLowerCase()} into ${mine.cat === 1 ? 'three of a kind' : 'a full house'}. There are ${queens} queens still hiding.`;
+    else if (target.cat >= 6) tip = `${CAT[target.cat]} is a monster hand. Beating it usually takes wild queens.`;
+    else if (mine.cat === -1) tip = `Every hand starts with one card. A single card only beats another single card if it's higher.`;
+    else if (pb > .8) tip = `The odds are on ${you ? 'your' : 'their'} side. ${CAT[target.cat]} isn't hard to beat with ${left} cards to go.`;
+    else if (pb < .2) tip = `Long odds, but in No Peek you never know. That's what makes it fun.`;
+    else tip = `Each card turned over changes the odds. Watch the numbers move.`;
+    $('cBody').innerHTML = `<div class="vs"><div class="beat"><span class="lbl">Needs to beat (${lead.name})</span><b>${describe(target)}</b></div><div><span class="lbl">${you ? 'You have' : p.name + ' has'} · ${left} card${left === 1 ? '' : 's'} left</span><b>${p.up ? describe(mine) : 'Nothing yet'}</b></div></div>
+      <div class="chance"><div class="lbl">Chance ${you ? 'you beat' : 'they beat'} it this turn</div><div class="num">${left ? pct(pb) : '0%'}</div><div class="meter"><i style="width:${left ? pb * 100 : 0}%"></i></div></div>
+      <p class="next">Next card: <b>${pct(nextWins / U)}</b> chance it wins right away · <b>${pct(queens / U)}</b> chance it's a wild queen</p>
+      <div class="could"><h3>If ${you ? 'you' : 'they'} turned over all ${left} card${left === 1 ? '' : 's'}<small>chance of ending with at least…</small></h3>${rows.join('')}</div>
+      <p class="tip">${tip}</p>`;
+  }
+
+  // ================= Game flow =================
+  async function flipOne(i, id) {
+    const p = players[i]; p.up++; paintSeats();
+    await sleep(380); if (id !== gameId) throw 0;
+  }
+  async function takeTurn(i, id, firstOnly) {
+    const p = players[i]; turn = i; paintSeats();
+    while (p.up < 7) {
+      if (leader >= 0 && i !== leader) coach(i);
+      if (p.human) { $('myturn').classList.add('show'); await new Promise(r => { waitFlip = r; paintSeats(); }); waitFlip = null; $('myturn').classList.remove('show'); }
+      else await sleep(speed);
+      if (id !== gameId) throw 0;
+      await flipOne(i, id);
+      const c = p.cards[p.up - 1], ev = evOf(p);
+      if (firstOnly) { leader = i; say(`${p.name} ${p.human ? 'start' : 'starts'} with the ${rname(c.r)}${SUITS[c.s]}. That's the hand to beat.`); paintSeats(); return; }
+      if (ev.score > evOf(players[leader]).score) {
+        const old = leader; leader = i; paintSeats();
+        say(`<b>${p.name} ${p.human ? 'beat' : 'beats'} ${players[old].name}</b> with ${describe(ev).replace(/!$/, '')}${isWild(c) ? ', thanks to a wild queen' : ''}!`); await sleep(Math.max(500, speed)); return;
+      }
+      say(`${p.name} ${p.human ? 'flip' : 'flips'} the ${rname(c.r)}${SUITS[c.s]}${isWild(c) ? ' (wild!)' : ''}… ${describe(ev)}. Not enough yet.`);
+    }
+    say(`${p.name} ${p.human ? 'are' : 'is'} out of cards.`);
+  }
+  async function playHand() {
+    const id = ++gameId; playing = true; $('banner').className = 'banner'; $('quick').classList.remove('show'); $('log').innerHTML = '';
+    // quantum (or demo) shuffle, then deal 7 each
+    const ids = DECK.map((_, i) => i);
+    for (let i = 0; i < 51; i++) { const j = i + qInt(52 - i); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    players.forEach((p, k) => { p.cards = ids.slice(k * 7, k * 7 + 7).map(x => DECK[x]); p.up = 0; });
+    dealer = (dealer + 1) % players.length; leader = -1; turn = -1;
+    buildSeats(); paintSeats(); window.labTrack && labTrack('hand');
+    const first = (dealer + 1) % players.length;
+    say(`${players[dealer].name} ${players[dealer].human ? 'deal' : 'deals'}. ${players[first].name} ${players[first].human ? 'go' : 'goes'} first.`);
+    try {
+      await sleep(600); await takeTurn(first, id, true);
+      let i = first;
+      for (;;) {
+        const waiting = players.some((p, k) => k !== leader && p.up < 7); if (!waiting) break;
+        i = (i + 1) % players.length; if (i === leader || players[i].up === 7) continue;
+        await takeTurn(i, id, false);
+      }
+      playing = false; turn = -1; $('quick').classList.remove('show'); paintSeats();
+      const w = players[leader], ev = evOf(w); wins[w.name] = (wins[w.name] || 0) + 1; paintScores(); paintSeats();
+      const b = $('banner'); b.innerHTML = `<b>${w.human ? 'You win! 🎉' : `👑 ${w.name} wins`}</b>with ${describe(ev).replace(/!$/, '')}`; b.className = 'banner show';
+      $('cTitle').textContent = 'Hand over'; $('cBody').innerHTML = `<p class="idle">${w.human ? 'Nice flipping.' : `${w.name} takes the pot.`} Press “Deal a hand” to play again. Try watching the coach while the others flip; it's the quickest way to learn which hands are strong.</p>`;
+      say(`Nobody has cards left to beat ${w.name}.`);
+    } catch (e) { /* a new hand was dealt */ }
+  }
+
+  // ================= Controls =================
+  $('deal').onclick = () => { if (waitFlip) { const f = waitFlip; waitFlip = null; gameId++; f(); } playHand(); };
+  $('flip').onclick = () => waitFlip && waitFlip();
+  addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && waitFlip && !e.target.closest('button')) { e.preventDefault(); waitFlip(); } });
+  const setN = d => { if (playing) return; nPlayers = Math.max(3, Math.min(7, nPlayers + d)); $('pN').textContent = nPlayers; makePlayers(); paintSeats(); };
+  $('pMinus').onclick = () => setN(-1); $('pPlus').onclick = () => setN(1);
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { speed = +b.dataset.s; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+
+  makePlayers(); paintSeats();
+})();
+</script>
+</body>
+</html>
