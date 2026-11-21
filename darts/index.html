@@ -54,7 +54,6 @@
   .source { margin-top: 18px; display: flex; align-items: center; gap: 10px; font-size: .95rem; color: var(--dim); }
   .source i { width: 11px; height: 11px; border-radius: 50%; background: var(--gold); flex: none; }
   .source.quantum i { background: var(--in); box-shadow: 0 0 8px var(--in); }
-  .why { margin-top: 10px; background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
 
   #info { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 18px;
     background: rgba(5,10,18,.78); opacity: 0; pointer-events: none; transition: opacity .3s; }
@@ -66,6 +65,13 @@
   #info .close { position: absolute; top: 12px; right: 12px; width: 46px; height: 46px; padding: 0; font-size: 1.6rem; line-height: 1; }
 
   @media (max-width: 860px) { .lab { grid-template-columns: 1fr; gap: 22px; } html { font-size: 18px; } }
+
+  /* shared lower-left explainer button */
+  .why { position: fixed; left: 16px; bottom: 16px; z-index: 15; margin: 0; padding: .7rem 1.15rem; border-radius: 999px; cursor: pointer;
+    font: 600 1rem "IBM Plex Sans", system-ui, sans-serif; text-decoration: none; color: #fff; background: rgba(12,16,24,.82);
+    border: 1px solid rgba(255,255,255,.35); box-shadow: 0 6px 18px rgba(0,0,0,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .why:hover { border-color: #fff; }
+  body { padding-bottom: 90px; }
 </style>
 </head>
 <body>
@@ -97,7 +103,7 @@
     <div class="chartbox"><div class="label">How the estimate settles toward π as darts pile up</div><canvas id="chart"></canvas></div>
 
     <div class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></div>
-    <button class="why" id="whyBtn">How does this work?</button>
+    <button class="why" id="whyBtn" aria-haspopup="dialog">✦ What's happening?</button>
   </section>
 </main>
 
@@ -105,6 +111,8 @@
   <div class="box">
     <button class="close" id="infoClose" aria-label="Close">×</button>
     <h2 id="infoTitle">Finding π with darts</h2>
+    <h3>Right now: demo mode</h3>
+    <p>Today the darts are thrown using your web browser's built-in random number maker. It's good, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, every dart will land where a quantum measurement says, and the dot under the chart will turn from yellow to green.</p>
     <h3>The trick</h3>
     <p>The board is a square with a circle drawn inside it, touching all four edges. If darts land at truly random spots, the share that lands inside the circle works out to π ÷ 4. Count them, multiply by 4, and you have π. More darts, closer answer.</p>
     <h3>Why it's called Monte Carlo</h3>

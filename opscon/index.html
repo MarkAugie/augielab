@@ -54,7 +54,7 @@
   @media (prefers-reduced-motion: reduce) { .crt { animation: none; } .banner { animation: none; } }
 </style>
 </head>
-<body>
+<body data-explain-bottom="44" data-explain-autohide>
 <div class="bar"><span id="topL">OPSCON 2.6 :: session augie@lab-07</span><span id="topM">◉ SAT-LINK NOMINAL</span><span id="clock">--:--:--</span></div>
 <main id="grid"></main>
 <div class="bar"><span id="tabs"></span><span>SIMULATION · NOTHING HERE IS REAL</span></div>
@@ -295,5 +295,17 @@ const start = () => { measure(); layout(); const order = ['matrix', 'intrude', '
 (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(start);
 })();
 </script>
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>Nothing here is real</h3>
+  <p>This is a screensaver dressed up like the "hacker" screens in movies. No computers are being broken into, no satellites are being tracked, and no data is going anywhere. Every host name ends in ".sim" for simulation, and every number is made up on the spot.</p>
+  <h3>What you're looking at</h3>
+  <p>Six panels, each pretending to run a different program: falling "Matrix" code, a fake break-in that ends in ACCESS GRANTED, a world map with glowing routes between cities, spinning satellites, network graphs, a hex dump, a task list and a scrolling log. About every 15 seconds a panel switches to a different program, and every minute the whole layout rearranges itself.</p>
+  <h3>Why</h3>
+  <p>It's inspired by a Linux program called Hollywood, and it's meant to run on a spare monitor and make people walking by stop and ask, "Whoa, what's going on there?"</p>
+  <h3>Tips</h3>
+  <p>Press F or double-click for full screen. While it's open, it asks the computer to keep the screen from going to sleep.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
 </body>
 </html>

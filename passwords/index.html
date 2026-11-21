@@ -68,7 +68,6 @@
   .source i { width: 11px; height: 11px; border-radius: 50%; background: var(--warn); flex: none; }
   .source.quantum i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
   .notes a { color: var(--dim); }
-  .why { background: none; border: 0; color: var(--warn); font: 600 1rem "IBM Plex Sans", sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start; padding: 0; }
 
   #info { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(10,11,13,.8); opacity: 0; pointer-events: none; transition: opacity .3s; }
   #info.open { opacity: 1; pointer-events: auto; }
@@ -78,6 +77,13 @@
   #info p { color: #D9DDE3; }
   #info .close { position: absolute; top: 12px; right: 12px; width: 46px; height: 46px; padding: 0; font-size: 1.6rem; line-height: 1; }
   @media (prefers-reduced-motion: reduce) { .tape .ch.new { animation: none; } }
+
+  /* shared lower-left explainer button */
+  .why { position: fixed; left: 16px; bottom: 16px; z-index: 15; margin: 0; padding: .7rem 1.15rem; border-radius: 999px; cursor: pointer;
+    font: 600 1rem "IBM Plex Sans", system-ui, sans-serif; text-decoration: none; color: #fff; background: rgba(12,16,24,.82);
+    border: 1px solid rgba(255,255,255,.35); box-shadow: 0 6px 18px rgba(0,0,0,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .why:hover { border-color: #fff; }
+  body { padding-bottom: 90px; }
 </style>
 </head>
 <body>
@@ -123,7 +129,7 @@
   <div class="notes">
     <p>Made right here in your browser. Nothing you see on this page is sent anywhere or saved.</p>
     <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's secure generator.</span></p>
-    <button class="why" id="whyBtn">How does this work?</button>
+    <button class="why" id="whyBtn" aria-haspopup="dialog">✦ What's happening?</button>
     <p>Passphrase words come from the <a href="https://www.eff.org/dice">EFF long wordlist</a> (CC BY 3.0).</p>
   </div>
 </div>
@@ -132,6 +138,8 @@
   <div class="box">
     <button class="btn close" id="infoClose" aria-label="Close">×</button>
     <h2 id="infoTitle">What makes a password strong</h2>
+    <h3>Right now: demo mode</h3>
+    <p>Today your passwords come from your web browser's built-in secure random number maker, the same one banks and password managers rely on, so they're already strong. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, its quantum numbers get mixed into every password, and the dot below will turn from yellow to green.</p>
     <h3>Unpredictability beats cleverness</h3>
     <p>A password is strong when there are so many possibilities that guessing would take forever. Swapping letters for symbols in a real word doesn't help much, because attackers try those tricks first. Pure randomness does.</p>
     <h3>Passwords or passphrases?</h3>
