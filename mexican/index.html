@@ -272,6 +272,7 @@
   const TILES = []; for (let a = 0; a <= 12; a++) for (let b = a; b <= 12; b++) TILES.push({ a, b, id: TILES.length });
   const isDbl = t => t.a === t.b, pips = t => t.a + t.b, has = (t, n) => t.a === n || t.b === n;
   const nm = t => `${t.a}|${t.b}`;
+  const an = n => (n === 8 || n === 11 ? 'an ' : 'a ') + n, An = n => (n === 8 || n === 11 ? 'An ' : 'A ');
 
   // ================= Drawing dominoes (same set as The Miracle Train) =================
   const PIP = ['#000', '#2FA4E7', '#1E8C45', '#D7263D', '#8B4A22', '#1F4FB8', '#E0A800', '#8E5BD0', '#0E9488', '#25307A', '#E8650F', '#2B2B2B', '#7D8790'];
@@ -417,7 +418,7 @@
     const t = bone.pop(); p.hand.push(t); fresh = t.id;
     const moves = legal(i, first).filter(m => m.tile === t), hit = moves.length > 0;
     const L2 = p.human ? luck.me : luck.cpu; L2.d++; L2.e += odds.p; L2.h += hit ? 1 : 0;
-    const need = odds.n.length > 1 ? `a ${odds.n.slice(0, -1).join(', a ')} or a ${odds.n[odds.n.length - 1]}` : `a ${odds.n[0]}`;
+    const need = odds.n.length > 1 ? `${odds.n.slice(0, -1).map(an).join(', ')} or ${an(odds.n[odds.n.length - 1])}` : an(odds.n[0]);
     say(`${p.name} ${verb(p, 'needed', 'needed')} ${need} (<b>${pct(odds.p)}</b> chance) and ${verb(p, 'drew', 'drew')} <b>${p.human ? nm(t) : 'a domino'}</b>. ${hit ? 'It fits!' : 'No luck.'}`);
     paint();
     if (!hit) { await sleep(p.human ? 500 : speed * .5); chk(id); pass(i, false); return; }
@@ -586,7 +587,7 @@
     if (od.n.length > 1) {
       const by = od.n.map(n => ({ n, h: hid[n] })).sort((x, y) => y.h - x.h);
       tip = by[0].h === by[by.length - 1].h ? `Your numbers are equally likely: ${by[0].h} of each still hidden.`
-        : `A <b>${by[0].n}</b> is your best hope: ${by[0].h} are still hidden, against only ${by[by.length - 1].h} with a <b>${by[by.length - 1].n}</b>.`;
+        : `${An(by[0].n)}<b>${by[0].n}</b> is your best hope: ${by[0].h} are still hidden, against only ${by[by.length - 1].h} with ${an(by[by.length - 1].n).split(' ')[0]} <b>${by[by.length - 1].n}</b>.`;
     } else if (od.n.length === 1) {
       const n = od.n[0], gone = hold[n] + seen[n];
       tip = gone >= 9 ? `Most of the ${n}s are already out of play (${gone} of 13), so a ${n} is getting scarce. That's when trains go open.` : `${hid[n]} of the 13 dominoes with a ${n} are still out of sight.`;

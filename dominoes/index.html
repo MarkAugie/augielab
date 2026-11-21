@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dominoes · AugieLab</title>
+<meta name="description" content="Play Draw or Block dominoes with a double-12 set against the computer, with a coach that shows your odds on every draw.">
+<meta property="og:title" content="Draw &amp; Block Dominoes">
+<meta property="og:description" content="Classic 12-spot dominoes against the computer. Every time you draw, the coach shows your odds of pulling one that fits.">
+<meta property="og:url" content="https://augielab.dev/dominoes/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --felt: #1D5C46; --felt-dk: #123D2F; --text: #F6F1E4; --dim: #C9D8CF; --red: #C8102E; --gold: #F2C14E; --good: #5EE39A; --ink: #22180F; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; background: var(--felt-dk); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 18px 14px 100px;
+    background: radial-gradient(ellipse 140% 1100px at 50% 0%, #2B7A5D, var(--felt) 45%, var(--felt-dk) 100%) no-repeat, var(--felt-dk); }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  .top span { color: var(--dim); }
+  header { text-align: center; margin-bottom: 12px; }
+  h1 { font: 400 clamp(2.3rem, 8vw, 4rem)/1.05 "Rye", serif; color: var(--gold); letter-spacing: .02em; text-shadow: 0 3px 0 #7A4B0F, 0 6px 18px rgba(0,0,0,.45); }
+  .sub { color: var(--dim); font-size: 1.1rem; margin-top: 6px; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 12px 18px; justify-content: center; align-items: center; margin: 10px 0 16px; }
+  .btn { cursor: pointer; border: 0; border-radius: 12px; padding: 13px 22px; font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; color: #fff;
+    background: var(--red); box-shadow: 0 4px 0 #7A0A1C, 0 8px 16px rgba(0,0,0,.35); }
+  .btn.gold { background: var(--gold); color: #2A1A05; box-shadow: 0 4px 0 #9C7414, 0 8px 16px rgba(0,0,0,.35); }
+  .btn.ghost { background: rgba(255,255,255,.12); box-shadow: 0 4px 0 rgba(0,0,0,.35); }
+  .btn:active { transform: translateY(3px); }
+  .pill { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.25); border-radius: 999px; padding: 6px 8px 6px 16px; font-weight: 600; }
+  .pill button { width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer; font: 700 1.3rem/1 "IBM Plex Sans", sans-serif; background: rgba(255,255,255,.14); color: #fff; }
+  .pill b { min-width: 1.4em; text-align: center; font-size: 1.2rem; }
+  .seg { display: flex; border: 2px solid rgba(242,193,78,.7); border-radius: 10px; overflow: hidden; }
+  .seg button { cursor: pointer; border: 0; padding: 9px 13px; font: 600 .95rem "IBM Plex Sans", sans-serif; background: transparent; color: #fff; }
+  .seg button[aria-pressed="true"] { background: var(--gold); color: #2A1A05; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+
+  /* ---------- the table ---------- */
+  .table { position: relative; border-radius: 22px; padding: 14px 14px 12px; background: radial-gradient(ellipse at 50% 30%, #2A7D5E, #1A563F 80%);
+    border: 12px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 3px #3E220F, inset 0 0 40px rgba(0,0,0,.45), 0 30px 50px -18px rgba(0,0,0,.8); }
+  .table::before { content: ""; position: absolute; inset: -12px; border-radius: 22px; pointer-events: none; z-index: -1;
+    background: repeating-linear-gradient(100deg, #6B3F22 0 7px, #7C4A28 7px 12px, #5F371D 12px 19px); }
+  .lbl { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #E4D3A8; }
+
+  .hubrow { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 10px; }
+  .hubrow .eng { display: flex; align-items: center; gap: 12px; }
+  .hubrow .eng svg { width: 88px; height: 44px; flex: none; }
+  .hubrow .eng b { display: block; font: 700 1.3rem "IBM Plex Sans Condensed", sans-serif; }
+  .bone { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,.22); border-radius: 12px; padding: 8px 14px; }
+  .bone svg { width: 60px; height: 40px; flex: none; }
+  .bone b { font: 700 1.5rem "IBM Plex Sans Condensed", sans-serif; display: block; line-height: 1.1; }
+  .bone span { color: var(--dim); font-size: .92rem; }
+
+  .lane { display: grid; grid-template-columns: 11.5rem minmax(0, 1fr); gap: 10px; align-items: center; padding: 6px 8px; border-radius: 12px; border: 2px solid transparent; transition: background .25s, border-color .25s; }
+  .lane + .lane { margin-top: 4px; }
+  .lane .who { display: grid; gap: 2px; }
+  .lane .nm { font: 700 1.05rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .02em; display: flex; align-items: center; gap: 6px; }
+  .lane .info { font-size: .88rem; color: var(--dim); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chip { font: 700 .74rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .chip.open { background: var(--gold); color: #2A1A05; }
+  .chip.dbl { background: #FF6B6B; color: #2A0505; }
+  .chip.end { background: rgba(255,255,255,.14); color: #fff; }
+  .lane svg { display: block; width: 100%; height: auto; }
+  .lane.mex { background: rgba(232,101,15,.12); }
+  .lane.mine { background: rgba(255,255,255,.07); }
+  .lane.turn { border-color: rgba(255,255,255,.5); }
+  .lane.target { border-color: var(--good); background: rgba(94,227,154,.16); cursor: pointer; animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 4px rgba(94,227,154,.35); } }
+
+  .handbox { margin-top: 12px; padding: 12px 10px 10px; border-radius: 14px; background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.32)); }
+  .handbox .hd { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; margin: 0 4px 8px; }
+  .handbox .hd span { color: var(--dim); font-size: .95rem; }
+  .hand { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 100px; }
+  .dom { width: clamp(42px, 6.2vw, 60px); padding: 0; border: 0; background: none; cursor: default; border-radius: 9px; transition: transform .18s, filter .2s, opacity .2s; }
+  .dom svg { display: block; width: 100%; height: auto; }
+  .hand.picking .dom { opacity: .5; }
+  .hand.picking .dom.ok { opacity: 1; cursor: pointer; filter: drop-shadow(0 0 7px rgba(94,227,154,.95)); }
+  .hand.picking .dom.ok:hover { transform: translateY(-5px); }
+  .dom.sel { transform: translateY(-12px) !important; filter: drop-shadow(0 0 9px rgba(242,193,78,1)) !important; opacity: 1 !important; }
+  .dom.fresh { animation: drop .5s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes drop { from { transform: translateY(-30px) scale(.8); opacity: 0; } }
+
+  .act { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; min-height: 54px; }
+  .act .prompt { width: 100%; text-align: center; font-weight: 600; font-size: 1.08rem; }
+  .act .prompt b { color: var(--gold); }
+  .log { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.28); min-height: 4.6rem; font-size: 1rem; }
+  .log p { color: var(--dim); } .log p:first-child { color: #fff; font-weight: 600; }
+  .log b { color: var(--gold); }
+
+  .banner { margin-top: 10px; border-radius: 14px; padding: 14px 16px; text-align: center; background: linear-gradient(160deg, #FFE8A3, var(--gold)); color: #2A1A05; display: none; }
+  .banner.show { display: block; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+  .banner b.h { display: block; font: 400 1.6rem "Rye", serif; margin-bottom: 4px; }
+  .banner ul { list-style: none; display: inline-grid; gap: 2px; margin: 6px 0 10px; text-align: left; }
+  .banner li { display: flex; justify-content: space-between; gap: 24px; font-weight: 600; }
+  @keyframes pop { from { transform: scale(.92); opacity: 0; } }
+
+  /* ---------- the coach ---------- */
+  .side { display: grid; gap: 16px; }
+  .coach, .panel { border-radius: 18px; padding: 16px 18px; background: rgba(10,30,22,.72); border: 1px solid rgba(201,216,207,.25); box-shadow: 0 20px 40px -20px rgba(0,0,0,.8); }
+  .coach h2, .panel h2 { font: 400 1.35rem "Rye", serif; color: var(--gold); margin: 2px 0 8px; }
+  .ends { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .ends span { background: rgba(255,255,255,.08); border-radius: 10px; padding: 5px 10px; font-size: .95rem; }
+  .ends b { font: 700 1.05rem "IBM Plex Mono", monospace; color: #fff; }
+  .chance .num { font: 400 2.8rem/1 "Rye", serif; color: #fff; margin-top: 4px; }
+  .chance .num small { font: 600 1rem "IBM Plex Sans", sans-serif; color: var(--dim); }
+  .meter { height: 14px; border-radius: 7px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 8px; }
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #E0475B, var(--gold) 50%, var(--good)); transition: width .5s; }
+  .why { margin-top: 8px; color: var(--dim); font-size: .98rem; }
+  .why b { color: #fff; }
+  .nums { margin-top: 14px; }
+  .nums h3 { font: 700 1rem "IBM Plex Sans", sans-serif; }
+  .nums h3 small { display: block; color: var(--dim); font-weight: 500; font-size: .88rem; }
+  .nrow { display: grid; grid-template-columns: 2.1rem 1fr 5.4rem 3.2rem; gap: 8px; align-items: center; margin-top: 4px; font-size: .92rem; border-radius: 8px; padding: 1px 4px; }
+  .nrow .n { font: 700 1rem "IBM Plex Mono", monospace; text-align: center; border-radius: 6px; color: #fff; padding: 1px 0; }
+  .nrow .t { height: 12px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .nrow .h { color: var(--dim); font-size: .88rem; text-align: right; white-space: nowrap; }
+  .nrow small { grid-column: 2 / -1; color: #DDEFE4; font-size: .85rem; margin-top: -4px; }
+  .nrow .t i { display: block; height: 100%; background: #8FB8A8; border-radius: 6px; transition: width .5s; }
+  .nrow .p { font: 600 .9rem "IBM Plex Mono", monospace; text-align: right; }
+  .nrow.need { background: rgba(94,227,154,.14); } .nrow.need .t i { background: var(--good); } .nrow.need .p { color: var(--good); }
+  .tip { margin-top: 14px; padding: 10px 12px; border-left: 4px solid var(--gold); background: rgba(242,193,78,.1); border-radius: 6px; font-size: .98rem; }
+  .idle { color: var(--dim); }
+
+  .luck { display: grid; gap: 8px; }
+  .luck div { background: rgba(255,255,255,.06); border-radius: 10px; padding: 8px 12px; }
+  .luck b { display: block; font-size: 1.05rem; }
+  .luck span { color: var(--dim); font-size: .95rem; }
+  .scores { width: 100%; border-collapse: collapse; font-size: 1rem; }
+  .scores th, .scores td { padding: 6px 8px; text-align: right; }
+  .scores th:first-child, .scores td:first-child { text-align: left; }
+  .scores th { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .scores td { font-family: "IBM Plex Mono", monospace; border-top: 1px solid rgba(255,255,255,.08); }
+  .scores td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  .scores tr.lead td { color: var(--gold); }
+  .panel > p { color: var(--dim); font-size: .93rem; margin-bottom: 8px; }
+
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 18px; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #FFC46B; flex: none; }
+  .source.quantum i { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  button:focus-visible { outline: 3px solid #9FE8FF; outline-offset: 3px; }
+
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) {
+    html { font-size: 17px; } body { padding: 12px 6px 100px; }
+    .table { padding: 10px 6px 8px; border-width: 8px; } .table::before { inset: -8px; }
+    .lane { grid-template-columns: 1fr; gap: 2px; padding: 5px 4px; }
+    .lane .who { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .hand { gap: 6px; }
+    .bar { gap: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .lane.target, .dom.fresh, .banner.show { animation: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ivo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFDF6"/><stop offset=".6" stop-color="#F6EEDB"/><stop offset="1" stop-color="#E4D6B7"/></linearGradient>
+    <linearGradient id="backg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B3122B"/><stop offset="1" stop-color="#6E0818"/></linearGradient>
+    <radialGradient id="brass" cx=".35" cy=".35"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".5" stop-color="#D6A84A"/><stop offset="1" stop-color="#8A6420"/></radialGradient>
+    <radialGradient id="hub" cx=".4" cy=".35"><stop offset="0" stop-color="#F7F7F2"/><stop offset=".7" stop-color="#D9D9D0"/><stop offset="1" stop-color="#A9AAA0"/></radialGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy=".06" stdDeviation=".06" flood-color="#000" flood-opacity=".55"/></filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation=".14" flood-color="#FFD25E" flood-opacity="1"/></filter>
+  </defs>
+</svg>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>Classic 12-spot dominoes, with the odds on every draw</span></div>
+  <header>
+    <h1>Dominoes</h1>
+    <p class="sub">The classic game with a double-12 set. Highest double starts, and you play on either end of the line. The coach shows your odds every step of the way.</p>
+  </header>
+
+  <div class="bar">
+    <button class="btn" id="newGame">New game</button>
+    <div class="seg" role="group" aria-label="Game type"><button data-m="draw" aria-pressed="true">Draw</button><button data-m="block">Block</button></div>
+    <div class="pill">Players <button id="pMinus" aria-label="Fewer players">−</button><b id="pN">4</b><button id="pPlus" aria-label="More players">+</button></div>
+    <div class="seg" role="group" aria-label="Game length"><button data-r="1">1 round</button><button data-r="5" aria-pressed="true">5 rounds</button><button data-r="10">10 rounds</button></div>
+    <div class="seg" role="group" aria-label="Computer speed"><button data-s="1400">Relaxed</button><button data-s="850" aria-pressed="true">Normal</button><button data-s="350">Fast</button></div>
+  </div>
+
+  <div class="layout">
+    <section class="table" aria-label="The domino table">
+      <div class="hubrow">
+        <div class="eng"><svg id="engSvg" viewBox="-.06 -.06 2.12 1.12" aria-hidden="true"></svg><div><span class="lbl" id="roundLbl">Round 1</span><b id="engLbl">Starting double</b></div></div>
+        <div class="bone"><svg viewBox="0 0 3 2" aria-hidden="true" id="boneSvg"></svg><div><b id="boneN">—</b><span id="boneTxt">face down in the boneyard</span></div></div>
+      </div>
+      <div id="seatsRow" class="seatsRow"></div>
+      <div id="lanes"></div>
+      <div class="handbox">
+        <div class="hd"><span class="lbl">Your dominoes</span><span id="handInfo"></span></div>
+        <div class="hand" id="hand"></div>
+        <div class="act" id="act"></div>
+      </div>
+      <div class="banner" id="banner" role="status"></div>
+      <div class="log" id="log" aria-live="polite"><p>Press “New game” to deal.</p></div>
+    </section>
+
+    <div class="side">
+      <aside class="coach" aria-live="polite">
+        <div class="lbl">The coach</div>
+        <h2 id="cTitle">Ready when you are</h2>
+        <div id="cBody"><p class="idle">Deal a game. On your turn, the coach shows which numbers are open, and if you have to draw, your chance of pulling a domino that fits.</p></div>
+      </aside>
+      <section class="panel">
+        <h2>Lucky draws?</h2>
+        <p>Every draw has odds. Here's what the odds said should happen this visit, and what really did.</p>
+        <div class="luck" id="luck"></div>
+      </section>
+      <section class="panel">
+        <h2>Scoreboard</h2>
+        <p>Points are the dots left in your hand when a round ends. Lowest total wins.</p>
+        <table class="scores" id="scores"></table>
+      </section>
+    </div>
+  </div>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Shuffling: demo mode, from your browser's generator.</span></p>
+</div>
+<style>
+  .seatsRow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .seatsRow div { flex: 1 1 140px; background: rgba(0,0,0,.2); border-radius: 12px; padding: 7px 12px; border: 2px solid transparent; }
+  .seatsRow div.turn { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.1); }
+  .seatsRow b { display: block; font: 700 1.05rem "IBM Plex Sans Condensed", sans-serif; }
+  .seatsRow span { color: var(--dim); font-size: .9rem; }
+</style>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>How the game works</h3>
+  <p>A double-12 set has 91 dominoes. Everyone gets 12 (10 each with five players). Whoever holds the highest double plays it to start the line. After that, each player in turn plays one domino on either end of the line, matching the number showing there. Doubles go crosswise and work like any other domino.</p>
+  <h3>Draw or Block</h3>
+  <p><strong>Draw:</strong> if you can't play, you draw from the boneyard, one at a time, until you get a domino that fits. If the boneyard is empty, you pass.</p>
+  <p><strong>Block:</strong> there's no drawing. If you can't play, you pass. The leftover dominoes stay face down and out of play the whole round.</p>
+  <h3>Scoring</h3>
+  <p>The round ends when someone plays their last domino, or when nobody can play. Everyone counts the dots left in their hand. After the last round, the lowest total wins.</p>
+  <h3>How the coach works out the odds</h3>
+  <p>Each number from 0 to 12 is on exactly 13 dominoes. The coach counts the ones you can see: in your hand and on the table. Everything else is out of sight, either in the boneyard or in the other players' hands. You can't tell which, so the domino you draw is equally likely to be any one of them. If 12 of the 50 dominoes you can't see have a 6 or a 9, your chance of drawing one that fits is 12 out of 50, or 24%.</p>
+  <p>Because you keep drawing until one fits, the coach also shows how many draws it usually takes, and your chance of getting one within your first three.</p>
+  <p>In Block, there's nothing to draw, so the coach looks at the next player instead: given how many dominoes they hold, what are the odds they have one that fits the ends you leave them?</p>
+  <h3>Lucky draws</h3>
+  <p>Each time anyone draws, the page writes down the odds of a fit and whether it happened. Add up the odds and you get how many fits to expect, and you can compare that with what really happened. Draws often fit a little more often than the plain count says, because the other players have already been playing the numbers on the ends when they could, so more of those numbers are left in the boneyard.</p>
+  <h3>Where the shuffles come from</h3>
+  <p>Today the dominoes are shuffled with your browser's random number maker. When this lab's <strong>quantum random number generator</strong> is online, a small USB stick from Crypta Labs that measures tiny particles of light, it will shuffle every round, and the dot at the bottom will turn green.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const DEBUG = location.hash === '#debug';
+
+  // ================= Randomness =================
+  // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let qpool = [], quantum = false, fetching = false;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || qpool.length > 256) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { qpool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    fetching = false; paintSource();
+  }
+  function paintSource() {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Shuffling: quantum, from the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? 'Shuffling: the quantum generator is offline, so this is demo mode.' : "Shuffling: demo mode, from your browser's generator.";
+  }
+  paintSource(); topUp();
+  function qInt(n) { const lim = 256 - (256 % n);
+    for (;;) { let b; if (quantum && qpool.length) b = qpool.shift(); else { const a = new Uint8Array(1); crypto.getRandomValues(a); b = a[0]; }
+      if (qpool.length < 128) topUp(); if (b < lim) return b % n; } }
+
+  // ================= The set =================
+  const TILES = []; for (let a = 0; a <= 12; a++) for (let b = a; b <= 12; b++) TILES.push({ a, b, id: TILES.length });
+  const isDbl = t => t.a === t.b, pips = t => t.a + t.b, has = (t, n) => t.a === n || t.b === n;
+  const nm = t => `${t.a}|${t.b}`;
+  const an = n => (n === 8 || n === 11 ? 'an ' : 'a ') + n, An = n => (n === 8 || n === 11 ? 'An ' : 'A ');
+
+  // ================= Drawing dominoes (same set as The Miracle Train) =================
+  const PIP = ['#000', '#2FA4E7', '#1E8C45', '#D7263D', '#8B4A22', '#1F4FB8', '#E0A800', '#8E5BD0', '#0E9488', '#25307A', '#E8650F', '#2B2B2B', '#7D8790'];
+  const L = .25, C = .5, R = .75, r3 = [.24, .5, .76], r4 = [.18, .393, .607, .82];
+  const col = (x, ys) => ys.map(y => [x, y]);
+  const LAYOUT = [[], [[C, C]], [[L, .25], [R, .75]], [[L, .25], [C, C], [R, .75]], [[L, .25], [R, .25], [L, .75], [R, .75]],
+    [[L, .25], [R, .25], [C, C], [L, .75], [R, .75]], [...col(L, r3), ...col(R, r3)], [...col(L, r3), ...col(R, r3), [C, C]],
+    [...col(L, r4), ...col(R, r4)], [...col(L, r3), ...col(C, r3), ...col(R, r3)], [...col(L, r4), ...col(R, r4), ...col(C, [.393, .607])],
+    [...col(L, r4), ...col(R, r4), ...col(C, r3)], [...col(L, r4), ...col(C, r4), ...col(R, r4)]];
+  function half(n, x, y) {
+    const rad = n <= 6 ? .1 : n <= 9 ? .085 : .072;
+    return LAYOUT[n].map(([px, py]) => { const cx = x + .08 + px * .84, cy = y + .08 + py * .84;
+      return `<circle cx="${cx.toFixed(3)}" cy="${cy.toFixed(3)}" r="${rad}" fill="${PIP[n]}"/><circle cx="${(cx - rad * .3).toFixed(3)}" cy="${(cy - rad * .3).toFixed(3)}" r="${(rad * .32).toFixed(3)}" fill="#fff" opacity=".45"/>`; }).join('');
+  }
+  function tile(p, q, x, y, vertical, extra = '') {
+    const w = vertical ? 1 : 2, h = vertical ? 2 : 1;
+    const line = vertical ? `<line x1="${x + .12}" y1="${y + 1}" x2="${x + .88}" y2="${y + 1}"/>` : `<line x1="${x + 1}" y1="${y + .12}" x2="${x + 1}" y2="${y + .88}"/>`;
+    const sp = vertical ? [x + .5, y + 1] : [x + 1, y + .5];
+    return `<g ${extra}><g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".14" fill="url(#ivo)" stroke="#BCAE8C" stroke-width=".025"/>` +
+      `<g stroke="#9B8C6A" stroke-width=".035" stroke-linecap="round">${line}</g>` +
+      half(p, x, y) + (vertical ? half(q, x, y + 1) : half(q, x + 1, y)) +
+      `<circle cx="${sp[0]}" cy="${sp[1]}" r=".065" fill="url(#brass)"/></g></g>`;
+  }
+  const back = (x, y, w, h) => `<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".12" fill="url(#backg)" stroke="#fff" stroke-width=".06"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${Math.min(w, h) * .16}" fill="url(#brass)"/></g>`;
+  $('boneSvg').innerHTML = back(1.6, .2, .9, 1.6) + back(.95, .15, .9, 1.6) + back(.3, .25, .9, 1.6);
+
+  // ================= Players and state =================
+  const NAMES = [['🙂', 'You', true], ['👵', 'Grandma Dot'], ['🤠', 'Big Earl'], ['🦊', 'Sneaky Pete'], ['🐻', 'Bear']];
+  let nP = 4, speed = DEBUG ? 1 : 850, totalRounds = 5, mode = 'draw', gMode = 'draw';
+  let players = [], sides = [], center = null, bone = [], roundNo = 0, gameId = 0, turn = -1;
+  let roundOver = false, passes = 0, lastPlaced = null, fresh = -1, pick = null, playing = false;
+  const luck = { me: { d: 0, e: 0, h: 0 }, cpu: { d: 0, e: 0, h: 0 } };
+  const me = () => players.findIndex(p => p.human);
+  const block = () => gMode === 'block';
+
+  // ================= Rules =================
+  function legal(i) {
+    const out = [], ends = sides.map(s => s.end);
+    for (const tl of players[i].hand) {
+      if (has(tl, ends[0])) out.push({ tile: tl, t: 0 });
+      if (has(tl, ends[1]) && !(ends[0] === ends[1] && has(tl, ends[0]))) out.push({ tile: tl, t: 1 });
+    }
+    // when both ends show the same number, use the shorter side
+    if (ends[0] === ends[1] && sides[1].tiles.length < sides[0].tiles.length) out.forEach(m => m.t = 1);
+    return out;
+  }
+  const needs = () => [...new Set(sides.map(s => s.end))];
+  function unseenFor(i) { const out = [...bone]; players.forEach((p, k) => { if (k !== i) out.push(...p.hand); }); return out; }
+  function drawOdds(i) {
+    const n = needs(), u = unseenFor(i), fit = u.filter(t => n.some(x => has(t, x))).length, U = u.length;
+    let miss3 = 1; for (let k = 0; k < 3; k++) miss3 *= U - k > 0 ? Math.max(0, (U - fit - k) / (U - k)) : 0;
+    return { n, unseen: U, fit, p: U ? fit / U : 0, in3: fit ? 1 - miss3 : 0, avg: fit ? (U + 1) / (fit + 1) : Infinity };
+  }
+  // Block: chance a player holding h dominoes (out of the u you can't see) has at least one with these numbers
+  function holdOdds(u, fit, h) { if (fit === 0) return 0; let miss = 1; for (let k = 0; k < h; k++) miss *= Math.max(0, (u - fit - k) / (u - k)); return 1 - miss; }
+
+  const sideName = t => t === 0 ? 'the left end' : 'the right end';
+  const verb = (p, you, them) => p.human ? you : them;
+  function place(i, mv) {
+    const p = players[i], sd = sides[mv.t], tl = mv.tile;
+    p.hand.splice(p.hand.indexOf(tl), 1);
+    const q = tl.a === sd.end ? tl.b : tl.a;
+    sd.tiles.push({ p: sd.end, q, id: tl.id }); sd.end = q;
+    passes = 0; lastPlaced = { t: mv.t, k: sd.tiles.length - 1 }; fresh = -1;
+    say(`${p.name} ${verb(p, 'play', 'plays')} <b>${nm(tl)}</b> on ${sideName(mv.t)}.`);
+    if (!p.hand.length) roundOver = true;
+    paint();
+  }
+  function pass(i) { const p = players[i]; passes++; say(`${p.name} can't play${block() ? '' : ' and the boneyard is empty'}, so ${verb(p, 'you pass', 'passes')}.`); paint(); }
+
+  // ================= Computer players =================
+  function aiPick(i, moves) {
+    const p = players[i]; let best = null, bs = -1e9;
+    for (const m of moves) {
+      const other = m.tile.a === sides[m.t].end ? m.tile.b : m.tile.a;
+      // dump heavy dominoes, keep an end it can follow later
+      const s = pips(m.tile) + (isDbl(m.tile) ? 4 : 0) + 2 * p.hand.filter(x => x !== m.tile && has(x, other)).length;
+      if (s > bs) { bs = s; best = m; }
+    }
+    return best;
+  }
+
+  // ================= Your moves =================
+  function ask(moves, opts = {}) { return new Promise(resolve => { pick = { moves, opts, resolve, sel: null }; paint(); }); }
+  function answer(a) { const r = pick && pick.resolve; pick = null; if (r) r(a); }
+
+  // ================= Game flow =================
+  const chk = id => { if (id !== gameId) throw 0; };
+  async function doTurn(i, id) {
+    const p = players[i]; turn = i; paint();
+    let moves = legal(i), tries = 0;
+    while (!moves.length) {
+      if (block() || !bone.length) {
+        if (p.human) { await ask([], { pass: true }); chk(id); } else { await sleep(speed); chk(id); }
+        pass(i); return;
+      }
+      const odds = drawOdds(i);
+      if (p.human) { await ask([], { draw: true, again: tries > 0 }); chk(id); window.labTrack && labTrack('draw'); }
+      else { await sleep(tries ? speed * .45 : speed); chk(id); }
+      const t = bone.pop(); p.hand.push(t); fresh = t.id; tries++;
+      moves = legal(i); const hit = moves.some(m => m.tile === t);
+      const L2 = p.human ? luck.me : luck.cpu; L2.d++; L2.e += odds.p; L2.h += hit ? 1 : 0;
+      const need = odds.n.length > 1 ? `${an(odds.n[0])} or ${an(odds.n[1])}` : an(odds.n[0]);
+      if (p.human) say(`You needed ${need} (<b>${pct(odds.p)}</b> chance) and drew <b>${nm(t)}</b>. ${hit ? 'It fits!' : 'No luck.'}`);
+      else if (hit) say(`${p.name} drew ${tries === 1 ? 'one' : tries + ' dominoes'} and got ${need}${tries === 1 ? ` (a ${pct(odds.p)} shot)` : ''}.`);
+      paint();
+    }
+    if (tries && !p.human && tries > 1) { /* already said */ }
+    let mv;
+    if (p.human) {
+      const only = new Set(moves.map(m => m.tile)).size === 1 && moves.length === 1;
+      if (tries && only) { await sleep(800); mv = moves[0]; } else mv = (await ask(moves)).move;
+      chk(id);
+    } else { await sleep(speed * (tries ? .6 : 1)); chk(id); mv = aiPick(i, moves); }
+    place(i, mv);
+  }
+
+  function startRound() {
+    const id = gameId; roundNo++;
+    const ids = TILES.map((_, k) => k);
+    for (let k = ids.length - 1; k > 0; k--) { const j = qInt(k + 1); [ids[k], ids[j]] = [ids[j], ids[k]]; }
+    const deck = ids.map(k => TILES[k]), H = players.length >= 5 ? 10 : 12;
+    players.forEach((p, k) => { p.hand = deck.slice(k * H, k * H + H); });
+    bone = deck.slice(players.length * H);
+    // highest double starts; if nobody has a double, the heaviest domino does
+    let si = -1, st = null;
+    players.forEach((p, k) => p.hand.forEach(t => { const better = !st || (isDbl(t) && !isDbl(st)) || (isDbl(t) === isDbl(st) && pips(t) > pips(st)); if (better) { st = t; si = k; } }));
+    players[si].hand.splice(players[si].hand.indexOf(st), 1);
+    center = st; sides = [{ tiles: [], end: st.a }, { tiles: [], end: st.b }];
+    passes = 0; roundOver = false; lastPlaced = null; fresh = -1; turn = -1; playing = true;
+    $('banner').className = 'banner'; $('log').innerHTML = '';
+    const sp = players[si];
+    say(`Round ${roundNo}. ${sp.name} ${verb(sp, 'have', 'has')} the highest ${isDbl(st) ? 'double' : 'domino'} and ${verb(sp, 'start', 'starts')} with <b>${nm(st)}</b>.`);
+    window.labTrack && labTrack('round');
+    paint(); playRound(id, (si + 1) % players.length);
+  }
+  async function playRound(id, i) {
+    let blocked = false;
+    try {
+      await sleep(700); chk(id);
+      for (;;) {
+        await doTurn(i, id); chk(id);
+        if (roundOver) break;
+        if (passes >= players.length) { blocked = true; break; }
+        i = (i + 1) % players.length;
+      }
+    } catch (e) { if (e !== 0) console.error(e); return; }
+    endRound(blocked);
+  }
+  function endRound(blocked) {
+    playing = false; turn = -1; pick = null;
+    const pts = players.map(p => p.hand.reduce((s, t) => s + pips(t), 0));
+    players.forEach((p, k) => { p.hist.push(pts[k]); p.score += pts[k]; });
+    const out = players.find(p => !p.hand.length), last = roundNo >= totalRounds;
+    let head = out ? (out.human ? 'You went out! 🎉' : `${out.name} went out`) : 'Blocked! Nobody can play';
+    let body = `<ul>${players.map((p, k) => `<li><span>${p.face} ${p.name}</span><span>${pts[k]} point${pts[k] === 1 ? '' : 's'}</span></li>`).join('')}</ul>`;
+    let btn;
+    if (last) {
+      const low = Math.min(...players.map(p => p.score)), win = players.filter(p => p.score === low);
+      head = win.some(p => p.human) && win.length === 1 ? 'You win the game! 🏆' : win.length > 1 ? 'A tie for the game!' : `${win[0].name} wins the game 🏆`;
+      body = `<p>Lowest total: <b>${low}</b>.</p>` + body;
+      btn = `<button class="btn" data-go="new">Play again</button>`;
+    } else btn = `<button class="btn" data-go="next">Next round</button>`;
+    $('banner').innerHTML = `<b class="h">${head}</b>${body}<br>${btn}`; $('banner').className = 'banner show';
+    say(blocked ? 'Nobody can play, so the round is over.' : `${out.name} played ${out.human ? 'your' : 'their'} last domino.`);
+    paint();
+  }
+  $('banner').onclick = e => { const g = e.target.dataset.go; if (g === 'next') startRound(); if (g === 'new') newGame(); };
+
+  function newGame() {
+    gameId++; answer({ type: 'cancel' }); gMode = mode;
+    players = NAMES.slice(0, nP).map(([face, name, human]) => ({ face, name, human: !!human, hand: [], score: 0, hist: [] }));
+    roundNo = 0; startRound();
+  }
+
+  // ================= Painting =================
+  const pct = p => p >= .995 ? '100%' : p <= 0 ? '0%' : p < .01 ? '<1%' : Math.round(p * 100) + '%';
+  function say(msg) { const l = $('log'), p = document.createElement('p'); p.innerHTML = msg; l.prepend(p); while (l.children.length > 4) l.lastChild.remove(); }
+
+  function laneSVG(sd, k) {
+    const el = document.querySelector('.lane .tl'), w = el ? el.clientWidth : 600;
+    const ux = w < 420 ? 30 : w < 640 ? 36 : 42, U = Math.max(8, w / ux);
+    const startN = k === 0 ? center.a : center.b;
+    let s = `<circle cx=".8" cy="1.05" r=".72" fill="url(#hub)" stroke="#8D8E85" stroke-width=".04"/><text x=".8" y="1.32" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-weight="700" font-size=".78" fill="#333">${startN}</text>`;
+    const g = .08, start = 1.75, avail = U - start;
+    let keep = 0, used = 0;
+    for (let j = sd.tiles.length - 1; j >= 0; j--) { const wd = (sd.tiles[j].p === sd.tiles[j].q ? 1 : 2) + g; if (used + wd > avail - (j > 0 ? 1.3 : 0)) break; used += wd; keep++; }
+    const hidden = sd.tiles.length - keep; let x = start;
+    if (hidden) { s += `<text x="${x + .55}" y="1.28" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size=".62" fill="#E4D3A8">+${hidden}</text>`; x += 1.3; }
+    if (!sd.tiles.length) s += `<text x="${x + .2}" y="1.28" font-family="IBM Plex Sans, sans-serif" font-size=".6" fill="rgba(255,255,255,.55)">play a ${startN} here</text>`;
+    sd.tiles.slice(hidden).forEach((t, j) => {
+      const real = hidden + j, glow = lastPlaced && lastPlaced.t === k && lastPlaced.k === real ? 'filter="url(#glow)"' : '';
+      if (t.p === t.q) { s += tile(t.p, t.q, x, .05, true, glow); x += 1 + g; } else { s += tile(t.p, t.q, x, .55, false, glow); x += 2 + g; }
+    });
+    return `<svg viewBox="0 0 ${U.toFixed(2)} 2.1" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${s}</svg>`;
+  }
+  function paintLanes() {
+    if (!center) { $('lanes').innerHTML = ''; $('seatsRow').innerHTML = ''; return; }
+    $('seatsRow').innerHTML = players.map((p, k) => p.human ? '' : `<div class="${k === turn && playing ? 'turn' : ''}"><b>${p.face} ${p.name}</b><span>${p.hand.length} domino${p.hand.length === 1 ? '' : 'es'} in hand</span></div>`).join('');
+    const sel = pick && pick.sel, tset = new Set(sel ? pick.moves.filter(m => m.tile === sel).map(m => m.t) : []);
+    if ($('lanes').children.length !== 2) $('lanes').innerHTML = [0, 1].map(k => `<div class="lane" data-t="${k}"><div class="who"></div><div class="tl"></div></div>`).join('');
+    [0, 1].forEach(k => {
+      const el = $('lanes').children[k], sd = sides[k];
+      el.className = 'lane' + (tset.has(k) ? ' target' : '');
+      el.children[0].innerHTML = `<span class="nm">${k === 0 ? '⬅ Left end' : 'Right end ➡'}</span><span class="info">${sd.tiles.length} played <span class="chip end">ends on ${sd.end}</span></span>`;
+      el.children[1].innerHTML = laneSVG(sd, k);
+    });
+  }
+  function paintHand() {
+    const mi = me(), p = players[mi], h = $('hand');
+    if (!p) { h.innerHTML = ''; $('handInfo').textContent = ''; return; }
+    const ok = new Set(pick ? pick.moves.map(m => m.tile) : []);
+    const hand = [...p.hand].sort((x, y) => (y.b - x.b) || (y.a - x.a));
+    h.classList.toggle('picking', !!pick && pick.moves.length > 0);
+    h.innerHTML = hand.map(t => `<button class="dom${ok.has(t) ? ' ok' : ''}${pick && pick.sel === t ? ' sel' : ''}${t.id === fresh ? ' fresh' : ''}" data-id="${t.id}" aria-label="Domino ${t.b} and ${t.a}${ok.has(t) ? ', playable' : ''}"${ok.has(t) ? '' : ' tabindex="-1"'}><svg viewBox="-.06 -.06 1.12 2.12">${tile(t.b, t.a, 0, 0, true)}</svg></button>`).join('');
+    const dots = p.hand.reduce((s, t) => s + pips(t), 0);
+    $('handInfo').textContent = `${p.hand.length} domino${p.hand.length === 1 ? '' : 'es'} · ${dots} dots`;
+  }
+  function paintAct() {
+    const a = $('act');
+    if (!pick) { const p = players[turn]; a.innerHTML = playing && p && !p.human ? `<p class="prompt">${p.face} ${p.name} is thinking…</p>` : ''; return; }
+    const o = pick.opts; let html = '';
+    if (pick.sel) {
+      const ms = pick.moves.filter(m => m.tile === pick.sel);
+      html = `<p class="prompt">Which end should <b>${nm(pick.sel)}</b> go on?</p>` + ms.map(m => `<button class="btn gold" data-t="${m.t}">${m.t === 0 ? '⬅ Left end' : 'Right end ➡'}</button>`).join('') + `<button class="btn ghost" data-x="1">Cancel</button>`;
+    } else if (o.draw) html = `<p class="prompt">${o.again ? 'Still nothing. ' : 'Nothing fits. '}Chance the next draw fits: <b>${pct(drawOdds(me()).p)}</b></p><button class="btn gold" data-a="draw">Draw a domino</button>`;
+    else if (o.pass) html = `<p class="prompt">Nothing fits${block() ? '' : ' and the boneyard is empty'}.</p><button class="btn gold" data-a="pass">Pass</button>`;
+    else html = `<p class="prompt">Your turn. Tap a glowing domino to play it.</p>`;
+    a.innerHTML = html;
+  }
+
+  function paintCoach() {
+    if (!center) return;
+    if (!playing) { $('cTitle').textContent = 'Round over'; $('cBody').innerHTML = `<p class="idle">Start the next round when you are ready. Keep an eye on the Lucky draws panel as the game goes on.</p>`; return; }
+    const mi = me(), p = players[mi], mine = turn === mi, od = drawOdds(mi), moves = legal(mi);
+    $('cTitle').textContent = mine ? (moves.length ? 'Your turn' : block() ? 'Your turn: you have to pass' : 'Your turn: you need to draw') : 'Getting ready for your turn';
+    const seen = new Array(13).fill(0), hold = new Array(13).fill(0), hid = new Array(13).fill(0);
+    const count = (arr, t) => { arr[t.a]++; if (t.b !== t.a) arr[t.b]++; };
+    p.hand.forEach(t => count(hold, t)); count(seen, center); sides.forEach(sd => sd.tiles.forEach(t => count(seen, { a: t.p, b: t.q })));
+    unseenFor(mi).forEach(t => count(hid, t));
+    const rows = [...Array(13).keys()].map(n => {
+      const v = od.unseen ? hid[n] / od.unseen : 0, need = od.n.includes(n);
+      return `<div class="nrow${need ? ' need' : ''}"><span class="n" style="background:${n ? PIP[n] : '#444'}">${n}</span><span class="t"><i style="width:${Math.min(100, Math.max(1, v * 100 / .4))}%"></i></span><span class="h">${hid[n]} hidden</span><span class="p">${pct(v)}</span>${need ? `<small>Of the 13 with a ${n}: you hold ${hold[n]}, ${seen[n]} on the table, ${hid[n]} out of sight</small>` : ''}</div>`;
+    }).join('');
+    const askTxt = od.n.length > 1 ? `${od.n[0]} or ${od.n[1]}` : `${od.n[0]}`;
+    const ends = `<div class="ends"><span>Left end <b>${sides[0].end}</b></span><span>Right end <b>${sides[1].end}</b></span></div>`;
+    const have = moves.length ? `<p class="why">You have <b>${new Set(moves.map(m => m.tile)).size === 1 ? '1 domino' : new Set(moves.map(m => m.tile)).size + ' dominoes'}</b> that fit${mine ? ' right now' : ' these ends'}.${block() ? '' : ' If you ever have to draw, here are your odds:'}</p>` : '';
+    let main;
+    if (!block()) {
+      main = `<div class="chance"><div class="lbl">Chance a draw fits (any ${askTxt})</div><div class="num">${pct(od.p)} <small>${od.fit} of ${od.unseen} you can't see</small></div><div class="meter"><i style="width:${od.p * 100}%"></i></div></div>
+        <p class="why">${od.fit ? `You keep drawing until one fits. That usually takes about <b>${od.avg < 1.5 ? '1 draw' : Math.round(od.avg) + ' draws'}</b>, and there's a <b>${pct(od.in3)}</b> chance you'll have one within 3.` : `<b>None</b> of the dominoes you can't see fit these ends.`}</p>
+        <p class="why">There are <b>${bone.length}</b> face down in the boneyard and <b>${od.unseen - bone.length}</b> in the other players' hands. The one you draw is equally likely to be any of the <b>${od.unseen}</b>.</p>`;
+    } else {
+      const nx = players.map((q, k) => ({ q, k })).filter(x => !x.q.human);
+      const rowsB = nx.map(({ q }) => { const pr = holdOdds(od.unseen, od.fit, q.hand.length); return `<div class="crow2"><span>${q.face} ${q.name} <small>${q.hand.length} in hand</small></span><span class="p">${pct(pr)}</span></div>`; }).join('');
+      main = `<div class="chance"><div class="lbl">Dominoes out of sight with a ${askTxt}</div><div class="num">${od.fit} <small>of ${od.unseen}, counting the ${bone.length} sleeping out of play</small></div></div>
+        <p class="why">Chance each player holds at least one that fits these ends right now:</p><div class="blockodds">${rowsB}</div>`;
+    }
+    let tip = '';
+    if (od.n.length > 1) {
+      const by = od.n.map(n => ({ n, h: hid[n] })).sort((x, y) => y.h - x.h);
+      tip = by[0].h === by[1].h ? `Both ends are equally likely: ${by[0].h} of each still out of sight.` : `${An(by[0].n)}<b>${by[0].n}</b> is likelier than ${an(by[1].n).split(' ')[0]} <b>${by[1].n}</b>: ${by[0].h} still out of sight, against ${by[1].h}.`;
+    } else { const n = od.n[0]; tip = `Both ends show a ${n}. ${hid[n]} of the 13 dominoes with a ${n} are still out of sight.`; }
+    if (block()) tip += ' In Block, leaving the others ends they are unlikely to have is how you lock them out.';
+    $('cBody').innerHTML = `<div class="lbl">Open ends</div>${ends}${have}${main}
+      <div class="nums"><h3>Each number, from where you sit<small>Every number is on 13 dominoes. The percent is the share of the ones you can't see that carry it.</small></h3>${rows}</div>
+      <p class="tip">${tip}</p>`;
+  }
+  function paintLuck() {
+    const row = (who, s) => {
+      if (!s.d) return `<div><b>${who}</b><span>${block() ? 'No drawing in Block.' : 'No draws yet.'}</span></div>`;
+      const diff = s.h - s.e, word = Math.abs(diff) < .75 ? 'right on the odds' : diff > 0 ? 'running lucky 🍀' : 'running cold 🥶';
+      return `<div><b>${who}: ${word}</b><span>${s.d} draw${s.d === 1 ? '' : 's'}. The odds said about <b style="display:inline;color:#fff">${s.e.toFixed(1)}</b> should fit; <b style="display:inline;color:#fff">${s.h}</b> did.</span></div>`;
+    };
+    $('luck').innerHTML = row('You', luck.me) + row('Computer players', luck.cpu);
+  }
+  function paintScores() {
+    if (!players.length) { $('scores').innerHTML = ''; return; }
+    const low = Math.min(...players.map(p => p.score));
+    $('scores').innerHTML = `<tr><th>Player</th><th>Last round</th><th>Total</th></tr>` + players.map(p => `<tr class="${p.hist.length && p.score === low ? 'lead' : ''}"><td>${p.face} ${p.name}</td><td>${p.hist.length ? p.hist[p.hist.length - 1] : '—'}</td><td>${p.score}</td></tr>`).join('') +
+      `<tr><td colspan="3" style="color:var(--dim);font-family:'IBM Plex Sans',sans-serif;font-size:.9rem">Round ${Math.max(1, roundNo)} of ${totalRounds} · ${block() ? 'Block' : 'Draw'} game</td></tr>`;
+  }
+  function paint() {
+    if (center) $('engSvg').innerHTML = isDbl(center) ? tile(center.a, center.b, 0, 0, false) : tile(center.a, center.b, 0, 0, false);
+    $('roundLbl').textContent = `Round ${Math.max(1, roundNo)} of ${totalRounds}`;
+    $('engLbl').textContent = center ? `Started with ${nm(center)}` : 'Starting double';
+    $('boneN').textContent = players.length ? bone.length : '—';
+    $('boneTxt').textContent = block() ? 'sleeping, out of play (Block)' : 'face down in the boneyard';
+    paintLanes(); paintHand(); paintAct(); paintCoach(); paintLuck(); paintScores();
+  }
+
+  // ================= Controls =================
+  $('hand').onclick = e => {
+    const b = e.target.closest('.dom'); if (!b || !pick || !pick.moves.length) return;
+    const t = TILES[+b.dataset.id], ms = pick.moves.filter(m => m.tile === t); if (!ms.length) return;
+    if (ms.length === 1) return answer({ type: 'play', move: ms[0] });
+    pick.sel = pick.sel === t ? null : t; paint();
+  };
+  $('lanes').onclick = e => {
+    const l = e.target.closest('.lane'); if (!l || !pick || !pick.sel) return;
+    const m = pick.moves.find(x => x.tile === pick.sel && x.t === +l.dataset.t); if (m) answer({ type: 'play', move: m });
+  };
+  $('act').onclick = e => {
+    const b = e.target.closest('button'); if (!b || !pick) return;
+    if (b.dataset.x) { pick.sel = null; return paint(); }
+    if (b.dataset.t !== undefined) { const m = pick.moves.find(x => x.tile === pick.sel && x.t === +b.dataset.t); if (m) answer({ type: 'play', move: m }); return; }
+    if (b.dataset.a) answer({ type: b.dataset.a });
+  };
+  $('newGame').onclick = newGame;
+  const setN = d => { nP = Math.max(2, Math.min(5, nP + d)); $('pN').textContent = nP; if (!playing) newGame(); else say(`Next game: ${nP} players. Press “New game” to start it now.`); };
+  $('pMinus').onclick = () => setN(-1); $('pPlus').onclick = () => setN(1);
+  document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { mode = b.dataset.m; document.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    if (!playing) newGame(); else say(`Next game will be ${mode === 'block' ? 'Block' : 'Draw'}. Press “New game” to start it now.`); });
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { totalRounds = +b.dataset.r; document.querySelectorAll('[data-r]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    if (roundNo > totalRounds) newGame(); else paint(); });
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { speed = DEBUG ? 1 : +b.dataset.s; document.querySelectorAll('[data-s]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  let lastW = innerWidth; addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 30) { lastW = innerWidth; paintLanes(); } });
+  if (DEBUG) window.MT = { get players() { return players; }, get sides() { return sides; }, get center() { return center; }, get bone() { return bone; }, get pick() { return pick; }, get playing() { return playing; }, luck, setMode(m) { mode = m; } };
+
+  newGame();
+})();
+</script>
+<style>
+  .blockodds { display: grid; gap: 6px; margin-top: 6px; }
+  .crow2 { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.06); border-radius: 10px; padding: 7px 12px; font-weight: 600; }
+  .crow2 small { color: var(--dim); font-weight: 500; margin-left: 6px; }
+  .crow2 .p { font: 600 1.05rem "IBM Plex Mono", monospace; color: var(--gold); }
+</style>
+</body>
+</html>
