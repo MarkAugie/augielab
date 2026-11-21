@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schrödinger's Jukebox · AugieLab</title>
+<meta name="description" content="Music composed live from random numbers. No song ever repeats.">
+<meta property="og:title" content="Schrödinger's Jukebox">
+<meta property="og:description" content="Music composed live from random numbers. It has never played before and never will again.">
+<meta property="og:url" content="https://augielab.dev/jukebox/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Monoton&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --night: #140C1F; --plum: #2A1640; --chrome: #E9E4F0; --neon: #FF5FA2; --aqua: #4FE3E0; --amber: #FFC46B; --ink: #F5EEF9; --dim: #C2B3D3; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; }
+  body { min-height: 100vh; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 16px 100px;
+    background: radial-gradient(ellipse at 50% 20%, #3B1D59 0%, var(--night) 60%, #08050C 100%); }
+  .top { max-width: 760px; margin: 0 auto 14px; display: flex; justify-content: space-between; align-items: baseline; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--ink); }
+  .top span { color: var(--dim); }
+
+  /* ---------- the cabinet ---------- */
+  .box { position: relative; max-width: 760px; margin: 0 auto; padding: 34px 30px 30px; border-radius: 330px 330px 26px 26px;
+    background: linear-gradient(90deg, #4A2A1A, #7A4A2C 18%, #8E5734 50%, #7A4A2C 82%, #4A2A1A);
+    box-shadow: inset 0 0 0 6px #C9B8DE, inset 0 0 0 9px #6E5A86, 0 30px 60px -20px rgba(0,0,0,.8); }
+  .arch { position: relative; border-radius: 300px 300px 14px 14px; padding: 26px 26px 22px; background: #1A0F27;
+    box-shadow: inset 0 0 0 4px #D9CCEA, inset 0 8px 40px rgba(0,0,0,.7); overflow: hidden; }
+  .tube { position: absolute; top: 120px; bottom: 26px; width: 22px; border-radius: 11px; overflow: hidden;
+    background: linear-gradient(180deg, var(--neon), var(--amber), var(--aqua)); box-shadow: 0 0 18px rgba(255,95,162,.55); animation: hue 9s linear infinite; }
+  .tube.l { left: 14px; } .tube.r { right: 14px; }
+  .tube i { position: absolute; left: 6px; width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.7); animation: rise linear infinite; }
+  @keyframes rise { from { transform: translateY(var(--h, 400px)); opacity: 0; } 10% { opacity: .9; } to { transform: translateY(-20px); opacity: 0; } }
+  @keyframes hue { to { filter: hue-rotate(360deg); } }
+  body:not(.playing) .tube { animation-play-state: paused; } body:not(.playing) .tube i { animation-play-state: paused; opacity: .25; }
+
+  h1 { font: 400 clamp(1.5rem, 5vw, 2.4rem)/1.15 "Monoton", cursive; text-align: center; color: var(--neon); letter-spacing: .04em;
+    text-shadow: 0 0 10px rgba(255,95,162,.8), 0 0 28px rgba(255,95,162,.45); margin: 6px 40px 14px; }
+  .window { margin: 0 34px; border-radius: 10px; background: #0B0712; border: 2px solid #5D4A78; position: relative; overflow: hidden; }
+  .window canvas { display: block; width: 100%; height: 220px; }
+  .now { position: absolute; left: 12px; top: 8px; font: 500 .85rem "IBM Plex Mono", monospace; color: var(--dim); }
+  .now b { color: var(--aqua); font-weight: 500; }
+  .hexline { margin: 10px 34px 0; font: 500 .82rem "IBM Plex Mono", monospace; color: #8F7FA6; white-space: nowrap; overflow: hidden; text-overflow: clip; min-height: 1.3em; }
+  .hexline b { color: var(--amber); font-weight: 500; }
+
+  /* ---------- the selector panel ---------- */
+  .panel { margin-top: 20px; padding: 20px; border-radius: 14px; background: linear-gradient(180deg, #E8E2F0, #B9AECB); color: #2A1640;
+    box-shadow: inset 0 2px 0 #fff, inset 0 -3px 0 #8C7FA2, 0 6px 14px rgba(0,0,0,.4); }
+  .label { font: 700 .85rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; color: #5A4875; margin-bottom: 8px; }
+  .moods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .mood { cursor: pointer; border: 0; border-radius: 10px; padding: 12px 8px; text-align: center; font: 600 1rem "IBM Plex Sans", sans-serif; color: #2A1640;
+    background: linear-gradient(180deg, #FFFFFF, #DCD3E8); box-shadow: 0 4px 0 #8C7FA2, 0 6px 10px rgba(0,0,0,.25); }
+  .mood small { display: block; font: 500 .78rem "IBM Plex Mono", monospace; color: #6E5A86; }
+  .mood[aria-pressed="true"] { background: linear-gradient(180deg, #FFD6E8, var(--neon)); color: #fff; box-shadow: 0 2px 0 #A0305F, 0 3px 6px rgba(0,0,0,.25); transform: translateY(2px); }
+  .mood[aria-pressed="true"] small { color: #FFE6F1; }
+  .controls { display: grid; grid-template-columns: auto 1fr 1fr; gap: 18px; align-items: center; margin-top: 18px; }
+  .play { width: 92px; height: 92px; border-radius: 50%; border: 0; cursor: pointer; font: 700 1.05rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; color: #fff;
+    background: radial-gradient(circle at 40% 30%, #FF9BC6, var(--neon) 50%, #A0305F); box-shadow: 0 6px 0 #6E1F41, 0 10px 18px rgba(0,0,0,.4); }
+  .play:active { transform: translateY(4px); box-shadow: 0 2px 0 #6E1F41, 0 4px 8px rgba(0,0,0,.4); }
+  body.playing .play { background: radial-gradient(circle at 40% 30%, #9EF7F5, var(--aqua) 50%, #1F8C8A); box-shadow: 0 6px 0 #145E5C, 0 10px 18px rgba(0,0,0,.4); }
+  .slider { display: grid; gap: 4px; }
+  .slider input { width: 100%; accent-color: #A0305F; height: 28px; }
+  .slider output { font: 500 .9rem "IBM Plex Mono", monospace; color: #5A4875; }
+  .foot { text-align: center; margin-top: 16px; color: var(--dim); font-size: .95rem; }
+  .foot b { color: var(--ink); }
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 8px; color: var(--dim); font-size: .9rem; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: var(--amber); flex: none; }
+  .source.quantum i { background: #7CF2A2; box-shadow: 0 0 8px #7CF2A2; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+
+  @media (max-width: 620px) {
+    html { font-size: 17px; } .box { padding: 22px 14px 18px; border-radius: 200px 200px 20px 20px; }
+    .arch { padding: 20px 12px 16px; border-radius: 180px 180px 12px 12px; } .window, .hexline { margin-left: 24px; margin-right: 24px; }
+    .tube { width: 14px; top: 90px; } .tube.l { left: 6px; } .tube.r { right: 6px; } .tube i { left: 2px; }
+    .controls { grid-template-columns: auto 1fr; } .controls .slider:last-child { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .tube, .tube i { animation: none; } }
+</style>
+</head>
+<body>
+<div class="top"><a href="/">AugieLab</a><span>Never the same song twice</span></div>
+
+<main class="box">
+  <div class="arch">
+    <div class="tube l" aria-hidden="true"></div><div class="tube r" aria-hidden="true"></div>
+    <h1>Schrödinger's Jukebox</h1>
+    <div class="window">
+      <canvas id="roll" aria-label="Notes scrolling past as they're composed"></canvas>
+      <div class="now" id="now">Press play</div>
+    </div>
+    <div class="hexline" id="hex" aria-hidden="true"></div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Pick a mood</div>
+    <div class="moods" id="moods"></div>
+    <div class="controls">
+      <button class="play" id="play" aria-pressed="false">Play</button>
+      <div class="slider"><span class="label">Tempo</span><input type="range" id="tempo" min="56" max="120" value="78" aria-label="Tempo"><output id="tempoV">78 bpm</output></div>
+      <div class="slider"><span class="label">Volume</span><input type="range" id="vol" min="0" max="100" value="70" aria-label="Volume"><output id="volV">70%</output></div>
+    </div>
+  </div>
+</main>
+
+<p class="foot" id="count">Every note is picked by chance, live. This exact song has never played before and never will again.</p>
+<p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>Right now: demo mode</h3>
+  <p>Today the notes are picked using your web browser's built-in random number maker, which is really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, every note, chord and rhythm will be chosen by a quantum measurement, and the dot at the bottom will turn from yellow to green.</p>
+  <h3>How the music is made</h3>
+  <p>Nothing here is recorded. Your computer is playing the instruments live. Every half second or so, random numbers decide which chord comes next, whether the melody steps up or down, which note it lands on, and whether to play or rest. A few simple rules keep it sounding musical: the notes stay in a pleasant scale, and the melody leans toward the notes of the current chord.</p>
+  <h3>Why it never repeats</h3>
+  <p>Each minute of music uses hundreds of random choices. The number of possible songs is so huge that even if every person on Earth listened forever, nobody would ever hear the same one twice.</p>
+  <h3>The name</h3>
+  <p>Schrödinger's famous thought experiment had a cat whose fate hung on a single quantum event. Here it's only a song, and much happier. The glowing letters and bubble tubes are a nod to the 1950s jukeboxes in diners.</p>
+  <h3>Tips</h3>
+  <p>Press Play to start. Browsers won't make sound until you click something. Try the three moods, and slow the tempo down for something to work or relax to. Headphones help.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  // ================= Randomness source =================
+  // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
+  // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], quantum = false, fetching = false;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 256) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { pool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    fetching = false; paintSource();
+  }
+  const recent = [];
+  function byte() {
+    let b; if (quantum && pool.length) b = pool.shift(); else { const a = new Uint8Array(1); crypto.getRandomValues(a); b = a[0]; }
+    recent.push(b); if (recent.length > 40) recent.shift(); usedBytes++;
+    if (pool.length < 128) topUp();
+    return b;
+  }
+  const chance = p => byte() < p * 256;
+  const pickIndex = n => byte() % n;          // n is small, so the tiny bias is inaudible
+  function paintSource() {
+    document.getElementById('source').classList.toggle('quantum', quantum);
+    document.getElementById('sourceText').textContent = quantum ? `Randomness: quantum, from the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? 'Randomness: the quantum generator is offline, so this is demo mode.' : "Randomness: demo mode, from your browser's generator.";
+  }
+  paintSource();
+
+  // ================= Moods =================
+  const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+  const MOODS = {
+    dreamy:   { label: 'Dreamy',   tag: 'A1', root: 60, scale: [0, 2, 4, 7, 9],
+                chords: [['I', [0, 4, 7]], ['vi', [9, 12, 16]], ['IV', [5, 9, 12]], ['V', [7, 11, 14]], ['ii', [2, 5, 9]]], hats: false, color: '#FF8AC0' },
+    midnight: { label: 'Midnight', tag: 'B2', root: 57, scale: [0, 3, 5, 7, 10],
+                chords: [['i', [0, 3, 7]], ['VI', [-4, 0, 3]], ['III', [3, 7, 10]], ['VII', [-2, 2, 5]], ['iv', [5, 8, 12]]], hats: true, color: '#4FE3E0' },
+    cosmic:   { label: 'Cosmic',   tag: 'C3', root: 62, scale: [0, 2, 4, 6, 7, 9, 11],
+                chords: [['Imaj7', [0, 4, 7, 11]], ['II', [2, 6, 9]], ['vi7', [9, 12, 16, 19]], ['iii', [4, 7, 11]]], hats: false, color: '#FFC46B' }
+  };
+  let mood = 'dreamy';
+  const moodsEl = document.getElementById('moods');
+  Object.entries(MOODS).forEach(([k, m]) => { const b = document.createElement('button'); b.className = 'mood'; b.setAttribute('aria-pressed', k === mood);
+    b.innerHTML = `${m.label}<small>${m.tag}</small>`; b.onclick = () => { mood = k; [...moodsEl.children].forEach(c => c.setAttribute('aria-pressed', c === b)); chordIdx = 0; melodyPos = 5; };
+    moodsEl.appendChild(b); });
+
+  // ================= Audio graph =================
+  let ctx, master, bus, verb, delay;
+  function initAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = volume(); master.connect(comp);
+    bus = ctx.createGain(); bus.connect(master);
+    // reverb from a decaying noise burst
+    verb = ctx.createConvolver(); const len = ctx.sampleRate * 3.2, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    verb.buffer = ir; const vg = ctx.createGain(); vg.gain.value = .5; verb.connect(vg); vg.connect(master);
+    // echo for the melody
+    delay = ctx.createDelay(2); const fb = ctx.createGain(); fb.gain.value = .32; const dg = ctx.createGain(); dg.gain.value = .28;
+    delay.connect(fb); fb.connect(delay); delay.connect(dg); dg.connect(master);
+  }
+  const volume = () => Math.pow(document.getElementById('vol').value / 100, 1.6) * .9;
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  function env(g, t, a, peak, hold, rel) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.setValueAtTime(peak, t + a + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + rel); }
+
+  function pad(t, notes, dur) {
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1100; f.Q.value = .6;
+    const g = ctx.createGain(); env(g, t, 1.1, .055, Math.max(.1, dur - 1.1), 1.8); f.connect(g); g.connect(bus); g.connect(verb);
+    notes.forEach(m => [['triangle', 0], ['sine', 7]].forEach(([type, cents]) => {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = hz(m); o.detune.value = cents; o.connect(f); o.start(t); o.stop(t + dur + 3);
+    }));
+  }
+  function bell(t, m, dur, loud) {
+    const g = ctx.createGain(); env(g, t, .012, loud, .02, Math.min(2.2, dur + .9));
+    g.connect(bus); g.connect(delay); g.connect(verb);
+    [[1, 1], [2, .28], [3.01, .1], [4.2, .04]].forEach(([mult, amp]) => {
+      const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine'; o.frequency.value = hz(m) * mult; og.gain.value = amp;
+      o.connect(og); og.connect(g); o.start(t); o.stop(t + dur + 2.5);
+    });
+  }
+  function bass(t, m, dur) {
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 420;
+    const g = ctx.createGain(); env(g, t, .02, .2, dur * .6, .35); f.connect(g); g.connect(bus);
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = hz(m); o.connect(f); o.start(t); o.stop(t + dur + .5);
+  }
+  let noiseBuf;
+  function hat(t, loud) {
+    if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .08, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+    const g = ctx.createGain(); env(g, t, .002, loud, .005, .05); s.connect(f); f.connect(g); g.connect(bus); s.start(t);
+  }
+
+  // ================= Composer =================
+  let playing = false, step = 0, nextT = 0, timer = null, chordIdx = 0, melodyPos = 5, usedBytes = 0, notesPlayed = 0, startedAt = 0, curChord = null;
+  const roll = [];   // notes for the visualizer
+  const eighth = () => 30 / document.getElementById('tempo').value;
+
+  function scaleNote(i) { const S = MOODS[mood].scale, oct = Math.floor(i / S.length), idx = ((i % S.length) + S.length) % S.length; return MOODS[mood].root + 12 + S[idx] + 12 * oct; }
+  function nearestChordTone(pos) {   // nudge the melody toward the current chord
+    const tones = curChord[1].map(x => (x % 12 + 12) % 12); let best = pos, bestD = 99;
+    for (let d = -2; d <= 2; d++) { const pc = ((scaleNote(pos + d) - MOODS[mood].root) % 12 + 12) % 12; if (tones.includes(pc) && Math.abs(d) < bestD) { best = pos + d; bestD = Math.abs(d); } }
+    return best;
+  }
+
+  function scheduleStep(t) {
+    const M = MOODS[mood], e = eighth(), barPos = step % 16;
+    if (barPos === 0) {   // new chord every two bars (16 eighths)
+      let next = pickIndex(M.chords.length); if (next === chordIdx && chance(.7)) next = (next + 1 + pickIndex(M.chords.length - 1)) % M.chords.length;
+      chordIdx = step === 0 ? 0 : next; curChord = M.chords[chordIdx];
+      pad(t, curChord[1].map(x => M.root + x), e * 16);
+      setNow();
+    }
+    if (barPos % 4 === 0 && (barPos % 8 === 0 || chance(.55))) bass(t, M.root - 24 + curChord[1][barPos % 8 === 0 ? 0 : pickIndex(curChord[1].length)], e * 3);
+    if (M.hats && chance(barPos % 2 ? .45 : .8)) hat(t, barPos % 4 === 2 ? .05 : .025);
+
+    // melody: a random walk through the scale
+    const playP = barPos % 2 === 0 ? .72 : .4;
+    if (chance(playP)) {
+      const r = byte(); let move = r < 40 ? -2 : r < 105 ? -1 : r < 135 ? 0 : r < 200 ? 1 : r < 235 ? 2 : (r & 1 ? 4 : -4);
+      melodyPos = Math.max(0, Math.min(M.scale.length * 2 + 2, melodyPos + move));
+      if (barPos % 4 === 0) melodyPos = nearestChordTone(melodyPos);
+      const len = e * (chance(.25) ? 3 : chance(.4) ? 2 : 1), m = scaleNote(melodyPos);
+      bell(t, m, len, barPos % 4 === 0 ? .2 : .14);
+      roll.push({ t, len, m, c: M.color }); notesPlayed++;
+      if (chance(.08)) { const h = scaleNote(melodyPos + 2); bell(t + e / 2, h, e, .09); roll.push({ t: t + e / 2, len: e, m: h, c: M.color }); notesPlayed++; }
+    }
+    step++;
+  }
+  function tick() {
+    while (nextT < ctx.currentTime + .25) { scheduleStep(nextT); nextT += eighth(); }
+  }
+  function setNow() {
+    const M = MOODS[mood];
+    document.getElementById('now').innerHTML = `${M.label} in <b>${NAMES[M.root % 12]}</b> · chord <b>${curChord[0]}</b>`;
+  }
+
+  // ================= Controls =================
+  const playBtn = document.getElementById('play');
+  let minuteTimer = null;
+  playBtn.onclick = async () => {
+    initAudio(); if (ctx.state === 'suspended') await ctx.resume();
+    playing = !playing; document.body.classList.toggle('playing', playing);
+    playBtn.textContent = playing ? 'Stop' : 'Play'; playBtn.setAttribute('aria-pressed', playing);
+    if (playing) {
+      master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(volume(), ctx.currentTime, .05);
+      step = 0; nextT = ctx.currentTime + .1; if (!startedAt) startedAt = Date.now();
+      timer = setInterval(tick, 25); tick();
+      minuteTimer = setInterval(() => window.labTrack && labTrack('minute'), 60000);
+    } else {
+      clearInterval(timer); clearInterval(minuteTimer);
+      master.gain.setTargetAtTime(0.0001, ctx.currentTime, .4);   // gentle fade-out
+      document.getElementById('now').textContent = 'Stopped. Press play for a brand-new song.';
+    }
+  };
+  const tempo = document.getElementById('tempo'), vol = document.getElementById('vol');
+  tempo.oninput = () => document.getElementById('tempoV').textContent = tempo.value + ' bpm';
+  vol.oninput = () => { document.getElementById('volV').textContent = vol.value + '%'; if (master && playing) master.gain.setTargetAtTime(volume(), ctx.currentTime, .05); };
+  addEventListener('keydown', e => { if (e.key === ' ' && !e.target.closest('button, input')) { e.preventDefault(); playBtn.click(); } });
+
+  // ================= Visualizer =================
+  const cv = document.getElementById('roll'), x = cv.getContext('2d');
+  // bubbles in the tubes
+  document.querySelectorAll('.tube').forEach(tube => { for (let i = 0; i < 7; i++) { const b = document.createElement('i');
+    b.style.animationDuration = (3 + Math.random() * 4) + 's'; b.style.animationDelay = (-Math.random() * 6) + 's'; b.style.setProperty('--h', tube.clientHeight + 'px'); tube.appendChild(b); } });
+
+  function draw() {
+    requestAnimationFrame(draw);
+    const dpr = Math.min(devicePixelRatio || 1, 2), W = cv.clientWidth * dpr, H = cv.clientHeight * dpr;
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    x.clearRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(194,179,211,.09)'; x.lineWidth = 1;
+    for (let i = 1; i < 8; i++) { const y = H * i / 8; x.beginPath(); x.moveTo(0, y); x.lineTo(W, y); x.stroke(); }
+    const playX = W * .72; x.strokeStyle = 'rgba(255,95,162,.6)'; x.beginPath(); x.moveTo(playX, 0); x.lineTo(playX, H); x.stroke();
+    if (!ctx) return;
+    const now = ctx.currentTime, pps = 120 * dpr, lo = MOODS[mood].root + 9, hi = MOODS[mood].root + 42;
+    while (roll.length && roll[0].t + roll[0].len < now - playX / pps) roll.shift();
+    roll.forEach(n => {
+      const x0 = playX + (n.t - now) * pps, w = Math.max(6 * dpr, n.len * pps - 3 * dpr);
+      const y = H - ((n.m - lo) / (hi - lo)) * (H - 30 * dpr) - 16 * dpr;
+      const lit = n.t <= now && now <= n.t + n.len;
+      x.fillStyle = n.c; x.globalAlpha = lit ? 1 : (n.t > now ? .35 : .75); x.shadowColor = n.c; x.shadowBlur = lit ? 18 * dpr : 0;
+      x.beginPath(); x.roundRect ? x.roundRect(x0, y - 6 * dpr, w, 12 * dpr, 6 * dpr) : x.rect(x0, y - 6 * dpr, w, 12 * dpr); x.fill();
+    });
+    x.globalAlpha = 1; x.shadowBlur = 0;
+    if (playing) {
+      document.getElementById('hex').innerHTML = 'random bytes: ' + recent.slice(-24).map((b, i, a) => i === a.length - 1 ? `<b>${b.toString(16).padStart(2, '0')}</b>` : b.toString(16).padStart(2, '0')).join(' ');
+      const secs = Math.round((Date.now() - startedAt) / 1000);
+      document.getElementById('count').innerHTML = `<b>${notesPlayed.toLocaleString()}</b> notes composed live from <b>${usedBytes.toLocaleString()}</b> random numbers. This song has never played before and never will again.`;
+    }
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
