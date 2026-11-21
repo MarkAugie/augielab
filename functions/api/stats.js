@@ -11,7 +11,7 @@ export async function onRequestGet({ request, env }) {
   const DB = dbOf(env);
   if (!env.STATS_KEY || !DB) return json({ ok: false, error: 'setup', missing: [!DB && 'DB', !env.STATS_KEY && 'STATS_KEY'].filter(Boolean) }, 503);
   const key = new URL(request.url).searchParams.get('key') || '';
-  if (!sameKey(key, env.STATS_KEY)) return json({ ok: false, error: 'key' }, 401);
+  if (!sameKey(key.trim(), String(env.STATS_KEY).trim())) return json({ ok: false, error: 'key' }, 401);   // ignore stray spaces or line breaks
   await ensureTable(DB);
   const t = today();
   const since = new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
