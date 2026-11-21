@@ -37,6 +37,7 @@
   .chip { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 9px 15px; border-radius: 999px; cursor: pointer; color: var(--chalk);
     background: rgba(0,0,0,.25); border: 1px solid rgba(243,238,223,.35); }
   .chip[aria-pressed="true"] { background: var(--chalk); color: #12382B; border-color: var(--chalk); }
+  .rowlabel { min-width: 10.5rem; color: var(--dim); font-weight: 600; }
   .stepper { display: inline-flex; align-items: center; gap: 10px; margin-left: 10px; }
   .stepper button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(243,238,223,.5); background: rgba(0,0,0,.25); color: var(--chalk); font: 700 1.2rem sans-serif; cursor: pointer; }
   .stepper output { font: 600 1.1rem "IBM Plex Sans", sans-serif; min-width: 4.5rem; text-align: center; }
@@ -80,7 +81,7 @@
   .source { margin-top: 22px; display: flex; gap: 10px; align-items: center; justify-content: center; color: var(--dim); font-size: .95rem; text-align: center; }
   .source i { width: 11px; height: 11px; border-radius: 50%; background: #F2C443; flex: none; }
   .source.quantum i { background: #7CF2A2; box-shadow: 0 0 8px #7CF2A2; }
-  @media (max-width: 600px) { html { font-size: 17px; } .tabs { flex-wrap: nowrap; } .tabs button { padding: 9px 13px; font-size: .92rem; white-space: nowrap; } .table { padding: 18px; border-width: 7px; } .die { width: 88px; height: 88px; } .die .n { font-size: 2rem; } .ball { width: 66px; height: 66px; font-size: 1.5rem; } }
+  @media (max-width: 600px) { html { font-size: 17px; } .rowlabel { min-width: 100%; } .tabs { flex-wrap: nowrap; } .tabs button { padding: 9px 13px; font-size: .92rem; white-space: nowrap; } .table { padding: 18px; border-width: 7px; } .die { width: 88px; height: 88px; } .die .n { font-size: 2rem; } .ball { width: 66px; height: 66px; font-size: 1.5rem; } }
   @media (prefers-reduced-motion: reduce) { .die.rolling, .ball { animation: none; } .coin { transition-duration: .01s; } }
 </style>
 </head>
@@ -95,10 +96,8 @@
   </div>
 
   <section class="table" id="tab-dice">
-    <div class="row" id="dieTypes" aria-label="Kind of die"></div>
-    <div class="row" style="margin-top:14px">How many
-      <span class="stepper"><button id="less" aria-label="Fewer dice">−</button><output id="count">2 dice</output><button id="more" aria-label="More dice">+</button></span>
-    </div>
+    <div class="row"><span class="rowlabel">Sides on each die</span><span class="row" id="dieTypes"></span></div>
+    <div class="row" style="margin-top:14px"><span class="rowlabel">How many dice</span><span class="row" id="counts"></span></div>
     <div class="tray" id="tray" aria-live="polite"></div>
     <div class="total" id="total"></div>
     <div style="text-align:center"><button class="go" id="roll">Roll</button></div>
@@ -136,7 +135,7 @@
   <h3>About the lottery pick</h3>
   <p>A quantum pick can't improve your odds. Every combination has exactly the same chance, whether it's chosen by photons, by the store's Quick Pick or by your birthday. The one real advantage of a random pick: it avoids popular choices like birthdays and patterns, so if you do win, you're less likely to split the prize.</p>
   <h3>The dice shapes</h3>
-  <p>D4, d6, d8, d10, d12 and d20 are the classic tabletop game dice, named for how many sides they have. Each one is drawn as its shape seen from above.</p>
+  <p>Pick how many sides each die has (4, 6, 8, 10, 12 or 20, the classic tabletop game dice) and how many dice to roll at once. Each kind is drawn as its shape seen from above.</p>
 </template>
 <script src="/lab/explain.js" defer></script>
 
@@ -188,7 +187,7 @@
   };
   let sides = 6, count = 2;
   const types = $('dieTypes');
-  Object.keys(SHAPES).forEach(s => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = 'd' + s; b.setAttribute('aria-pressed', +s === sides);
+  Object.keys(SHAPES).forEach(s => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = s; b.setAttribute('aria-label', s + '-sided die'); b.setAttribute('aria-pressed', +s === sides);
     b.onclick = () => { sides = +s; [...types.children].forEach(c => c.setAttribute('aria-pressed', c === b)); drawDice(Array(count).fill(null)); }; types.appendChild(b); });
   function dieHTML(s, value) {
     const sh = SHAPES[s];
@@ -201,9 +200,10 @@
     values.forEach((v, i) => { const d = document.createElement('div'); d.className = 'die' + (animate ? ' rolling' : ''); d.style.animationDelay = (i * 60) + 'ms';
       d.innerHTML = dieHTML(sides, v); d.setAttribute('role', 'img'); d.setAttribute('aria-label', v == null ? `d${sides}` : `d${sides} showing ${v}`); $('tray').appendChild(d); });
   }
-  function paintCount() { $('count').textContent = count + (count === 1 ? ' die' : ' dice'); }
-  $('less').onclick = () => { count = Math.max(1, count - 1); paintCount(); drawDice(Array(count).fill(null)); $('total').textContent = ''; };
-  $('more').onclick = () => { count = Math.min(8, count + 1); paintCount(); drawDice(Array(count).fill(null)); $('total').textContent = ''; };
+  const counts = $('counts');
+  for (let n = 1; n <= 8; n++) { const b = document.createElement('button'); b.className = 'chip'; b.textContent = n; b.setAttribute('aria-label', n + (n === 1 ? ' die' : ' dice')); b.setAttribute('aria-pressed', n === count);
+    b.onclick = () => { count = n; [...counts.children].forEach(c => c.setAttribute('aria-pressed', c === b)); drawDice(Array(count).fill(null)); $('total').textContent = ''; }; counts.appendChild(b); }
+  function paintCount() {}
   $('roll').onclick = async () => {
     await topUp(count * 8);
     const vals = Array.from({ length: count }, () => below(sides) + 1);
