@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infinite Monkeys · AugieLab</title>
+<meta name="description" content="A room of monkeys typing random letters forever. Give them something to type and watch how close they get.">
+<meta property="og:title" content="Infinite Monkeys">
+<meta property="og:description" content="Six monkeys, six typewriters, random keys forever. Can they type your name? Can they type Shakespeare?">
+<meta property="og:url" content="https://augielab.dev/monkeys/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --wall: #17302A; --wall2: #1C3A33; --brass: #D4AE62; --brass-dk: #8A6A2C; --paper: #F8F1DE; --ink: #1F1A14;
+    --text: #F3EEE2; --dim: #C3CDBF; --word: #FFE27A; --hunt: #FF8F8F; --good: #7CF2A2; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 16px 100px;
+    background: repeating-linear-gradient(90deg, var(--wall) 0 46px, var(--wall2) 46px 92px); }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  .top span { color: var(--dim); }
+
+  header { text-align: center; margin-bottom: 22px; }
+  h1 { font: 400 clamp(2.4rem, 8vw, 4.4rem)/1 "Abril Fatface", serif; color: var(--brass); letter-spacing: .01em;
+    text-shadow: 0 2px 0 #5E4718, 0 8px 24px rgba(0,0,0,.45); }
+  .sub { margin-top: 8px; color: var(--dim); font-size: 1.1rem; }
+
+  /* ---------- brass plaque: the hunt ---------- */
+  .plaque { border-radius: 14px; padding: 22px 24px 20px; color: #2B200C;
+    background: linear-gradient(160deg, #F2D58E, var(--brass) 45%, #B88E3E);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(0,0,0,.2), 0 14px 30px -12px rgba(0,0,0,.7); }
+  .plaque .lbl { font: 700 .95rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #5A4114; }
+  .ask { display: flex; gap: 12px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+  .ask input { flex: 1 1 280px; min-width: 0; font: 700 1.35rem "Courier Prime", monospace; color: var(--ink); background: var(--paper);
+    border: 2px solid var(--brass-dk); border-radius: 8px; padding: 10px 14px; }
+  .ask button, .chip { cursor: pointer; font: 600 1rem "IBM Plex Sans", sans-serif; border-radius: 8px; }
+  .ask button { padding: 12px 18px; border: 0; color: #fff; background: #3A2A0C; box-shadow: 0 3px 0 #1D1504; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  .chips > span { font-size: .95rem; color: #5A4114; margin-right: 2px; }
+  .chip { padding: 6px 12px; border: 1px solid var(--brass-dk); background: rgba(255,248,225,.55); color: #3A2A0C; }
+  .chip:hover { background: rgba(255,248,225,.9); }
+
+  .target { display: flex; flex-wrap: wrap; gap: 5px; margin: 18px 0 8px; }
+  .target i { font: 700 1.5rem/1 "Courier Prime", monospace; font-style: normal; width: 1.45em; height: 1.85em; display: grid; place-items: center;
+    border-radius: 5px; background: rgba(255,248,225,.35); color: rgba(43,32,12,.35); border-bottom: 3px solid rgba(43,32,12,.25); }
+  .target i.sp { background: transparent; border-bottom-color: transparent; width: .8em; }
+  .target i.sp.hit { border-bottom-color: #B3122B; }
+  .target i.hit:not(.sp) { background: var(--paper); color: var(--ink); border-bottom-color: #B3122B; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  .best { font-size: 1.05rem; color: #3A2A0C; }
+  .best b { color: #1F1504; }
+  .won { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: #1F3A2B; color: #E8FFF0; font-size: 1.05rem; display: none; }
+  .won.show { display: block; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { from { transform: scale(.94); opacity: 0; } }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; justify-content: center; margin: 22px 0 18px; }
+  .go { width: 140px; padding: 14px 0; border: 0; border-radius: 999px; cursor: pointer; font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif;
+    letter-spacing: .05em; color: #fff; background: #B3122B; box-shadow: 0 4px 0 #6A0A19, 0 8px 16px rgba(0,0,0,.35); }
+  .go.paused { background: #2F7A4C; box-shadow: 0 4px 0 #17432A, 0 8px 16px rgba(0,0,0,.35); }
+  .go:active { transform: translateY(3px); }
+  .speed { display: flex; border-radius: 10px; overflow: hidden; border: 2px solid var(--brass); }
+  .speed button { cursor: pointer; border: 0; padding: 11px 16px; font: 600 1rem "IBM Plex Sans", sans-serif; color: var(--text); background: rgba(0,0,0,.3); }
+  .speed button + button { border-left: 1px solid rgba(212,174,98,.5); }
+  .speed button[aria-pressed="true"] { background: var(--brass); color: #2B200C; }
+  .snd { cursor: pointer; padding: 11px 16px; border-radius: 10px; border: 2px solid rgba(195,205,191,.5); background: transparent; color: var(--text); font: 600 1rem "IBM Plex Sans", sans-serif; }
+  .snd[aria-pressed="true"] { border-color: var(--good); color: var(--good); }
+
+  /* ---------- the room ---------- */
+  .room { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px 20px; }
+  .desk { position: relative; }
+  .sheet { position: relative; margin: 0 16px; height: 8.6rem; padding: 12px 14px 6px; overflow: hidden; border-radius: 4px 4px 0 0;
+    background: repeating-linear-gradient(180deg, transparent 0 1.6rem, rgba(70,110,160,.13) 1.6rem calc(1.6rem + 1px)), var(--paper);
+    background-position: 0 .55rem; box-shadow: 0 -4px 14px rgba(0,0,0,.25);
+    display: flex; flex-direction: column; justify-content: flex-end; }
+  .txt { font: 700 1.12rem/1.6rem "Courier Prime", monospace; color: var(--ink); white-space: pre-wrap; word-break: break-all; }
+  .txt .w { background: var(--word); border-radius: 3px; box-shadow: 0 0 0 1px #E0BC3A; }
+  .txt .h { background: var(--hunt); border-radius: 3px; box-shadow: 0 0 0 1px #D85050; }
+  .txt .cur { display: inline-block; width: .6em; height: 1.1em; vertical-align: -.15em; background: #B3122B; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .machine { position: relative; border-radius: 12px 12px 16px 16px; padding: 12px 14px 12px; display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(180deg, #3B3F45, #24272B 60%, #191B1E); box-shadow: inset 0 2px 0 rgba(255,255,255,.12), 0 10px 18px -8px rgba(0,0,0,.8); }
+  .machine::before { content: ""; position: absolute; left: 6px; right: 6px; top: -9px; height: 12px; border-radius: 6px;
+    background: linear-gradient(180deg, #5B6068, #2A2D31); box-shadow: 0 2px 4px rgba(0,0,0,.5); }   /* platen roller */
+  .face { font-size: 2.2rem; line-height: 1; transform-origin: 50% 90%; }
+  .face.tap { animation: tap .16s ease-out; }
+  @keyframes tap { 40% { transform: translateY(3px) rotate(-4deg); } }
+  .who { flex: 1; min-width: 0; }
+  .who b { display: block; font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .03em; color: #fff; }
+  .who span { white-space: nowrap; font: 500 .88rem "IBM Plex Mono", monospace; color: #B9C2CC; }
+  .keysrow { display: grid; grid-template-columns: repeat(9, 10px); gap: 4px; }
+  .keysrow i { width: 10px; height: 10px; border-radius: 50%; background: #50555D; box-shadow: inset 0 -2px 0 rgba(0,0,0,.4); }
+  .keysrow i.on { background: var(--brass); box-shadow: 0 0 6px var(--brass); }
+
+  /* ---------- readouts ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 26px; }
+  .tile { background: rgba(0,0,0,.32); border: 1px solid rgba(212,174,98,.35); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { font: 700 .85rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  .tile .v { font: 700 1.7rem/1.2 "IBM Plex Sans Condensed", sans-serif; color: #fff; overflow-wrap: anywhere; }
+  .tile .v.wd { font-family: "Courier Prime", monospace; color: var(--word); }
+  .panel { margin-top: 18px; background: rgba(0,0,0,.32); border: 1px solid rgba(212,174,98,.35); border-radius: 12px; padding: 18px 20px; }
+  .panel h2 { font: 700 1.15rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .03em; color: var(--brass); margin-bottom: 6px; }
+  .panel p { font-size: 1.05rem; color: #E6E9E1; }
+  .panel p + p { margin-top: 8px; }
+  .panel b { color: #fff; }
+  sup { font-size: .7em; }
+  .shelf { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .shelf span { font: 700 1.05rem "Courier Prime", monospace; color: var(--ink); background: var(--word); padding: 4px 10px; border-radius: 6px; }
+  .shelf small { font: 500 .8rem "IBM Plex Sans", sans-serif; color: #5A4A10; margin-left: 6px; }
+  .shelf em { font-style: normal; color: var(--dim); font-size: 1rem; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; color: var(--dim); font-size: .95rem; justify-content: center; }
+  .legend i { display: inline-block; width: 22px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 14px; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #FFC46B; flex: none; }
+  .source.quantum i { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  button:focus-visible, input:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 3px; }
+
+  @media (max-width: 1100px) { .keysrow { display: none; } }
+  @media (max-width: 900px) { .room { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) {
+    html { font-size: 17px; } body { padding: 14px 10px 100px; }
+    .room { grid-template-columns: 1fr; } .plaque { padding: 18px 14px; }
+    .target i { font-size: 1.2rem; } .speed button { padding: 10px 11px; }
+    .keysrow { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .face.tap, .won.show { animation: none; } .txt .cur { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>Six monkeys, six typewriters, forever</span></div>
+
+  <header>
+    <h1>Infinite Monkeys</h1>
+    <p class="sub">They hit keys completely at random. Give them something to type and see how close they get.</p>
+  </header>
+
+  <section class="plaque" aria-label="What the monkeys are trying to type">
+    <div class="lbl">The monkeys are trying to type</div>
+    <form class="ask" id="askForm">
+      <input id="ask" maxlength="40" autocomplete="off" spellcheck="false" aria-label="Words for the monkeys to type (letters and spaces)" value="to be or not to be">
+      <button type="submit">Give it to them</button>
+    </form>
+    <div class="chips" id="chips"><span>Try:</span></div>
+    <div class="target" id="target" aria-hidden="true"></div>
+    <p class="best" id="best" aria-live="polite"></p>
+    <p class="won" id="won" role="status"></p>
+  </section>
+
+  <div class="controls">
+    <button class="go" id="go" aria-pressed="true">Pause</button>
+    <div class="speed" id="speed" role="group" aria-label="Typing speed"></div>
+    <button class="snd" id="snd" aria-pressed="false">Sound off</button>
+  </div>
+
+  <main class="room" id="room" aria-label="The typewriters"></main>
+  <div class="legend"><span><i style="background:var(--word)"></i>a real word</span><span><i style="background:var(--hunt)"></i>a new record on the phrase</span></div>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Keys pressed</div><div class="v" id="tKeys">0</div></div>
+    <div class="tile"><div class="k">Real words typed</div><div class="v" id="tWords">0</div></div>
+    <div class="tile"><div class="k">Longest word</div><div class="v wd" id="tLong">—</div></div>
+    <div class="tile"><div class="k">Keys per second</div><div class="v" id="tRate">0</div></div>
+  </div>
+
+  <section class="panel">
+    <h2>How long would the whole thing take?</h2>
+    <p id="odds"></p>
+    <p id="odds2"></p>
+  </section>
+
+  <section class="panel">
+    <h2>The word shelf: longest words found so far</h2>
+    <div class="shelf" id="shelf"><em>Nothing yet. Give them a minute.</em></div>
+  </section>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The old idea</h3>
+  <p>There's a famous thought: give a monkey a typewriter and endless time, and by pure chance it will eventually type the complete works of Shakespeare. It sounds silly, but the math says it's true. The catch is how long "eventually" really is. This page lets you watch it happen and feel the size of the numbers.</p>
+  <h3>What the monkeys do</h3>
+  <p>Each monkey has 27 keys: the letters a to z and a space bar. Every key press is chosen at random, with each key exactly as likely as any other. Nobody is steering them. The page just watches what comes out.</p>
+  <h3>The yellow and red marks</h3>
+  <p>Whenever a monkey happens to type a real English word between two spaces, it's marked in yellow and the longest ones go on the word shelf. Two- and three-letter words turn up now and then. Long ones are very rare and worth celebrating. Red marks show a monkey setting a new record on the phrase you gave them: the most letters of it typed correctly, in order.</p>
+  <h3>Why it gets hard so fast</h3>
+  <p>Every extra letter makes the job 27 times harder. Three letters, like "cat", takes about 20,000 key presses, which the monkeys do in seconds. Your name might take a few minutes at Ludicrous speed. "To be or not to be" takes about 10<sup>25</sup> presses, which is longer than the universe has existed. All of Hamlet, about 130,000 letters, would need a number with 186,000 digits. Even if every atom in the universe were a monkey, they would not get close.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Today the keys are picked by your web browser's built-in random number maker, which is a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. Then the monkeys' keys will come from real quantum events, and the dot at the bottom will turn from yellow to green. At Ludicrous speed the monkeys type faster than the stick can keep up, so the page shows what share of the keys were quantum.</p>
+  <h3>Tips</h3>
+  <p>Type a short word, like your name or a pet's name, and switch to Ludicrous to give the monkeys a fair shot. Watch speed lets you read along. Turn the sound on for typewriter clacks and a bell when a monkey finds a good word.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
+  // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let qChunks = [], qHead = 0, qLeft = 0, quantumUp = false, fetching = false, qUsed = 0, bUsed = 0;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || qLeft > 2048) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=2048', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values) && j.values.length) { qChunks.push(Uint8Array.from(j.values)); qLeft += j.values.length; quantumUp = true; } else quantumUp = false;
+    } catch (e) { quantumUp = false; }
+    fetching = false; paintSource();
+  }
+  const bBuf = new Uint8Array(65536); let bPos = bBuf.length;
+  function byte() {
+    if (qLeft > 0) {
+      const c = qChunks[0], b = c[qHead++]; qLeft--; qUsed++;
+      if (qHead >= c.length) { qChunks.shift(); qHead = 0; }
+      if (qLeft < 1024) topUp();
+      return b;
+    }
+    if (SOURCE.ENDPOINT) topUp();
+    if (bPos >= bBuf.length) { crypto.getRandomValues(bBuf); bPos = 0; }
+    bUsed++; return bBuf[bPos++];
+  }
+  // 27 keys. 243 = 27 x 9, so throwing away bytes 243-255 keeps every key exactly equally likely.
+  function key() { let b; do { b = byte(); } while (b >= 243); return b % 27; }
+  function paintSource() {
+    const share = qUsed + bUsed ? qUsed / (qUsed + bUsed) : 0;
+    $('source').classList.toggle('quantum', quantumUp);
+    $('sourceText').textContent = quantumUp
+      ? `Randomness: quantum, from the ${SOURCE.NAME}. ${Math.round(share * 100)}% of key presses so far were quantum.`
+      : SOURCE.ENDPOINT ? 'Randomness: the quantum generator is offline, so this is demo mode.' : "Randomness: demo mode, from your browser's generator.";
+  }
+  paintSource();
+
+  // ================= Words =================
+  const KEYS = 'abcdefghijklmnopqrstuvwxyz ';
+  const EXTRA = 'am an as at be by do go he hi if in is it me my no of oh ok on or so to up us we ox ax yo ha ma pa the and for are but not you all any can her was one our out day get has him his how man new now old see two way who boy did its let put say she too use cat dog sun run fun big red hat cup box egg ice joy key map pie sea sky toy van war win yes zoo bee cow fox owl pig rat ant bat elf gem hug jam kid lip mom dad mug net nut oak pen pot ray rug sad tea top wet yak zip ape art bed bus car cry ear eye fan fly gum hen ink jet kit leg mud nap oil pan saw tub web wig yam ago air ask bad bag ban bar bet bit bow bun cab cod cot cub cut den dew dig dim dip dot dry dug dye eat end fat fed fee few fig fin fit fix fog fur gap gas god got gut had ham hay hid hit hop hot hum hut ill jaw jog jot lab lad lap law lay led lid lit log lot low mad mat may men met mix mob nag nod oar odd off pad pal pat paw pay pea pet pin pit pop pro pub pun pup rag ram rap raw rib rid rim rip rob rod rot row rub sap sat set sew shy sin sip sit six ski sly sob sod son sow soy spa spy sum tab tag tan tap tar ten tie tin tip toe ton tow try tug urn vet vow wag wax wed wit wok won yap yen yet zap monkey banana typewriter shakespeare hamlet augie mark quantum photon universe'.split(' ');
+  const DICT = new Set(EXTRA);
+  fetch('/passwords/words.json').then(r => r.json()).then(list => list.forEach(w => { if (/^[a-z]+$/.test(w)) DICT.add(w); })).catch(() => {});
+
+  // ================= The phrase hunt (KMP matching, so no near-miss is ever lost) =================
+  let T = '', fail = [], best = { len: 0, who: null, at: 0 }, wins = 0, lastWin = 0;
+  function setTarget(raw) {
+    const t = String(raw).toLowerCase().replace(/[^a-z ]+/g, '').replace(/\s+/g, ' ').trim().slice(0, 40) || 'monkey';
+    T = t; $('ask').value = t; fail = new Array(t.length).fill(0);
+    for (let i = 1, k = 0; i < t.length; i++) { while (k && t[i] !== t[k]) k = fail[k - 1]; if (t[i] === t[k]) k++; fail[i] = k; }
+    best = { len: 0, who: null, at: 0 }; wins = 0;
+    monkeys.forEach(m => { m.st = 0; m.marks = m.marks.filter(x => x.k !== 'h'); });
+    $('won').classList.remove('show');
+    paintTarget(); paintBest(); paintOdds();
+  }
+
+  // ================= Monkeys =================
+  const CAST = [['🐒', 'Coco'], ['🦍', 'Big Al'], ['🐵', 'Pip'], ['🦧', 'Rufus'], ['🐒', 'Mango'], ['🐵', 'Zelda']];
+  const TAIL = 260;
+  const monkeys = CAST.map(([face, name], i) => ({ face, name, keys: 0, tail: '', word: '', wordStart: 0, wordOk: true, st: 0, marks: [], acc: Math.random(), el: null }));
+  const room = $('room');
+  monkeys.forEach(m => {
+    const d = document.createElement('div'); d.className = 'desk';
+    d.innerHTML = `<div class="sheet"><div class="txt"></div></div><div class="machine"><span class="face" aria-hidden="true">${m.face}</span>
+      <div class="who"><b>${m.name}</b><span>0 keys</span></div><div class="keysrow" aria-hidden="true">${'<i></i>'.repeat(27)}</div></div>`;
+    room.appendChild(d);
+    m.el = { txt: d.querySelector('.txt'), count: d.querySelector('.who span'), face: d.querySelector('.face'), keys: d.querySelectorAll('.keysrow i') };
+  });
+
+  let totalKeys = 0, totalWords = 0, longest = '', trackedK = 0;
+  const shelf = [];   // {w, who}
+  let dirtyShelf = false;
+
+  function press(m, watching) {
+    const k = key(), c = KEYS[k], pos = m.keys;
+    m.keys++; totalKeys++;
+    // words
+    if (c === ' ') {
+      const w = m.word;
+      if (m.wordOk && w.length >= 2 && DICT.has(w)) {
+        totalWords++; m.marks.push({ s: m.wordStart, e: pos, k: 'w' });
+        if (w.length >= 5) { addShelf(w, m.name); if (watching) sfx.ding(880); }
+        if (w.length > longest.length) longest = w;
+      }
+      m.word = ''; m.wordStart = pos + 1; m.wordOk = true;
+    } else if (m.wordOk) { if (m.word.length < 16) m.word += c; else m.wordOk = false; }
+    // phrase
+    let s = m.st; while (s && T[s] !== c) s = fail[s - 1]; if (T[s] === c) s++;
+    if (s === T.length) { win(m, pos); s = fail[s - 1]; }
+    else if (s > best.len) { best = { len: s, who: m.name, at: totalKeys }; m.marks.push({ s: pos - s + 1, e: pos + 1, k: 'h' }); bestDirty = true; if (s >= 3) sfx.ding(660 + 80 * s); }
+    m.st = s;
+    return c;
+  }
+  function addShelf(w, who) {
+    if (shelf.some(x => x.w === w)) return;
+    shelf.push({ w, who }); shelf.sort((a, b) => b.w.length - a.w.length || a.w.localeCompare(b.w)); if (shelf.length > 12) shelf.length = 12; dirtyShelf = true;
+  }
+  function win(m, pos) {
+    wins++; best = { len: T.length, who: m.name, at: totalKeys }; bestDirty = true;
+    m.marks.push({ s: pos - T.length + 1, e: pos + 1, k: 'h' });
+    $('won').innerHTML = `🎉 <b>${m.name}</b> typed “${T}” after ${totalKeys.toLocaleString()} key presses in the room${wins > 1 ? `. That's <b>${wins}</b> times now` : ''}!`;
+    const now = performance.now();
+    if (now - lastWin > 1500) { lastWin = now; $('won').classList.remove('show'); void $('won').offsetWidth; $('won').classList.add('show'); sfx.fanfare(); }
+    window.labTrack && labTrack('phrase');
+  }
+
+  // ================= Speeds and the main loop =================
+  const SPEEDS = [['Watch', 5], ['Fast', 40], ['Faster', 700], ['Ludicrous', 15000]];
+  let speed = 0, running = true, last = performance.now(), frame = 0, rateWin = [], bestDirty = true;
+  const spEl = $('speed');
+  SPEEDS.forEach(([n], i) => { const b = document.createElement('button'); b.textContent = n; b.setAttribute('aria-pressed', i === speed);
+    b.onclick = () => { speed = i; [...spEl.children].forEach((c, j) => c.setAttribute('aria-pressed', j === i)); paintOdds(); }; spEl.appendChild(b); });
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(.25, (now - last) / 1000); last = now; frame++;
+    if (running) {
+      const rate = SPEEDS[speed][1], watching = speed === 0;
+      let pressed = 0;
+      monkeys.forEach(m => {
+        // a little human-ish jitter at the slow speed so they don't type in lockstep
+        m.acc += rate * dt * (watching ? .6 + Math.random() * .8 : 1);
+        let n = Math.floor(m.acc); m.acc -= n; if (!n) return;
+        let out = '';
+        for (let i = 0; i < n; i++) { const c = press(m, watching); if (n - i <= TAIL) out += c; }
+        pressed += n;
+        m.tail = (m.tail + out).slice(-TAIL);
+        if (watching) { m.el.face.classList.remove('tap'); void m.el.face.offsetWidth; m.el.face.classList.add('tap');
+          const k = KEYS.indexOf(out[out.length - 1]); m.el.keys.forEach((e, j) => e.classList.toggle('on', j === k)); sfx.clack(); }
+        m.dirty = true;
+      });
+      rateWin.push([now, pressed]);
+    }
+    while (rateWin.length && rateWin[0][0] < now - 1000) rateWin.shift();
+    const every = speed === 0 ? 1 : 3;
+    if (frame % every === 0) paint();
+    if (frame % 30 === 0) paintNumbers();
+    const k = Math.floor(totalKeys / 1000); if (k > trackedK) { window.labTrack && labTrack('kkeys', k - trackedK); trackedK = k; }
+  }
+
+  // ================= Painting =================
+  function paint() {
+    monkeys.forEach(m => {
+      if (!m.dirty) return; m.dirty = false;
+      const start = m.keys - m.tail.length;
+      m.marks = m.marks.filter(x => x.e > start); if (m.marks.length > 60) m.marks = m.marks.slice(-60);
+      const cls = new Array(m.tail.length).fill('');
+      m.marks.forEach(x => { for (let p = Math.max(x.s, start); p < x.e; p++) { const i = p - start; if (i >= 0 && i < cls.length && (x.k === 'h' || !cls[i])) cls[i] = x.k; } });
+      let html = '', run = '', cur = '';
+      for (let i = 0; i < m.tail.length; i++) { if (cls[i] !== cur) { html += cur ? `<span class="${cur}">${run}</span>` : run; run = ''; cur = cls[i]; } run += m.tail[i]; }
+      html += cur ? `<span class="${cur}">${run}</span>` : run;
+      m.el.txt.innerHTML = html + '<span class="cur"></span>';
+      m.el.count.textContent = m.keys.toLocaleString() + ' keys';
+    });
+    if (bestDirty) { bestDirty = false; paintTarget(); paintBest(); }
+    if (dirtyShelf) { dirtyShelf = false;
+      $('shelf').innerHTML = shelf.map(x => `<span>${x.w}<small>${x.who}</small></span>`).join('') || '<em>Nothing yet. Give them a minute.</em>'; }
+  }
+  function paintNumbers() {
+    $('tKeys').textContent = totalKeys.toLocaleString();
+    $('tWords').textContent = totalWords.toLocaleString();
+    $('tLong').textContent = longest || '—';
+    $('tRate').textContent = (running ? rateWin.reduce((s, r) => s + r[1], 0) : 0).toLocaleString();
+    if (quantumUp) paintSource();
+  }
+  function paintTarget() {
+    $('target').innerHTML = [...T].map((c, i) => `<i class="${c === ' ' ? 'sp' : ''}${i < best.len ? ' hit' : ''}">${c === ' ' ? '' : c}</i>`).join('');
+  }
+  function paintBest() {
+    $('best').innerHTML = !best.len ? `Nobody has started it yet. The best attempt so far will light up above.`
+      : best.len === T.length ? `Done! <b>${best.who}</b> typed the whole thing.`
+      : `Best so far: <b>${best.len} of ${T.length}</b> characters in a row, by <b>${best.who}</b>, after ${best.at.toLocaleString()} key presses.`;
+  }
+
+  // ================= The odds =================
+  const NAMES = [[33, 'decillion'], [30, 'nonillion'], [27, 'octillion'], [24, 'septillion'], [21, 'sextillion'], [18, 'quintillion'], [15, 'quadrillion'], [12, 'trillion'], [9, 'billion'], [6, 'million']];
+  function big(lg) {   // number given as log10, written out kindly
+    if (lg < 6) return Math.round(Math.pow(10, lg)).toLocaleString();
+    for (const [p, n] of NAMES) if (lg >= p) { if (lg >= p + 3 && p === 33) break; const v = Math.pow(10, lg - p); return `${v < 10 ? v.toFixed(1) : Math.round(v).toLocaleString()} ${n}`; }
+    return `10<sup>${Math.round(lg)}</sup>`;
+  }
+  const L27 = Math.log10(27);
+  function paintOdds() {
+    // Average presses for one monkey to type T = sum of 27^k over T's length and its overlaps with itself.
+    let sum = 1, k = fail[T.length - 1] || 0; while (k) { sum += Math.pow(27, k - T.length); k = fail[k - 1]; }
+    const lgOne = T.length * L27 + Math.log10(sum);
+    const rate = SPEEDS[speed][1] * monkeys.length, lgSec = lgOne - Math.log10(rate);
+    $('odds').innerHTML = `One monkey needs about <b>${big(lgOne)}</b> key presses, on average, to type “${T}”. Your room of ${monkeys.length} at ${SPEEDS[speed][0]} speed (${rate.toLocaleString()} keys a second) should get there in about <b>${dur(lgSec)}</b>.`;
+    // every atom in the observable universe as a monkey, a billion keys a second, since the Big Bang
+    const lgAll = 80 + 9 + 17.64;
+    $('odds2').innerHTML = lgOne < 6.5 ? `That's quick. Leave them running and they'll keep doing it, over and over.`
+      : lgOne < lgAll ? `It sounds hopeless, but it isn't impossible. If every atom in the universe were a monkey typing a billion keys a second since the Big Bang, they'd have typed this one.`
+      : `Even if every atom in the universe were a monkey typing a billion keys a second since the Big Bang, they would still almost certainly not have typed this.`;
+  }
+  function dur(lg) {
+    const s = Math.pow(10, lg);
+    if (lg < 0) return 'less than a second';
+    if (s < 90) return `${Math.round(s)} seconds`;
+    if (s < 5400) return `${Math.round(s / 60)} minutes`;
+    if (s < 172800) return `${Math.round(s / 3600)} hours`;
+    if (s < 3.15e7 * 2) return `${Math.round(s / 86400)} days`;
+    const lgY = lg - Math.log10(3.156e7), uni = lgY - Math.log10(1.38e10);
+    return uni < 0 ? `${big(lgY)} years` : `${big(lgY)} years</b>. That's ${uni < 1 ? 'longer than' : big(uni) + ' times'} the age of the universe<b>`;
+  }
+
+  // ================= Sound =================
+  let actx = null, soundOn = false, lastDing = 0;
+  const sfx = {
+    ready() { if (!soundOn) return false; if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return true; },
+    clack() {
+      if (!this.ready() || Math.random() < .2) return;
+      const t = actx.currentTime, len = actx.sampleRate * .03, b = actx.createBuffer(1, len, actx.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 5);
+      const s = actx.createBufferSource(); s.buffer = b; const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800 + Math.random() * 1400; f.Q.value = 1.2;
+      const g = actx.createGain(); g.gain.value = .35; s.connect(f); f.connect(g); g.connect(actx.destination); s.start(t);
+    },
+    ding(freq) {
+      if (!this.ready() || performance.now() - lastDing < 400) return; lastDing = performance.now();
+      const t = actx.currentTime, g = actx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.18, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + 1.4); g.connect(actx.destination);
+      [[1, 1], [2.76, .3], [5.4, .1]].forEach(([m, a]) => { const o = actx.createOscillator(), og = actx.createGain(); o.frequency.value = freq * m; og.gain.value = a; o.connect(og); og.connect(g); o.start(t); o.stop(t + 1.5); });
+    },
+    fanfare() { if (!this.ready()) return; lastDing = 0; [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => { lastDing = 0; this.ding(f); }, i * 140)); }
+  };
+  $('snd').onclick = () => { soundOn = !soundOn; $('snd').setAttribute('aria-pressed', soundOn); $('snd').textContent = soundOn ? 'Sound on' : 'Sound off';
+    if (soundOn) { sfx.ready(); actx.resume && actx.resume(); } };
+
+  // ================= Controls =================
+  $('go').onclick = () => { running = !running; $('go').textContent = running ? 'Pause' : 'Type!'; $('go').classList.toggle('paused', !running); $('go').setAttribute('aria-pressed', running); };
+  $('askForm').onsubmit = e => { e.preventDefault(); setTarget($('ask').value); };
+  ['cat', 'augie', 'mark', 'banana', 'hello world', 'to be or not to be'].forEach(w => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = w; b.onclick = () => setTarget(w); $('chips').appendChild(b); });
+  addEventListener('keydown', e => { if (e.key === ' ' && !e.target.closest('button, input')) { e.preventDefault(); $('go').click(); } });
+
+  setTarget($('ask').value);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
