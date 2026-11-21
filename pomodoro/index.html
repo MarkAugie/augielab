@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pomodoro · AugieLab</title>
+<meta name="description" content="A Nixie-tube Pomodoro timer: 25 minutes of focus, 5 minutes of break.">
+<meta property="og:title" content="Nixie Pomodoro">
+<meta property="og:description" content="25 minutes of focus on glowing tubes, then a 5-minute break.">
+<meta property="og:url" content="https://augielab.dev/pomodoro/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@200;300&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --glow: #FF8A3D; --glow-hot: #FFD2A6; --glow-soft: rgba(255,138,61,.55);   /* focus: neon orange */
+    --wood: #5A3A22; --wood-dark: #3A2414; --brass: #C9A15A; --brass-dark: #8C6A2E;
+  }
+  body.break { --glow: #5FD4FF; --glow-hot: #D8F6FF; --glow-soft: rgba(95,212,255,.5); }  /* break: cool blue */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; }
+  body { min-height: 100vh; color: #EBDCCB; font-family: "IBM Plex Sans Condensed", system-ui, sans-serif;
+    background: radial-gradient(ellipse at 50% 38%, #2C1E16 0%, #170F0B 60%, #0D0806 100%);
+    display: flex; flex-direction: column; align-items: center; padding: 22px 14px 40px; overflow-x: hidden; }
+
+  .top { width: min(1000px, 100%); display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+  .top a { color: #BFA88F; text-decoration: none; font-size: .95rem; }
+  .top a:hover, .top a:focus-visible { color: #F2E2CF; }
+
+  /* ---------- the instrument ---------- */
+  .instrument { margin-top: 5vh; width: min(1000px, 100%); }
+  .mode { display: flex; justify-content: center; gap: 34px; margin-bottom: 18px; font-weight: 600; font-size: 1.05rem; letter-spacing: .04em; }
+  .lamp { display: flex; align-items: center; gap: 10px; color: #8A7663; transition: color .4s; }
+  .lamp i { width: 14px; height: 14px; border-radius: 50%; background: #3B2C22; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); transition: background .4s, box-shadow .4s; }
+  .lamp.on { color: var(--glow-hot); }
+  .lamp.on i { background: var(--glow); box-shadow: 0 0 10px 3px var(--glow-soft); }
+
+  .tubes { display: flex; justify-content: center; align-items: flex-end; gap: clamp(6px, 1.6vw, 16px); }
+  .tube { position: relative; width: clamp(62px, 15vw, 150px); aspect-ratio: 1 / 1.75; border-radius: 44% 44% 10px 10px / 22% 22% 10px 10px;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 18%, rgba(255,255,255,0) 78%, rgba(255,255,255,.06) 92%, rgba(255,255,255,0) 100%),
+      radial-gradient(ellipse at 50% 60%, rgba(255,140,60,.10), rgba(0,0,0,0) 70%),
+      #1B1410;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), inset 0 10px 24px rgba(255,255,255,.05), 0 12px 24px rgba(0,0,0,.5);
+    overflow: hidden; }
+  body.break .tube { background:
+      linear-gradient(90deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 18%, rgba(255,255,255,0) 78%, rgba(255,255,255,.06) 92%, rgba(255,255,255,0) 100%),
+      radial-gradient(ellipse at 50% 60%, rgba(95,212,255,.10), rgba(0,0,0,0) 70%), #12161A; }
+  .tube::before { content: ""; position: absolute; inset: 12% 10% 10%; opacity: .22;   /* the wire mesh */
+    background: repeating-linear-gradient(60deg, #9C8B7A 0 1px, transparent 1px 7px), repeating-linear-gradient(-60deg, #9C8B7A 0 1px, transparent 1px 7px); }
+  .tube::after { content: ""; position: absolute; left: 22%; right: 22%; top: 3%; height: 7%; border-radius: 50%;   /* tip of the glass */
+    background: radial-gradient(ellipse, rgba(255,255,255,.18), transparent 70%); }
+  .digit { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-top: 8%;
+    font-family: "Antonio", "Oswald", sans-serif; font-weight: 300; font-size: clamp(64px, 15.5vw, 158px); line-height: 1; }
+  .ghost { color: rgba(170,150,130,.035); }           /* the unlit cathodes behind */
+  .lit { color: var(--glow-hot); text-shadow: 0 0 4px var(--glow), 0 0 12px var(--glow), 0 0 28px var(--glow-soft), 0 0 60px var(--glow-soft); }
+  .lit.flick { animation: flick .22s ease-out; }
+  @keyframes flick { 0% { opacity: .2; } 40% { opacity: 1; } 60% { opacity: .75; } 100% { opacity: 1; } }
+
+  .colon { display: flex; flex-direction: column; gap: clamp(18px, 4vw, 40px); padding: 0 clamp(2px, .8vw, 8px) clamp(40px, 9vw, 92px); }
+  .colon i { width: clamp(9px, 1.6vw, 16px); height: clamp(9px, 1.6vw, 16px); border-radius: 50%; background: var(--glow-hot);
+    box-shadow: 0 0 6px var(--glow), 0 0 18px var(--glow-soft); }
+  body.paused .colon i { animation: blink 1.2s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: .15; } }
+
+  .base { position: relative; margin: -6px auto 0; width: min(920px, 100%); height: 46px; border-radius: 6px 6px 10px 10px;
+    background: linear-gradient(180deg, #7A5232 0%, var(--wood) 30%, var(--wood-dark) 100%);
+    box-shadow: 0 14px 26px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.15); }
+  .base::after { content: ""; position: absolute; inset: 0; border-radius: inherit; opacity: .35; pointer-events: none;
+    background: repeating-linear-gradient(176deg, transparent 0 9px, rgba(0,0,0,.22) 9px 10px, transparent 10px 23px); }
+  .filament { position: absolute; left: 6%; right: 6%; top: 19px; height: 6px; border-radius: 3px; background: rgba(0,0,0,.45); overflow: hidden; z-index: 1; }
+  .filament b { display: block; height: 100%; width: 100%; transform-origin: left; background: var(--glow-hot);
+    box-shadow: 0 0 8px var(--glow), 0 0 16px var(--glow-soft); transition: transform .3s linear; }
+
+  .rounds { display: flex; justify-content: center; gap: 12px; margin-top: 22px; }
+  .rounds i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #6B5644; }
+  .rounds i.done { background: var(--glow); border-color: var(--glow); box-shadow: 0 0 8px var(--glow-soft); }
+
+  /* ---------- brass controls ---------- */
+  .controls { display: flex; justify-content: center; gap: 18px; margin-top: 26px; flex-wrap: wrap; }
+  .btn { font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .03em; color: #2A1B0E; cursor: pointer;
+    padding: 14px 30px; border-radius: 999px; border: 0; min-width: 9rem;
+    background: radial-gradient(ellipse at 50% 25%, #F1D9A2, var(--brass) 55%, var(--brass-dark));
+    box-shadow: 0 5px 0 #5E4520, 0 9px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.5); transition: transform .08s, box-shadow .08s; }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #5E4520, 0 3px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.4); }
+  .btn.quiet { background: radial-gradient(ellipse at 50% 25%, #8E7A66, #5D4C3D 60%, #3F3228); color: #F0E2D0; box-shadow: 0 5px 0 #2A2019, 0 9px 16px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn:focus-visible, .step:focus-visible, .top a:focus-visible { outline: 3px solid #9CDCFF; outline-offset: 3px; }
+
+  .settings { display: flex; justify-content: center; gap: 30px; margin-top: 30px; flex-wrap: wrap; color: #BFA88F; font-weight: 600; }
+  .setting { display: flex; align-items: center; gap: 12px; }
+  .step { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #6B5644; background: #241913; color: #EBDCCB;
+    font: 700 1.2rem "IBM Plex Sans Condensed", sans-serif; cursor: pointer; }
+  .step:hover { background: #33241B; }
+  .setting output { min-width: 4.2rem; text-align: center; color: #F2E2CF; font-size: 1.1rem; }
+  .hint { margin-top: 18px; text-align: center; font-size: .85rem; color: #8A7663; }
+
+  /* ---------- celebration ---------- */
+  #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, var(--glow-hot), var(--glow) 40%, transparent 75%); }
+  #flash.go { animation: pulse 1.8s ease-out; }
+  @keyframes pulse { 0%,100% { opacity: 0; } 8% { opacity: .55; } 22% { opacity: 0; } 38% { opacity: .45; } 52% { opacity: 0; } 68% { opacity: .35; } 82% { opacity: 0; } }
+  #parade { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+  .critter { position: absolute; left: -120px; width: 84px; height: 96px; animation: run linear forwards; }
+  .critter svg { overflow: visible; }
+  .critter .bob { animation: bob .32s ease-in-out infinite alternate; }
+  .critter .leg1 { animation: step .16s linear infinite alternate; transform-origin: 38px 74px; }
+  .critter .leg2 { animation: step .16s linear infinite alternate-reverse; transform-origin: 46px 74px; }
+  @keyframes run { to { transform: translateX(calc(100vw + 240px)); } }
+  @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-9px); } }
+  @keyframes step { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+  .critter.hop .bob { animation: hop .6s ease-in-out infinite; }
+  @keyframes hop { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-60px) rotate(-12deg); } }
+  .banner { position: fixed; left: 50%; bottom: 7vh; width: 92vw; transform: translate(-50%, -10px); opacity: 0; z-index: 6; pointer-events: none;
+    font: 700 clamp(1.6rem, 5vw, 2.6rem) "IBM Plex Sans Condensed", sans-serif; color: var(--glow-hot); text-align: center;
+    text-shadow: 0 0 12px var(--glow), 0 0 30px var(--glow-soft); transition: opacity .4s, transform .4s; }
+  .banner.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 560px) { html { font-size: 18px; } .instrument { margin-top: 3vh; } .base { height: 34px; } .filament { top: 14px; } }
+  @media (prefers-reduced-motion: reduce) { .lit.flick, body.paused .colon i { animation: none; } #parade { display: none; } #flash.go { animation-duration: .9s; } }
+</style>
+</head>
+<body>
+
+<div class="top"><a href="/">AugieLab</a><span style="color:#8A7663">Nixie Pomodoro</span></div>
+
+<main class="instrument">
+  <div class="mode" aria-live="polite">
+    <span class="lamp on" id="lampFocus"><i></i>Focus</span>
+    <span class="lamp" id="lampBreak"><i></i>Break</span>
+  </div>
+
+  <div class="tubes" role="timer" aria-label="Time remaining" id="tubes">
+    <div class="tube" data-d="0"></div>
+    <div class="tube" data-d="1"></div>
+    <div class="colon" aria-hidden="true"><i></i><i></i></div>
+    <div class="tube" data-d="2"></div>
+    <div class="tube" data-d="3"></div>
+  </div>
+  <div class="base"><div class="filament"><b id="fil"></b></div></div>
+
+  <div class="rounds" aria-label="Rounds completed" id="rounds"><i></i><i></i><i></i><i></i></div>
+
+  <div class="controls">
+    <button class="btn" id="go">Start</button>
+    <button class="btn quiet" id="reset">Reset</button>
+    <button class="btn quiet" id="skip">Skip</button>
+  </div>
+
+  <div class="settings">
+    <div class="setting">Focus
+      <button class="step" data-k="focus" data-v="-1" aria-label="Shorter focus">−</button>
+      <output id="focusOut">25 min</output>
+      <button class="step" data-k="focus" data-v="1" aria-label="Longer focus">+</button>
+    </div>
+    <div class="setting">Break
+      <button class="step" data-k="brk" data-v="-1" aria-label="Shorter break">−</button>
+      <output id="brkOut">5 min</output>
+      <button class="step" data-k="brk" data-v="1" aria-label="Longer break">+</button>
+    </div>
+  </div>
+  <p class="hint">Space starts and pauses. R resets.</p>
+</main>
+
+<div id="flash"></div>
+<div id="parade" aria-hidden="true"></div>
+<div class="banner" id="banner"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const tubes = [...document.querySelectorAll('.tube')];
+
+  // Build each tube: ten faint cathodes plus one lit digit
+  tubes.forEach(t => {
+    for (let n = 0; n < 10; n++) { const g = document.createElement('span'); g.className = 'digit ghost'; g.textContent = n; t.appendChild(g); }
+    const lit = document.createElement('span'); lit.className = 'digit lit'; t.appendChild(lit);
+  });
+  const litEls = tubes.map(t => t.querySelector('.lit'));
+
+  let mins = { focus: 25, brk: 5 };
+  try { const s = JSON.parse(localStorage.getItem('pomo-mins')); if (s && s.focus && s.brk) mins = s; } catch (e) {}
+
+  let mode = 'focus', running = false, endAt = 0, remaining = mins.focus * 60000, total = remaining, rounds = 0, shown = '';
+
+  function show(ms) {
+    const s = Math.max(0, Math.ceil(ms / 1000)), m = Math.floor(s / 60), r = s % 60;
+    const txt = String(Math.min(m, 99)).padStart(2, '0') + String(r).padStart(2, '0');
+    if (txt !== shown) {
+      [...txt].forEach((c, i) => { if (shown[i] !== c) { const el = litEls[i]; el.textContent = c; el.classList.remove('flick'); void el.offsetWidth; el.classList.add('flick'); } });
+      shown = txt;
+      $('tubes').setAttribute('aria-label', `${m} minutes ${r} seconds remaining`);
+      document.title = `${txt.slice(0,2)}:${txt.slice(2)} ${mode === 'focus' ? 'Focus' : 'Break'} · AugieLab`;
+    }
+    $('fil').style.transform = `scaleX(${total ? ms / total : 0})`;
+  }
+
+  function setMode(m) {
+    mode = m; document.body.classList.toggle('break', m === 'brk');
+    $('lampFocus').classList.toggle('on', m === 'focus'); $('lampBreak').classList.toggle('on', m === 'brk');
+    remaining = total = mins[m] * 60000; shown = ''; show(remaining);
+  }
+
+  function start() { initAudio(); running = true; endAt = Date.now() + remaining; document.body.classList.remove('paused'); $('go').textContent = 'Pause'; }
+  function pause() { running = false; remaining = Math.max(0, endAt - Date.now()); document.body.classList.add('paused'); $('go').textContent = 'Resume'; }
+  function idle(label) { running = false; document.body.classList.remove('paused'); $('go').textContent = label || 'Start'; }
+
+  function finish() {
+    running = false; remaining = 0; show(0);
+    if (mode === 'focus') {
+      rounds = rounds % 4 + 1; paintRounds();
+      celebrate('Round done. Take five.', true);
+      chime([784, 988, 1175, 1568]);
+      setTimeout(() => { setMode('brk'); start(); }, 6500);
+      $('go').textContent = 'Pause';
+    } else {
+      celebrate('Break is over. Back at it.', false);
+      chime([1175, 880]);
+      setMode('focus'); idle('Start');
+      if (rounds === 4) { rounds = 0; setTimeout(paintRounds, 4000); }
+    }
+  }
+  function paintRounds() { [...$('rounds').children].forEach((d, i) => d.classList.toggle('done', i < rounds)); }
+
+  setInterval(() => { if (!running) return; const left = endAt - Date.now(); if (left <= 0) finish(); else show(left); }, 200);
+
+  $('go').onclick = () => { if (running) pause(); else if (remaining > 0) start(); };
+  $('reset').onclick = () => { setMode(mode); idle(); };
+  $('skip').onclick = () => { setMode(mode === 'focus' ? 'brk' : 'focus'); idle(); };
+  document.querySelectorAll('.step').forEach(b => b.onclick = () => {
+    const k = b.dataset.k, lim = k === 'focus' ? [5, 90] : [1, 30];
+    mins[k] = Math.min(lim[1], Math.max(lim[0], mins[k] + Number(b.dataset.v)));
+    try { localStorage.setItem('pomo-mins', JSON.stringify(mins)); } catch (e) {}
+    paintSettings(); if (!running && mode === k) { setMode(k); idle(); }
+  });
+  function paintSettings() { $('focusOut').textContent = mins.focus + ' min'; $('brkOut').textContent = mins.brk + ' min'; }
+  addEventListener('keydown', e => {
+    if (e.target.closest('button') && e.key === ' ') return;   // let the focused button handle Space
+    if (e.key === ' ') { e.preventDefault(); $('go').click(); }
+    if (e.key === 'r' || e.key === 'R') $('reset').click();
+  });
+
+  // ---------- sound: a soft bell made on the fly ----------
+  let ctx;
+  function initAudio() { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) {} }
+  function chime(notes) {
+    if (!ctx) return;
+    notes.forEach((f, i) => {
+      const t = ctx.currentTime + i * 0.22, o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.01;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+      o.connect(g); o2.connect(g); g.connect(ctx.destination); o.start(t); o2.start(t); o.stop(t + 1.5); o2.stop(t + 1.5);
+    });
+  }
+
+  // ---------- celebration: flash + tomato critter parade ----------
+  function critterSVG(hue) {
+    return `<svg viewBox="0 0 84 96" width="84" height="96"><g class="bob">
+      <path class="leg1" d="M38 74 L34 92" stroke="#3B6B2A" stroke-width="5" stroke-linecap="round"/>
+      <path class="leg2" d="M46 74 L50 92" stroke="#3B6B2A" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="42" cy="52" rx="34" ry="30" fill="hsl(${hue} 78% 50%)"/>
+      <ellipse cx="30" cy="40" rx="9" ry="6" fill="rgba(255,255,255,.35)"/>
+      <path d="M42 24 l-12 -6 l10 10 l-14 2 l14 4 l-6 10 l8 -8 l8 8 l-6 -10 l14 -4 l-14 -2 l10 -10 l-12 6 l0 -12z" fill="#4E9A35"/>
+      <circle cx="34" cy="52" r="6.5" fill="#fff"/><circle cx="52" cy="52" r="6.5" fill="#fff"/>
+      <circle cx="36" cy="53" r="3.2" fill="#1A1A1A"/><circle cx="54" cy="53" r="3.2" fill="#1A1A1A"/>
+      <path d="M34 64 q9 8 18 0" stroke="#5A1010" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M10 50 q-8 -14 -2 -22" stroke="#3B6B2A" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M74 50 q8 -14 2 -22" stroke="#3B6B2A" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </g></svg>`;
+  }
+  function celebrate(text, parade) {
+    const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+    const b = $('banner'); b.textContent = text; b.classList.add('show'); setTimeout(() => b.classList.remove('show'), 4200);
+    if (!parade || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const p = $('parade');
+    for (let i = 0; i < 11; i++) {
+      const c = document.createElement('div'); c.className = 'critter' + (i % 3 === 1 ? ' hop' : '');
+      c.innerHTML = critterSVG(2 + Math.random() * 10);
+      const size = 0.7 + Math.random() * 0.7;
+      c.style.top = (48 + Math.random() * 40) + 'vh';
+      c.style.animationDuration = (3.2 + Math.random() * 2.4) + 's';
+      c.style.animationDelay = (i * 0.28) + 's';
+      c.style.scale = size;
+      p.appendChild(c);
+      setTimeout(() => c.remove(), 8500);
+    }
+  }
+
+  paintSettings(); setMode('focus'); paintRounds();
+})();
+</script>
+</body>
+</html>
