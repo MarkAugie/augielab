@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Miracle Train · AugieLab</title>
+<meta name="description" content="How rare is going out on your very first play in Mexican Train? Millions of shuffled hands find out.">
+<meta property="og:title" content="The Miracle Train">
+<meta property="og:description" content="Going out on the very first play in Mexican Train. Is it really as rare as a royal flush? Millions of shuffled hands find out.">
+<meta property="og:url" content="https://augielab.dev/train/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --felt: #1D5C46; --felt-dk: #123D2F; --wood: #6B3F22; --wood-lt: #9A6236; --ivory: #FBF6EA; --text: #F6F1E4; --dim: #C9D8CF;
+    --red: #C8102E; --gold: #F2C14E; --ink: #22180F; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; background: var(--felt-dk); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 16px 100px;
+    background: radial-gradient(ellipse 140% 1100px at 50% 0%, #2B7A5D, var(--felt) 45%, var(--felt-dk) 100%) no-repeat, var(--felt-dk); }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .18;
+    background: repeating-radial-gradient(circle at 30% 20%, rgba(255,255,255,.05) 0 1px, transparent 1px 3px); }
+  .wrap { position: relative; max-width: 1040px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  .top span { color: var(--dim); }
+
+  header { text-align: center; margin: 6px 0 18px; }
+  h1 { font: 400 clamp(2.4rem, 8vw, 4.3rem)/1.05 "Rye", serif; color: var(--gold); letter-spacing: .02em;
+    text-shadow: 0 3px 0 #7A4B0F, 0 6px 18px rgba(0,0,0,.45); }
+  .sub { margin-top: 10px; color: var(--dim); font-size: 1.15rem; }
+
+  /* wooden-rimmed table panels */
+  .board { position: relative; border-radius: 22px; padding: 22px 22px 20px; background: radial-gradient(ellipse at 50% 30%, #2A7D5E, #1A563F 80%);
+    border: 12px solid transparent; background-clip: padding-box;
+    box-shadow: 0 0 0 3px #3E220F, inset 0 0 40px rgba(0,0,0,.45), 0 30px 50px -18px rgba(0,0,0,.8); margin: 0 0 26px; }
+  .board::before { content: ""; position: absolute; inset: -12px; border-radius: 22px; pointer-events: none; z-index: -1;
+    background: repeating-linear-gradient(100deg, #6B3F22 0 7px, #7C4A28 7px 12px, #5F371D 12px 19px); }
+  .board > h2, .lbl { font: 700 .9rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #E4D3A8; }
+  .board > h2 { margin-bottom: 8px; }
+  .board p { color: #E9F0EA; font-size: 1.05rem; }
+
+  .story { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+  .story p b { color: var(--gold); }
+  .card { width: 92px; height: 128px; border-radius: 10px; background: #fff; color: #111; display: grid; place-items: center; transform: rotate(6deg);
+    box-shadow: 0 10px 20px rgba(0,0,0,.45); font: 700 2.2rem "IBM Plex Sans", sans-serif; position: relative; }
+  .card small { position: absolute; top: 6px; left: 9px; font-size: 1rem; line-height: 1; }
+  .card .s { color: #111; }
+
+  #trainWrap svg { display: block; width: 100%; height: auto; }
+  .traincap { margin-top: 10px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .traincap p { color: var(--dim); font-size: 1rem; }
+
+  /* ---------- the answer ---------- */
+  .answer { display: grid; grid-template-columns: 1.15fr 1fr; gap: 22px; align-items: start; }
+  .big { font: 400 clamp(2.6rem, 9vw, 4.4rem)/1 "Rye", serif; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.35); margin: 6px 0 6px; }
+  .big small { font: 600 1.1rem "IBM Plex Sans", sans-serif; color: var(--dim); display: block; margin-top: 6px; text-shadow: none; }
+  .facts { display: grid; gap: 10px; margin-top: 14px; }
+  .fact { background: rgba(0,0,0,.22); border-radius: 12px; padding: 10px 14px; }
+  .fact b { font: 700 1.35rem "IBM Plex Sans Condensed", sans-serif; color: var(--gold); display: block; }
+  .fact span { color: #E9F0EA; font-size: 1rem; }
+  .ladder { list-style: none; display: grid; gap: 6px; }
+  .ladder li { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 9px; background: rgba(0,0,0,.18); font-size: 1rem; }
+  .ladder li span { font: 600 .95rem "IBM Plex Mono", monospace; color: var(--dim); }
+  .ladder li.us { background: var(--gold); color: #2A1A05; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.35); transform: scale(1.03); }
+  .ladder li.us span { color: #2A1A05; }
+  .ladder li.ai { outline: 2px dashed rgba(255,140,140,.8); }
+  .ladder li.ai em { font-style: normal; color: #FFB3B3; font-size: .85rem; display: block; }
+  .running { margin-top: 12px; font: 500 .95rem "IBM Plex Mono", monospace; color: var(--dim); }
+
+  /* ---------- settings ---------- */
+  .settings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .set { background: rgba(0,0,0,.22); border-radius: 12px; padding: 12px 14px; }
+  .set .val { font: 700 1.6rem "IBM Plex Sans Condensed", sans-serif; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+  .step { width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; font: 700 1.4rem/1 "IBM Plex Sans", sans-serif; color: #2A1A05; background: var(--gold); box-shadow: 0 3px 0 #9C7414; }
+  .step:active { transform: translateY(2px); box-shadow: 0 1px 0 #9C7414; }
+  .set small { display: block; color: var(--dim); font-size: .88rem; margin-top: 4px; }
+  .toggle { cursor: pointer; width: 100%; margin-top: 6px; padding: 10px; border-radius: 10px; border: 2px solid rgba(242,193,78,.6); background: transparent; color: #fff; font: 600 1rem "IBM Plex Sans", sans-serif; }
+  .toggle[aria-pressed="true"] { background: var(--gold); color: #2A1A05; }
+
+  /* ---------- dealing ---------- */
+  .deal { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 4px 0 16px; }
+  .btn { cursor: pointer; border: 0; border-radius: 12px; padding: 14px 22px; font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; color: #fff;
+    background: var(--red); box-shadow: 0 4px 0 #7A0A1C, 0 8px 16px rgba(0,0,0,.35); }
+  .btn.alt { background: #F2C14E; color: #2A1A05; box-shadow: 0 4px 0 #9C7414, 0 8px 16px rgba(0,0,0,.35); }
+  .btn:active { transform: translateY(3px); }
+  #rack svg { display: block; width: 100%; height: auto; max-width: 900px; margin: 0 auto; }
+  .verdict { text-align: center; font: 700 1.5rem "IBM Plex Sans Condensed", sans-serif; margin: 12px 0 4px; min-height: 2rem; }
+  .verdict.yes { color: var(--gold); text-shadow: 0 0 16px rgba(242,193,78,.6); }
+  .vsub { text-align: center; color: var(--dim); font-size: 1rem; }
+  #bestWrap { margin-top: 14px; }
+  #bestWrap svg { display: block; width: 100%; height: auto; }
+
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #FFC46B; flex: none; }
+  .source.quantum i { background: #7CF2A2; box-shadow: 0 0 8px #7CF2A2; }
+  button:focus-visible { outline: 3px solid #9FE8FF; outline-offset: 3px; }
+
+  @media (max-width: 820px) {
+    html { font-size: 17px; } body { padding: 14px 8px 100px; }
+    .board { padding: 16px 12px; border-width: 8px; } .board::before { inset: -8px; }
+    .answer, .story { grid-template-columns: 1fr; } .card { display: none; }
+    .settings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .set { padding: 10px; } .step { width: 38px; height: 38px; } .set .val { font-size: 1.35rem; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>Mexican Train, by the numbers</span></div>
+  <header>
+    <h1>The Miracle Train</h1>
+    <p class="sub">What are the odds of going out on your very first play?</p>
+  </header>
+
+  <section class="board">
+    <div class="story">
+      <p>At our table: <b>six players</b>, a <b>double-12</b> set, <b>12 dominoes</b> each. On the very first play of the round, one player laid down his <b>entire hand</b> in one unbroken train and went out. An AI said that was about as rare as a <b>royal flush</b>. So we shuffled the dominoes a few million times to find out for real.</p>
+      <div class="card" aria-hidden="true"><small>A<br><span class="s">♠</span></small>♠</div>
+    </div>
+  </section>
+
+  <section class="board">
+    <h2>A miracle hand, laid out</h2>
+    <div id="trainWrap" aria-label="A hand that goes out on the first play, laid out as a train"></div>
+    <div class="traincap"><p id="trainCap">Shuffling until one turns up…</p><button class="btn alt" id="another">Show another</button></div>
+  </section>
+
+  <section class="board">
+    <h2>The answer</h2>
+    <div class="answer">
+      <div>
+        <div class="big" id="big">Counting…<small>for one player, on one first play</small></div>
+        <div class="facts">
+          <div class="fact"><b id="fTable">—</b><span id="fTableS">chance someone at the table does it in a round</span></div>
+          <div class="fact"><b id="fGame">—</b><span id="fGameS">how often your group should see it</span></div>
+        </div>
+        <p class="running" id="running">0 hands shuffled</p>
+      </div>
+      <ol class="ladder" id="ladder" aria-label="How it compares with five-card poker hands"></ol>
+    </div>
+  </section>
+
+  <section class="board">
+    <h2>Your table's rules</h2>
+    <div class="settings">
+      <div class="set"><div class="lbl">Players</div><div class="val"><button class="step" data-k="players" data-d="-1" aria-label="Fewer players">−</button><span id="vPlayers">6</span><button class="step" data-k="players" data-d="1" aria-label="More players">+</button></div><small>sets the hand size the usual way</small></div>
+      <div class="set"><div class="lbl">Dominoes each</div><div class="val"><button class="step" data-k="hand" data-d="-1" aria-label="Fewer dominoes">−</button><span id="vHand">12</span><button class="step" data-k="hand" data-d="1" aria-label="More dominoes">+</button></div><small>change it if your table deals differently</small></div>
+      <div class="set"><div class="lbl">Engine double</div><div class="val"><button class="step" data-k="engine" data-d="-1" aria-label="Lower engine">−</button><span id="vEngine">12|12</span><button class="step" data-k="engine" data-d="1" aria-label="Higher engine">+</button></div><small>the double in the middle hub</small></div>
+      <div class="set"><div class="lbl">Last domino a double?</div><button class="toggle" id="endDbl" aria-pressed="false">Not allowed</button><small>every double must be covered</small></div>
+    </div>
+  </section>
+
+  <section class="board">
+    <h2>Deal yourself a hand</h2>
+    <div class="deal"><button class="btn" id="dealBtn">Deal me a hand</button></div>
+    <div id="rack"></div>
+    <p class="verdict" id="verdict" role="status" aria-live="polite"></p>
+    <p class="vsub" id="vsub"></p>
+    <div id="bestWrap"></div>
+  </section>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The question</h3>
+  <p>In Mexican Train, the first play of a round lets you lay as many dominoes as you can in one line on your own train, starting from the number on the engine double in the hub. Going out on that very first play means every domino in your hand fits into one unbroken line, and every double in it gets covered.</p>
+  <h3>How the page finds out</h3>
+  <p>It does what a very patient person would do: shuffle the set, deal one hand, check whether it could go out, and repeat. Your computer does this hundreds of thousands of times a second. The more hands it deals, the steadier the answer gets. Mathematicians call this a Monte Carlo simulation, after the casino.</p>
+  <h3>How it checks a hand</h3>
+  <p>Think of each number 0 to 12 as a town and each domino as a road between two towns. Going out means driving every road exactly once, starting from the engine's town. A Swiss mathematician named Euler worked out the rule for this in 1736: it works if all the roads connect, and every town has an even number of roads except, at most, the starting town and one other. Doubles are little loops that start and end in the same town.</p>
+  <h3>So was it a royal flush?</h3>
+  <p>Not even close. A royal flush is about 1 in 650,000. With six players and 12 dominoes each, going out on the first play comes out to roughly 1 in 600 for one player. That's about as rare as being dealt a full house. Since a full game has 13 rounds and everyone gets a first play every round, a group of six should see it now and then. It's still a great moment, and well worth bragging about.</p>
+  <h3>Does the engine number matter?</h3>
+  <p>No. In a double-12 set every number appears the same way, so the odds are the same whether the engine is 12|12 or 1|1. You can still change it to match the round you remember.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>The millions of practice shuffles use your browser's fast random number maker. The hands you deal yourself with the button will be shuffled by this lab's <strong>quantum random number generator</strong> once it's online: a small USB stick from Crypta Labs that measures tiny particles of light. When it's connected, the dot at the bottom turns green.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness =================
+  // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  // Quantum bytes shuffle the hands you deal yourself; the big simulation uses the browser's fast generator.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let qpool = [], quantum = false, fetching = false;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || qpool.length > 256) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { qpool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    fetching = false; paintSource();
+  }
+  function paintSource() {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Randomness: the hands you deal are shuffled by the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? 'Randomness: the quantum generator is offline, so this is demo mode.' : "Randomness: demo mode, from your browser's generator.";
+  }
+  paintSource(); topUp();
+  const u32 = new Uint32Array(8192); let up = u32.length;
+  const fastInt = n => { if (up >= u32.length) { crypto.getRandomValues(u32); up = 0; } return Math.floor(u32[up++] / 4294967296 * n); };
+  function qInt(n) {   // unbiased, quantum when available
+    const lim = 256 - (256 % n);
+    for (;;) { let b; if (quantum && qpool.length) b = qpool.shift(); else { const a = new Uint8Array(1); crypto.getRandomValues(a); b = a[0]; }
+      if (qpool.length < 128) topUp(); if (b < lim) return b % n; }
+  }
+
+  // ================= The set =================
+  const TILES = []; for (let a = 0; a <= 12; a++) for (let b = a; b <= 12; b++) TILES.push([a, b]);
+  const cfg = { players: 6, hand: 12, engine: 12, endDouble: false };
+  const handFor = p => p <= 4 ? 15 : p <= 6 ? 12 : 10;
+  let pool = [];
+  const buildPool = () => { pool = TILES.filter(([a, b]) => !(a === cfg.engine && b === cfg.engine)); };
+  buildPool();
+
+  // ================= Can this hand go out? (Euler's rule) =================
+  const deg = new Int8Array(13), nl = new Int8Array(13), loops = new Int8Array(13), par = new Int8Array(13);
+  const find = x => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  function goesOut(hand, E, endDouble) {
+    deg.fill(0); nl.fill(0); loops.fill(0); for (let i = 0; i < 13; i++) par[i] = i;
+    for (const [a, b] of hand) {
+      if (a === b) { deg[a] += 2; loops[a] = 1; } else { deg[a]++; deg[b]++; nl[a]++; nl[b]++; }
+      par[find(a)] = find(b);
+    }
+    if (!deg[E]) return false;
+    const r = find(E); let odd = 0, other = -1, eOdd = false;
+    for (let v = 0; v < 13; v++) { if (!deg[v]) continue; if (find(v) !== r) return false; if (deg[v] & 1) { odd++; if (v === E) eOdd = true; else other = v; } }
+    if (odd === 0) return true;
+    if (odd !== 2 || !eOdd) return false;
+    return endDouble || !(loops[other] && nl[other] === 1);   // can't be forced to finish on an uncovered double
+  }
+
+  // ================= Finding the actual line (for drawing) =================
+  // Depth-first search for the longest legal first play. Returns [{a, b}] in playing order (a matches the line so far).
+  function longestRun(hand, E, endDouble, limit = 300000) {
+    let best = [], steps = 0; const used = new Array(hand.length).fill(false), path = [];
+    function legal() { return endDouble || !path.length || path[path.length - 1].a !== path[path.length - 1].b; }
+    function go(cur) {
+      if (++steps > limit) return true;
+      if (path.length > best.length && legal()) { best = path.slice(); if (best.length === hand.length) return true; }
+      for (let i = 0; i < hand.length; i++) {
+        if (used[i]) continue; const [x, y] = hand[i];
+        if (x !== cur && y !== cur) continue;
+        used[i] = true; path.push({ a: cur, b: x === cur ? y : x });
+        if (go(path[path.length - 1].b)) return true;
+        path.pop(); used[i] = false;
+      }
+      return false;
+    }
+    go(E); return best;
+  }
+
+  // ================= Drawing dominoes =================
+  const PIP = ['#000', '#2FA4E7', '#1E8C45', '#D7263D', '#8B4A22', '#1F4FB8', '#E0A800', '#8E5BD0', '#0E9488', '#25307A', '#E8650F', '#2B2B2B', '#7D8790'];
+  const L = .25, C = .5, R = .75, r3 = [.24, .5, .76], r4 = [.18, .393, .607, .82];
+  const col = (x, ys) => ys.map(y => [x, y]);
+  const LAYOUT = [[], [[C, C]], [[L, .25], [R, .75]], [[L, .25], [C, C], [R, .75]], [[L, .25], [R, .25], [L, .75], [R, .75]],
+    [[L, .25], [R, .25], [C, C], [L, .75], [R, .75]], [...col(L, r3), ...col(R, r3)], [...col(L, r3), ...col(R, r3), [C, C]],
+    [...col(L, r4), ...col(R, r4)], [...col(L, r3), ...col(C, r3), ...col(R, r3)], [...col(L, r4), ...col(R, r4), ...col(C, [.393, .607])],
+    [...col(L, r4), ...col(R, r4), ...col(C, r3)], [...col(L, r4), ...col(C, r4), ...col(R, r4)]];
+  const DEFS = `<defs><linearGradient id="ivo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFDF6"/><stop offset=".6" stop-color="#F6EEDB"/><stop offset="1" stop-color="#E4D6B7"/></linearGradient>
+    <radialGradient id="brass" cx=".35" cy=".35"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".5" stop-color="#D6A84A"/><stop offset="1" stop-color="#8A6420"/></radialGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy=".06" stdDeviation=".06" flood-color="#000" flood-opacity=".55"/></filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation=".16" flood-color="#FFD25E" flood-opacity="1"/></filter>
+    <radialGradient id="hub" cx=".4" cy=".35"><stop offset="0" stop-color="#F7F7F2"/><stop offset=".7" stop-color="#D9D9D0"/><stop offset="1" stop-color="#A9AAA0"/></radialGradient></defs>`;
+  function half(n, x, y) {   // pips for one square half at (x, y), size 1
+    const rad = n <= 6 ? .1 : n <= 9 ? .085 : .072;
+    return LAYOUT[n].map(([px, py]) => { const cx = x + .08 + px * .84, cy = y + .08 + py * .84;
+      return `<circle cx="${cx.toFixed(3)}" cy="${cy.toFixed(3)}" r="${rad}" fill="${PIP[n]}"/><circle cx="${(cx - rad * .3).toFixed(3)}" cy="${(cy - rad * .3).toFixed(3)}" r="${(rad * .32).toFixed(3)}" fill="#fff" opacity=".45"/>`; }).join('');
+  }
+  // one domino: first value is left (horizontal) or top (vertical)
+  function tile(p, q, x, y, vertical, extra = '') {
+    const w = vertical ? 1 : 2, h = vertical ? 2 : 1;
+    const line = vertical ? `<line x1="${x + .12}" y1="${y + 1}" x2="${x + .88}" y2="${y + 1}"/>` : `<line x1="${x + 1}" y1="${y + .12}" x2="${x + 1}" y2="${y + .88}"/>`;
+    const sp = vertical ? [x + .5, y + 1] : [x + 1, y + .5];
+    return `<g ${extra}><g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".14" fill="url(#ivo)" stroke="#BCAE8C" stroke-width=".025"/>` +
+      `<g stroke="#9B8C6A" stroke-width=".035" stroke-linecap="round">${line}</g>` +
+      half(p, x, y) + (vertical ? half(q, x, y + 1) : half(q, x + 1, y)) +
+      `<circle cx="${sp[0]}" cy="${sp[1]}" r=".065" fill="url(#brass)"/></g></g>`;
+  }
+
+  // Lay out a line of play as a snake that turns at the edges. W is the width in half-domino units.
+  function trainSVG(run, E, W, glowSet) {
+    const g = .1, parts = [];
+    let x = 2.9, y = 1.6, dir = 1, lastDouble = true, maxY = y + 1;
+    const hubX = 1.15, hubY = y;
+    parts.push(`<circle cx="${hubX + .5}" cy="${hubY}" r="1.45" fill="url(#hub)" stroke="#8D8E85" stroke-width=".04"/>`);
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, cx = hubX + .5 + Math.cos(a) * 1.15, cy = hubY + Math.sin(a) * 1.15; parts.push(`<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r=".13" fill="#B9BAB0"/>`); }
+    parts.push(tile(E, E, hubX, hubY - 1, true));
+    x = hubX + 1 + g + .35;
+    run.forEach((t, i) => {
+      const dbl = t.a === t.b, len = dbl ? 1 : 2, glow = glowSet && glowSet.has(i) ? 'filter="url(#glow)"' : '';
+      const fits = dir > 0 ? x + len <= W - 1.2 : x - len >= 1.2;
+      if (fits || dbl) {
+        const left = dir > 0 ? x : x - len;
+        parts.push(dbl ? tile(t.a, t.a, left, y - 1, true) : tile(dir > 0 ? t.a : t.b, dir > 0 ? t.b : t.a, left, y - .5, false));
+        x += dir * (len + g); lastDouble = dbl; maxY = Math.max(maxY, y + (dbl ? 1 : .5));
+      } else {   // turn the corner with this domino standing upright
+        const colLeft = dir > 0 ? x - g - 1 : x + g, top = y + (lastDouble ? 1 : .5) + g;
+        parts.push(tile(t.a, t.b, colLeft, top, true));
+        y = top + 1.5; dir = -dir; x = dir > 0 ? colLeft + 1 + g : colLeft - g; lastDouble = false; maxY = Math.max(maxY, top + 2);
+      }
+    });
+    const H = maxY + .5;
+    return `<svg viewBox="0 0 ${W} ${H.toFixed(2)}" xmlns="http://www.w3.org/2000/svg">${DEFS}${parts.join('')}</svg>`;
+  }
+  function rackSVG(hand, hits) {
+    const n = hand.length, perRow = Math.min(n, innerWidth < 600 ? 8 : 15), rows = Math.ceil(n / perRow), W = perRow * 1.18 + .5, H = rows * 2.75 + .2;
+    let s = '';
+    for (let rI = 0; rI < rows; rI++) {
+      const y = rI * 2.75 + .15;
+      s += `<rect x=".05" y="${y + 1.95}" width="${W - .1}" height=".55" rx=".12" fill="#7C4A28"/><rect x=".05" y="${y + 1.95}" width="${W - .1}" height=".14" rx=".07" fill="#A76A3C"/>`;
+      hand.slice(rI * perRow, rI * perRow + perRow).forEach(([a, b], j) => {
+        const i = rI * perRow + j; s += tile(a, b, .3 + j * 1.18, y, true, !hits ? '' : hits.has(i) ? 'filter="url(#glow)"' : 'opacity=".45"');
+      });
+    }
+    return `<svg viewBox="0 0 ${W.toFixed(2)} ${H.toFixed(2)}" xmlns="http://www.w3.org/2000/svg">${DEFS}${s}</svg>`;
+  }
+  const unitsFor = el => Math.max(9, Math.min(18, Math.round(el.clientWidth / 46)));
+
+  // ================= The big simulation =================
+  let n = 0, hits = 0, started = performance.now(), miracles = [], shown = -1, history = [];
+  const idx = new Uint8Array(91), hand = [];
+  function trial() {
+    const P = pool.length, H = cfg.hand;
+    for (let i = 0; i < P; i++) idx[i] = i;
+    hand.length = 0;
+    for (let i = 0; i < H; i++) { const j = i + fastInt(P - i), t = idx[i]; idx[i] = idx[j]; idx[j] = t; hand.push(pool[idx[i]]); }
+    n++;
+    if (goesOut(hand, cfg.engine, cfg.endDouble)) { hits++; if (miracles.length < 30) miracles.push(hand.map(t => t.slice())); return true; }
+    return false;
+  }
+  function runChunk() {
+    const end = performance.now() + 7;
+    do { for (let i = 0; i < 400; i++) trial(); } while (performance.now() < end);
+  }
+
+  // ================= Painting =================
+  const POKER = [['One pair', 2.37], ['Two pair', 21], ['Three of a kind', 47], ['Straight', 255], ['Flush', 509], ['Full house', 694], ['Four of a kind', 4165], ['Straight flush', 72193], ['Royal flush', 649740]];
+  const fmt1 = v => v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(0) : v.toFixed(1);
+  function paintAnswer() {
+    $('running').textContent = `${n.toLocaleString()} hands shuffled · ${hits.toLocaleString()} went out · ${Math.round(n / ((performance.now() - started) / 1000)).toLocaleString()} a second`;
+    if (hits < 25) { $('big').innerHTML = `Counting…<small>for one player, on one first play</small>`; paintLadder(null); return; }
+    const p = hits / n, se = Math.sqrt(p * (1 - p) / n), lo = 1 / (p + 2 * se), hi = 1 / Math.max(1e-12, p - 2 * se);
+    $('big').innerHTML = `1 in ${fmt1(1 / p)}<small>for one player, on one first play (very likely between 1 in ${fmt1(lo)} and 1 in ${fmt1(hi)})</small>`;
+    const pt = 1 - Math.pow(1 - p, cfg.players), rounds = 13, pg = 1 - Math.pow(1 - p, cfg.players * rounds);
+    $('fTable').textContent = `1 in ${fmt1(1 / pt)}`; $('fTableS').textContent = `chance one of ${cfg.players} players does it in any given round`;
+    $('fGame').textContent = pg > .5 ? `${Math.round(pg * 100)}% of games` : `About 1 game in ${fmt1(1 / pg)}`;
+    $('fGameS').textContent = `how often a ${rounds}-round game with ${cfg.players} players should have at least one`;
+    paintLadder(1 / p);
+  }
+  function paintLadder(us) {
+    const rows = POKER.map(([name, odds]) => ({ name, odds, cls: name === 'Royal flush' ? 'ai' : '' }));
+    if (us) rows.push({ name: 'Going out on the first play', odds: us, cls: 'us' });
+    rows.sort((a, b) => a.odds - b.odds);
+    $('ladder').innerHTML = `<li style="background:none;padding:0 2px"><b class="lbl">Compared with poker hands</b><span></span></li>` +
+      rows.map(r => `<li class="${r.cls}"><div>${r.cls === 'us' ? '★ ' : ''}${r.name}${r.cls === 'ai' ? '<em>what the AI said it was like</em>' : ''}</div><span>1 in ${fmt1(r.odds)}</span></li>`).join('');
+  }
+  function showMiracle(i) {
+    if (!miracles.length) return; shown = i % miracles.length;
+    const h = miracles[shown], run = longestRun(h, cfg.engine, cfg.endDouble);
+    $('trainWrap').innerHTML = trainSVG(run, cfg.engine, unitsFor($('trainWrap')));
+    $('trainCap').textContent = `All ${h.length} dominoes, played in one go from the ${cfg.engine}|${cfg.engine} engine. Miracle hand #${shown + 1} of the ones found so far.`;
+  }
+  $('another').onclick = () => showMiracle(shown + 1);
+
+  // ================= Dealing your own hand =================
+  $('dealBtn').onclick = () => {
+    const P = pool.length, ids = [...Array(P).keys()], h = [];
+    for (let i = 0; i < cfg.hand; i++) { const j = i + qInt(P - i); [ids[i], ids[j]] = [ids[j], ids[i]]; h.push(pool[ids[i]]); }
+    const out = goesOut(h, cfg.engine, cfg.endDouble), run = longestRun(h, cfg.engine, cfg.endDouble);
+    const used = new Set(); run.forEach(t => { const k = h.findIndex((d, i) => !used.has(i) && ((d[0] === t.a && d[1] === t.b) || (d[1] === t.a && d[0] === t.b))); used.add(k); });
+    $('rack').innerHTML = rackSVG(h, out ? null : used);
+    const v = $('verdict'); v.className = 'verdict' + (out ? ' yes' : '');
+    v.textContent = out ? '🚂 MIRACLE TRAIN! This hand goes out on the first play!' : run.length ? `Your best first play: ${run.length} of ${h.length} dominoes` : `Nothing to play on the ${cfg.engine}. Time to draw!`;
+    $('vsub').textContent = out ? 'Screenshot it. Nobody will believe you.' : run.length ? 'The glowing dominoes make the longest line you could lay down; the faded ones are stuck. Here is the line:' : '';
+    $('bestWrap').innerHTML = run.length ? trainSVG(run, cfg.engine, unitsFor($('bestWrap'))) : '';
+    window.labTrack && labTrack('deal');
+  };
+
+  // ================= Settings =================
+  function reset() { n = 0; hits = 0; miracles = []; shown = -1; started = performance.now(); buildPool();
+    $('vPlayers').textContent = cfg.players; $('vHand').textContent = cfg.hand; $('vEngine').textContent = `${cfg.engine}|${cfg.engine}`;
+    $('endDbl').setAttribute('aria-pressed', cfg.endDouble); $('endDbl').textContent = cfg.endDouble ? 'Allowed' : 'Not allowed';
+    $('trainWrap').innerHTML = ''; $('trainCap').textContent = 'Shuffling until one turns up…'; paintAnswer(); }
+  document.querySelectorAll('.step').forEach(b => b.onclick = () => {
+    const k = b.dataset.k, d = +b.dataset.d;
+    if (k === 'players') { cfg.players = Math.max(2, Math.min(8, cfg.players + d)); cfg.hand = handFor(cfg.players); }
+    if (k === 'hand') cfg.hand = Math.max(3, Math.min(20, cfg.hand + d));
+    if (k === 'engine') cfg.engine = (cfg.engine + d + 13) % 13;
+    reset();
+  });
+  $('endDbl').onclick = () => { cfg.endDouble = !cfg.endDouble; reset(); };
+
+  // ================= Main loop =================
+  let frame = 0;
+  function loop() {
+    requestAnimationFrame(loop);
+    if (document.visibilityState !== 'visible') return;
+    runChunk(); frame++;
+    if (shown < 0 && miracles.length) showMiracle(0);
+    if (frame % 15 === 0) paintAnswer();
+  }
+  let lastW = innerWidth; addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 40) { lastW = innerWidth; if (shown >= 0) showMiracle(shown); } });
+  reset(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
