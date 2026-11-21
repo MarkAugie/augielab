@@ -296,7 +296,7 @@
     mine.style.filter = 'brightness(1.25) saturate(1.2)';
     await wait(1400);
 
-    splits++; $('count').textContent = `Universes split: ${splits}`;
+    splits++; window.labTrack && labTrack('split'); $('count').textContent = `Universes split: ${splits}`;
     $('you').textContent = `You are in ${pickA ? 'Universe A' : 'Universe B'}: ${pickA ? a : b}.`;
     $('other').textContent = `In the other universe, another you is going to ${(pickA ? b : a).replace(/^./, s => s.toLowerCase())}.`;
     $('proof').innerHTML = q.quantum
@@ -323,5 +323,6 @@
   addEventListener('keydown', e => { if (e.key === 'Escape' && info.classList.contains('open')) closeInfo(); });
 })();
 </script>
+<script src="/lab/track.js" defer></script>
 </body>
 </html>

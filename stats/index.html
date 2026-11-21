@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Lab stats · AugieLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --room: #12161B; --panel: #1B2129; --line: #2E3843; --ink: #EEF1F4; --dim: #9BA7B4; --live: #3BE37A; --amber: #F6A623; --tape: #B3122B; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; }
+  body { min-height: 100vh; background: var(--room); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 24px 18px 60px; }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  h1 { font: 700 clamp(2rem, 5vw, 3rem)/1 "IBM Plex Sans Condensed", sans-serif; }
+  header a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  h2 { font: 700 1.25rem "IBM Plex Sans Condensed", sans-serif; margin-bottom: 12px; }
+  .muted { color: var(--dim); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card .big { font: 600 2.6rem/1.1 "IBM Plex Mono", monospace; margin-top: 4px; }
+  .label { font-size: .9rem; color: var(--dim); }
+  section { margin-top: 26px; }
+
+  .bars { display: grid; gap: 10px; }
+  .bar { display: grid; grid-template-columns: minmax(9rem, 14rem) 1fr auto; align-items: center; gap: 14px; }
+  .bar .name { font-weight: 600; }
+  .bar .track { height: 22px; background: #0F1318; border-radius: 4px; overflow: hidden; }
+  .bar .fill { display: block; height: 100%; background: var(--live); border-radius: 4px; box-shadow: 0 0 10px rgba(59,227,122,.35); }
+  .bar .num { font: 600 1.05rem "IBM Plex Mono", monospace; min-width: 4.5rem; text-align: right; }
+  .bar .sub { grid-column: 1 / -1; font-size: .88rem; color: var(--dim); margin-top: -6px; }
+  canvas { width: 100%; height: 260px; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: .88rem; color: var(--dim); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+  td { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  td:last-child { text-align: right; font-family: "IBM Plex Mono", monospace; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+
+  form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=password] { font: inherit; padding: 12px 14px; border-radius: 6px; border: 1px solid var(--line); background: #0F1318; color: var(--ink); min-width: 16rem; }
+  button { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 12px 20px; border-radius: 6px; border: 1px solid #44505D; background: #26303A; color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--ink); color: #12161B; border-color: var(--ink); }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .msg { margin-top: 12px; color: var(--amber); }
+  .foot { margin-top: 30px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; color: var(--dim); font-size: .92rem; }
+  [hidden] { display: none !important; }
+  @media (max-width: 600px) { html { font-size: 17px; } .bar { grid-template-columns: 1fr auto; } .bar .track { grid-column: 1 / -1; order: 3; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Lab stats</h1><a href="/">AugieLab</a></header>
+
+  <section id="login" class="card" hidden>
+    <h2>Private page</h2>
+    <form id="loginForm"><input type="password" id="key" placeholder="Stats password" autocomplete="current-password" aria-label="Stats password"><button class="primary">Open stats</button></form>
+    <p class="msg" id="loginMsg" aria-live="polite"></p>
+  </section>
+
+  <div id="dash" hidden>
+    <div class="grid">
+      <div class="card"><div class="label">Visits today</div><div class="big" id="vToday">0</div></div>
+      <div class="card"><div class="label">Visits in the last 30 days</div><div class="big" id="v30">0</div></div>
+      <div class="card"><div class="label">Visits all time</div><div class="big" id="vAll">0</div></div>
+      <div class="card"><div class="label">Things done all time</div><div class="big" id="aAll">0</div><div class="label">splits, rolls, darts, passwords…</div></div>
+    </div>
+
+    <section class="card">
+      <h2>Most popular projects</h2>
+      <div class="bars" id="bars"></div>
+    </section>
+
+    <section class="card">
+      <h2>Visits per day, last 30 days</h2>
+      <canvas id="chart"></canvas>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="two">
+      <div class="card"><h2>Where visitors are</h2><table id="countries"></table></div>
+      <div class="card"><h2>Websites that sent visitors</h2><table id="refs"></table></div>
+    </section>
+
+    <div class="foot">
+      <span id="updated"></span>
+      <button id="refresh">Refresh</button>
+      <button id="ignore"></button>
+      <button id="logout">Forget password on this device</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const PROJECTS = {
+    '/split/':     { name: 'Split the Universe', color: '#9FE8FF', acts: { split: ['split', 'splits'] } },
+    '/darts/':     { name: 'Quantum darts',      color: '#4FE3C1', acts: { darts: ['dart', 'darts thrown'] } },
+    '/passwords/': { name: 'Quantum passwords',  color: '#FF7A6B', acts: { password: ['password', 'passwords made'] } },
+    '/dice/':      { name: 'Quantum dice',       color: '#F2C443', acts: { roll: ['roll', 'dice rolls'], flip: ['flip', 'coin flips'], lotto: ['pick', 'lottery picks'] } },
+    '/pomodoro/':  { name: 'Pomodoro timer',     color: '#FF8A3D', acts: { round: ['round', 'focus rounds finished'] } },
+    '/opscon/':    { name: 'Opscon',             color: '#39FF6A', acts: { minute: ['minute', 'minutes on screen'] } },
+    '/':           { name: 'Home rack',          color: '#B7C0CA', acts: {} }
+  };
+  const fmt = n => Number(n || 0).toLocaleString();
+  let key = '';
+  try { key = localStorage.getItem('lab-stats-key') || ''; } catch (e) {}
+
+  function flag(cc) { if (!/^[A-Z]{2}$/.test(cc)) return '🌐'; return String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)); }
+  let regionName = cc => cc; try { const dn = new Intl.DisplayNames(['en'], { type: 'region' }); regionName = cc => { try { return dn.of(cc); } catch (e) { return cc; } }; } catch (e) {}
+
+  async function load() {
+    $('loginMsg').textContent = '';
+    if (!key) { $('login').hidden = false; $('dash').hidden = true; return; }
+    let res, data;
+    try { res = await fetch('/api/stats?key=' + encodeURIComponent(key), { cache: 'no-store' }); data = await res.json(); } catch (e) { data = { ok: false, error: 'net' }; }
+    if (!data.ok) {
+      $('login').hidden = false; $('dash').hidden = true;
+      $('loginMsg').textContent = data.error === 'key' ? "That password didn't match." : data.error === 'setup' ? 'Stats storage isn’t connected yet in Cloudflare.' : 'Couldn’t reach the stats service. Try again in a moment.';
+      if (data.error === 'key') { key = ''; try { localStorage.removeItem('lab-stats-key'); } catch (e) {} }
+      return;
+    }
+    $('login').hidden = true; $('dash').hidden = false;
+    paint(data);
+  }
+
+  function paint(d) {
+    const sum = (rows, f) => rows.filter(f).reduce((s, r) => s + r.n, 0);
+    $('vToday').textContent = fmt(sum(d.todayRows, r => r.kind === 'view'));
+    $('v30').textContent = fmt(d.daily.reduce((s, r) => s + r.n, 0));
+    $('vAll').textContent = fmt(sum(d.totals, r => r.kind === 'view'));
+    $('aAll').textContent = fmt(sum(d.totals, r => r.kind !== 'view' && r.kind !== 'minute'));
+
+    // popularity bars, by visits
+    const rows = Object.entries(PROJECTS).map(([path, p]) => {
+      const views = sum(d.totals, r => r.page === path && r.kind === 'view');
+      const acts = Object.entries(p.acts).map(([k, [one, many]]) => { const n = sum(d.totals, r => r.page === path && r.kind === k); return n ? `${fmt(n)} ${n === 1 ? one : many}` : null; }).filter(Boolean);
+      return { path, p, views, acts };
+    }).sort((a, b) => b.views - a.views);
+    const max = Math.max(1, ...rows.map(r => r.views));
+    $('bars').innerHTML = rows.map(r => `<div class="bar"><span class="name">${r.p.name}</span><span class="track"><span class="fill" style="width:${r.views / max * 100}%;background:${r.p.color}"></span></span><span class="num">${fmt(r.views)}</span>${r.acts.length ? `<span class="sub">${r.acts.join(' · ')}</span>` : ''}</div>`).join('');
+
+    chart(d);
+    $('countries').innerHTML = d.countries.length ? d.countries.map(c => `<tr><td>${flag(c.country)} ${regionName(c.country)}</td><td>${fmt(c.n)}</td></tr>`).join('') : '<tr><td class="muted">No visits yet.</td><td></td></tr>';
+    $('refs').innerHTML = d.refs.length ? d.refs.map(r => `<tr><td>${r.ref.replace(/[<>&]/g, '')}</td><td>${fmt(r.n)}</td></tr>`).join('') : '<tr><td class="muted">None yet. Visitors so far typed the address or used a bookmark.</td><td></td></tr>';
+    $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function chart(d) {
+    const cv = $('chart'), x = cv.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, 2);
+    const W = cv.clientWidth * dpr, H = cv.clientHeight * dpr; cv.width = W; cv.height = H; x.clearRect(0, 0, W, H);
+    const days = []; for (let i = 29; i >= 0; i--) days.push(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date(Date.now() - i * 864e5)));
+    const paths = Object.keys(PROJECTS);
+    const stack = days.map(day => paths.map(p => d.daily.filter(r => r.day === day && r.page === p).reduce((s, r) => s + r.n, 0)));
+    const maxV = Math.max(4, ...stack.map(s => s.reduce((a, b) => a + b, 0)));
+    const padL = 44 * dpr, padB = 26 * dpr, bw = (W - padL) / days.length;
+    x.font = `${12 * dpr}px "IBM Plex Mono", monospace`; x.fillStyle = '#9BA7B4'; x.strokeStyle = '#2E3843';
+    for (let g = 0; g <= 4; g++) { const v = Math.round(maxV * g / 4), y = H - padB - (H - padB - 8 * dpr) * g / 4;
+      x.beginPath(); x.moveTo(padL, y); x.lineTo(W, y); x.stroke(); x.fillText(v, 4 * dpr, y + 4 * dpr); }
+    stack.forEach((s, i) => { let y = H - padB;
+      s.forEach((v, j) => { if (!v) return; const h = v / maxV * (H - padB - 8 * dpr); x.fillStyle = PROJECTS[paths[j]].color; x.fillRect(padL + i * bw + 2 * dpr, y - h, bw - 4 * dpr, h); y -= h; });
+      if (i % 5 === 4 || i === 29) { x.fillStyle = '#9BA7B4'; x.fillText(days[i].slice(5).replace('-', '/'), padL + i * bw - 4 * dpr, H - 6 * dpr); } });
+    $('legend').innerHTML = paths.map(p => `<span><i style="background:${PROJECTS[p].color}"></i>${PROJECTS[p].name}</span>`).join('');
+  }
+
+  function paintIgnore() { let off = false; try { off = localStorage.getItem('lab-notrack') === '1'; } catch (e) {}
+    $('ignore').textContent = off ? 'Start counting my own visits again' : 'Don’t count my own visits on this device'; }
+  $('ignore').onclick = () => { try { const off = localStorage.getItem('lab-notrack') === '1'; off ? localStorage.removeItem('lab-notrack') : localStorage.setItem('lab-notrack', '1'); } catch (e) {} paintIgnore(); };
+  $('loginForm').onsubmit = e => { e.preventDefault(); key = $('key').value.trim(); try { localStorage.setItem('lab-stats-key', key); } catch (er) {} load(); };
+  $('logout').onclick = () => { key = ''; try { localStorage.removeItem('lab-stats-key'); } catch (e) {} load(); };
+  $('refresh').onclick = load;
+  setInterval(() => { if (!$('dash').hidden) load(); }, 60000);
+  paintIgnore(); load();
+})();
+</script>
+</body>
+</html>

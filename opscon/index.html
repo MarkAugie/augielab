@@ -291,7 +291,7 @@ addEventListener('resize', () => { li--; layout(); });
 
 const start = () => { measure(); layout(); const order = ['matrix', 'intrude', 'geo', 'netstat', 'sats', 'logs'];
   panes.forEach((p, i) => { mount(p, order[i]); p.until = Date.now() + 9000 + i * 2600; }); paintTabs();
-  setInterval(rotate, 500); setInterval(layout, 60000); };
+  setInterval(rotate, 500); setInterval(layout, 60000); setInterval(() => window.labTrack && labTrack('minute'), 60000); };
 (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(start);
 })();
 </script>
@@ -307,5 +307,6 @@ const start = () => { measure(); layout(); const order = ['matrix', 'intrude', '
   <p>Press F or double-click for full screen. While it's open, it asks the computer to keep the screen from going to sleep.</p>
 </template>
 <script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
 </body>
 </html>

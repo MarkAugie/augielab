@@ -206,7 +206,7 @@
   function finish() {
     running = false; remaining = 0; show(0);
     if (mode === 'focus') {
-      rounds = rounds % 4 + 1; paintRounds();
+      rounds = rounds % 4 + 1; paintRounds(); window.labTrack && labTrack('round');
       celebrate('Round done. Take five.', true);
       chime([784, 988, 1175, 1568]);
       setTimeout(() => { setMode('brk'); start(); }, 6500);
@@ -301,5 +301,6 @@
   <p>Space starts and pauses. R resets. The minus and plus buttons change the times, and the page remembers your choice.</p>
 </template>
 <script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
 </body>
 </html>

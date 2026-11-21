@@ -211,6 +211,7 @@
         if (tot < 50 || tot % Math.ceil(tot / 60) === 0) history.push([tot, inside / tot * 4]);
       }
       if (!auto) queue -= batch;
+      window.labTrack && labTrack('darts', batch);
       if (history.length > 600) history = history.filter((_, i) => i % 2 === 0);
       readout(); chart();
       await new Promise(r => requestAnimationFrame(r));
@@ -235,5 +236,6 @@
   sizeBoard(); readout(); chart();
 })();
 </script>
+<script src="/lab/track.js" defer></script>
 </body>
 </html>

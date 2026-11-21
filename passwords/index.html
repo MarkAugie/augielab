@@ -244,7 +244,7 @@
   function setMode(m) { mode = m; $('mPass').setAttribute('aria-pressed', m === 'pass'); $('mPhrase').setAttribute('aria-pressed', m === 'phrase');
     $('passOpts').hidden = m !== 'pass'; $('phraseOpts').hidden = m !== 'phrase'; make(); }
   $('mPass').onclick = () => setMode('pass'); $('mPhrase').onclick = () => setMode('phrase');
-  $('gen').onclick = make;
+  $('gen').onclick = () => { window.labTrack && labTrack('password'); make(); };
   $('len').oninput = () => { $('lenV').textContent = $('len').value; make(); };
   $('words').oninput = () => { $('wordsV').textContent = $('words').value; make(); };
   ['upper', 'digits', 'symbols', 'clear', 'caps', 'num', 'sep'].forEach(id => $(id).onchange = make);
@@ -262,5 +262,6 @@
   paintSource(); make();
 })();
 </script>
+<script src="/lab/track.js" defer></script>
 </body>
 </html>

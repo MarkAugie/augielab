@@ -207,6 +207,7 @@
   $('roll').onclick = async () => {
     await topUp(count * 8);
     const vals = Array.from({ length: count }, () => below(sides) + 1);
+    window.labTrack && labTrack('roll');
     drawDice(vals, true);
     $('total').innerHTML = count > 1 ? `Total <b>${vals.reduce((a, b) => a + b, 0)}</b>` : '';
   };
@@ -217,6 +218,7 @@
   $('flip').onclick = async () => {
     await topUp(8);
     const isHeads = below(2) === 0;
+    window.labTrack && labTrack('flip');
     let base = spin + 1800; base -= base % 360; spin = base + (isHeads ? 0 : 180);   // five full turns, land on the right face
     $('coin').style.transform = `rotateY(${spin}deg)`;
     $('flip').disabled = true;
@@ -243,6 +245,7 @@
     $('odds').innerHTML = `${g.name}: pick ${g.main[0]} from 1–${g.main[1]}${g.extra ? ` plus a ${g.extraName} from 1–${g.extra[1]}` : ''}. Jackpot odds are <b>1 in ${g.odds.toLocaleString()}</b> for every ticket, random or not.`; }
   $('pick').onclick = async () => {
     await topUp(64);
+    window.labTrack && labTrack('lotto');
     const g = GAMES[game], main = drawDistinct(g.main[0], g.main[1]), extra = g.extra ? below(g.extra[1]) + 1 : null;
     $('balls').innerHTML = '';
     main.forEach((n, i) => { const b = document.createElement('div'); b.className = 'ball'; b.textContent = n; b.style.animationDelay = (i * 160) + 'ms'; $('balls').appendChild(b); });
@@ -252,5 +255,6 @@
   paintOdds();
 })();
 </script>
+<script src="/lab/track.js" defer></script>
 </body>
 </html>
