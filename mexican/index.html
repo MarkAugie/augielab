@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mexican Train · AugieLab</title>
+<meta name="description" content="Play Mexican Train dominoes against the computer, with a coach that shows your odds of drawing a domino that fits.">
+<meta property="og:title" content="Mexican Train">
+<meta property="og:description" content="Double-12 dominoes against the computer. Every time you draw, the coach shows your odds of pulling one that fits.">
+<meta property="og:url" content="https://augielab.dev/mexican/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --felt: #1D5C46; --felt-dk: #123D2F; --text: #F6F1E4; --dim: #C9D8CF; --red: #C8102E; --gold: #F2C14E; --good: #5EE39A; --ink: #22180F; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; background: var(--felt-dk); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 18px 14px 100px;
+    background: radial-gradient(ellipse 140% 1100px at 50% 0%, #2B7A5D, var(--felt) 45%, var(--felt-dk) 100%) no-repeat, var(--felt-dk); }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  .top span { color: var(--dim); }
+  header { text-align: center; margin-bottom: 12px; }
+  h1 { font: 400 clamp(2.3rem, 8vw, 4rem)/1.05 "Rye", serif; color: var(--gold); letter-spacing: .02em; text-shadow: 0 3px 0 #7A4B0F, 0 6px 18px rgba(0,0,0,.45); }
+  .sub { color: var(--dim); font-size: 1.1rem; margin-top: 6px; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 12px 18px; justify-content: center; align-items: center; margin: 10px 0 16px; }
+  .btn { cursor: pointer; border: 0; border-radius: 12px; padding: 13px 22px; font: 700 1.1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; color: #fff;
+    background: var(--red); box-shadow: 0 4px 0 #7A0A1C, 0 8px 16px rgba(0,0,0,.35); }
+  .btn.gold { background: var(--gold); color: #2A1A05; box-shadow: 0 4px 0 #9C7414, 0 8px 16px rgba(0,0,0,.35); }
+  .btn.ghost { background: rgba(255,255,255,.12); box-shadow: 0 4px 0 rgba(0,0,0,.35); }
+  .btn:active { transform: translateY(3px); }
+  .pill { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.25); border-radius: 999px; padding: 6px 8px 6px 16px; font-weight: 600; }
+  .pill button { width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer; font: 700 1.3rem/1 "IBM Plex Sans", sans-serif; background: rgba(255,255,255,.14); color: #fff; }
+  .pill b { min-width: 1.4em; text-align: center; font-size: 1.2rem; }
+  .seg { display: flex; border: 2px solid rgba(242,193,78,.7); border-radius: 10px; overflow: hidden; }
+  .seg button { cursor: pointer; border: 0; padding: 9px 13px; font: 600 .95rem "IBM Plex Sans", sans-serif; background: transparent; color: #fff; }
+  .seg button[aria-pressed="true"] { background: var(--gold); color: #2A1A05; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+
+  /* ---------- the table ---------- */
+  .table { position: relative; border-radius: 22px; padding: 14px 14px 12px; background: radial-gradient(ellipse at 50% 30%, #2A7D5E, #1A563F 80%);
+    border: 12px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 3px #3E220F, inset 0 0 40px rgba(0,0,0,.45), 0 30px 50px -18px rgba(0,0,0,.8); }
+  .table::before { content: ""; position: absolute; inset: -12px; border-radius: 22px; pointer-events: none; z-index: -1;
+    background: repeating-linear-gradient(100deg, #6B3F22 0 7px, #7C4A28 7px 12px, #5F371D 12px 19px); }
+  .lbl { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #E4D3A8; }
+
+  .hubrow { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 10px; }
+  .hubrow .eng { display: flex; align-items: center; gap: 12px; }
+  .hubrow .eng svg { width: 88px; height: 44px; flex: none; }
+  .hubrow .eng b { display: block; font: 700 1.3rem "IBM Plex Sans Condensed", sans-serif; }
+  .bone { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,.22); border-radius: 12px; padding: 8px 14px; }
+  .bone svg { width: 60px; height: 40px; flex: none; }
+  .bone b { font: 700 1.5rem "IBM Plex Sans Condensed", sans-serif; display: block; line-height: 1.1; }
+  .bone span { color: var(--dim); font-size: .92rem; }
+
+  .lane { display: grid; grid-template-columns: 11.5rem minmax(0, 1fr); gap: 10px; align-items: center; padding: 6px 8px; border-radius: 12px; border: 2px solid transparent; transition: background .25s, border-color .25s; }
+  .lane + .lane { margin-top: 4px; }
+  .lane .who { display: grid; gap: 2px; }
+  .lane .nm { font: 700 1.05rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .02em; display: flex; align-items: center; gap: 6px; }
+  .lane .info { font-size: .88rem; color: var(--dim); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chip { font: 700 .74rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .chip.open { background: var(--gold); color: #2A1A05; }
+  .chip.dbl { background: #FF6B6B; color: #2A0505; }
+  .chip.end { background: rgba(255,255,255,.14); color: #fff; }
+  .lane svg { display: block; width: 100%; height: auto; }
+  .lane.mex { background: rgba(232,101,15,.12); }
+  .lane.mine { background: rgba(255,255,255,.07); }
+  .lane.turn { border-color: rgba(255,255,255,.5); }
+  .lane.target { border-color: var(--good); background: rgba(94,227,154,.16); cursor: pointer; animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 4px rgba(94,227,154,.35); } }
+
+  .handbox { margin-top: 12px; padding: 12px 10px 10px; border-radius: 14px; background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.32)); }
+  .handbox .hd { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; margin: 0 4px 8px; }
+  .handbox .hd span { color: var(--dim); font-size: .95rem; }
+  .hand { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 100px; }
+  .dom { width: clamp(42px, 6.2vw, 60px); padding: 0; border: 0; background: none; cursor: default; border-radius: 9px; transition: transform .18s, filter .2s, opacity .2s; }
+  .dom svg { display: block; width: 100%; height: auto; }
+  .hand.picking .dom { opacity: .5; }
+  .hand.picking .dom.ok { opacity: 1; cursor: pointer; filter: drop-shadow(0 0 7px rgba(94,227,154,.95)); }
+  .hand.picking .dom.ok:hover { transform: translateY(-5px); }
+  .dom.sel { transform: translateY(-12px) !important; filter: drop-shadow(0 0 9px rgba(242,193,78,1)) !important; opacity: 1 !important; }
+  .dom.fresh { animation: drop .5s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes drop { from { transform: translateY(-30px) scale(.8); opacity: 0; } }
+
+  .act { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; min-height: 54px; }
+  .act .prompt { width: 100%; text-align: center; font-weight: 600; font-size: 1.08rem; }
+  .act .prompt b { color: var(--gold); }
+  .log { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.28); min-height: 4.6rem; font-size: 1rem; }
+  .log p { color: var(--dim); } .log p:first-child { color: #fff; font-weight: 600; }
+  .log b { color: var(--gold); }
+
+  .banner { margin-top: 10px; border-radius: 14px; padding: 14px 16px; text-align: center; background: linear-gradient(160deg, #FFE8A3, var(--gold)); color: #2A1A05; display: none; }
+  .banner.show { display: block; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+  .banner b.h { display: block; font: 400 1.6rem "Rye", serif; margin-bottom: 4px; }
+  .banner ul { list-style: none; display: inline-grid; gap: 2px; margin: 6px 0 10px; text-align: left; }
+  .banner li { display: flex; justify-content: space-between; gap: 24px; font-weight: 600; }
+  @keyframes pop { from { transform: scale(.92); opacity: 0; } }
+
+  /* ---------- the coach ---------- */
+  .side { display: grid; gap: 16px; }
+  .coach, .panel { border-radius: 18px; padding: 16px 18px; background: rgba(10,30,22,.72); border: 1px solid rgba(201,216,207,.25); box-shadow: 0 20px 40px -20px rgba(0,0,0,.8); }
+  .coach h2, .panel h2 { font: 400 1.35rem "Rye", serif; color: var(--gold); margin: 2px 0 8px; }
+  .ends { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .ends span { background: rgba(255,255,255,.08); border-radius: 10px; padding: 5px 10px; font-size: .95rem; }
+  .ends b { font: 700 1.05rem "IBM Plex Mono", monospace; color: #fff; }
+  .chance .num { font: 400 2.8rem/1 "Rye", serif; color: #fff; margin-top: 4px; }
+  .chance .num small { font: 600 1rem "IBM Plex Sans", sans-serif; color: var(--dim); }
+  .meter { height: 14px; border-radius: 7px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 8px; }
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #E0475B, var(--gold) 50%, var(--good)); transition: width .5s; }
+  .why { margin-top: 8px; color: var(--dim); font-size: .98rem; }
+  .why b { color: #fff; }
+  .nums { margin-top: 14px; }
+  .nums h3 { font: 700 1rem "IBM Plex Sans", sans-serif; }
+  .nums h3 small { display: block; color: var(--dim); font-weight: 500; font-size: .88rem; }
+  .nrow { display: grid; grid-template-columns: 2.1rem 1fr 5.4rem 3.2rem; gap: 8px; align-items: center; margin-top: 4px; font-size: .92rem; border-radius: 8px; padding: 1px 4px; }
+  .nrow .n { font: 700 1rem "IBM Plex Mono", monospace; text-align: center; border-radius: 6px; color: #fff; padding: 1px 0; }
+  .nrow .t { height: 12px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .nrow .h { color: var(--dim); font-size: .88rem; text-align: right; white-space: nowrap; }
+  .nrow small { grid-column: 2 / -1; color: #DDEFE4; font-size: .85rem; margin-top: -4px; }
+  .nrow .t i { display: block; height: 100%; background: #8FB8A8; border-radius: 6px; transition: width .5s; }
+  .nrow .p { font: 600 .9rem "IBM Plex Mono", monospace; text-align: right; }
+  .nrow.need { background: rgba(94,227,154,.14); } .nrow.need .t i { background: var(--good); } .nrow.need .p { color: var(--good); }
+  .tip { margin-top: 14px; padding: 10px 12px; border-left: 4px solid var(--gold); background: rgba(242,193,78,.1); border-radius: 6px; font-size: .98rem; }
+  .idle { color: var(--dim); }
+
+  .luck { display: grid; gap: 8px; }
+  .luck div { background: rgba(255,255,255,.06); border-radius: 10px; padding: 8px 12px; }
+  .luck b { display: block; font-size: 1.05rem; }
+  .luck span { color: var(--dim); font-size: .95rem; }
+  .scores { width: 100%; border-collapse: collapse; font-size: 1rem; }
+  .scores th, .scores td { padding: 6px 8px; text-align: right; }
+  .scores th:first-child, .scores td:first-child { text-align: left; }
+  .scores th { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .scores td { font-family: "IBM Plex Mono", monospace; border-top: 1px solid rgba(255,255,255,.08); }
+  .scores td:first-child { font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  .scores tr.lead td { color: var(--gold); }
+  .panel > p { color: var(--dim); font-size: .93rem; margin-bottom: 8px; }
+
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 18px; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #FFC46B; flex: none; }
+  .source.quantum i { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  button:focus-visible { outline: 3px solid #9FE8FF; outline-offset: 3px; }
+
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) {
+    html { font-size: 17px; } body { padding: 12px 6px 100px; }
+    .table { padding: 10px 6px 8px; border-width: 8px; } .table::before { inset: -8px; }
+    .lane { grid-template-columns: 1fr; gap: 2px; padding: 5px 4px; }
+    .lane .who { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .hand { gap: 6px; }
+    .bar { gap: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .lane.target, .dom.fresh, .banner.show { animation: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ivo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFDF6"/><stop offset=".6" stop-color="#F6EEDB"/><stop offset="1" stop-color="#E4D6B7"/></linearGradient>
+    <linearGradient id="backg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B3122B"/><stop offset="1" stop-color="#6E0818"/></linearGradient>
+    <radialGradient id="brass" cx=".35" cy=".35"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".5" stop-color="#D6A84A"/><stop offset="1" stop-color="#8A6420"/></radialGradient>
+    <radialGradient id="hub" cx=".4" cy=".35"><stop offset="0" stop-color="#F7F7F2"/><stop offset=".7" stop-color="#D9D9D0"/><stop offset="1" stop-color="#A9AAA0"/></radialGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy=".06" stdDeviation=".06" flood-color="#000" flood-opacity=".55"/></filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation=".14" flood-color="#FFD25E" flood-opacity="1"/></filter>
+  </defs>
+</svg>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>Double-12 dominoes, with the odds on every draw</span></div>
+  <header>
+    <h1>Mexican Train</h1>
+    <p class="sub">You against the computer. Every time you need to draw, the coach shows your odds of pulling a domino that fits.</p>
+  </header>
+
+  <div class="bar">
+    <button class="btn" id="newGame">New game</button>
+    <div class="pill">Players <button id="pMinus" aria-label="Fewer players">−</button><b id="pN">4</b><button id="pPlus" aria-label="More players">+</button></div>
+    <div class="seg" role="group" aria-label="Game length"><button data-r="1">1 round</button><button data-r="5">5 rounds</button><button data-r="13" aria-pressed="true">Full game</button></div>
+    <div class="seg" role="group" aria-label="Computer speed"><button data-s="1400">Relaxed</button><button data-s="850" aria-pressed="true">Normal</button><button data-s="350">Fast</button></div>
+  </div>
+
+  <div class="layout">
+    <section class="table" aria-label="The domino table">
+      <div class="hubrow">
+        <div class="eng"><svg id="engSvg" viewBox="-.06 -.06 2.12 1.12" aria-hidden="true"></svg><div><span class="lbl" id="roundLbl">Round 1</span><b id="engLbl">Engine 12|12</b></div></div>
+        <div class="bone"><svg viewBox="0 0 3 2" aria-hidden="true" id="boneSvg"></svg><div><b id="boneN">—</b><span>face down in the boneyard</span></div></div>
+      </div>
+      <div id="lanes"></div>
+      <div class="handbox">
+        <div class="hd"><span class="lbl">Your dominoes</span><span id="handInfo"></span></div>
+        <div class="hand" id="hand"></div>
+        <div class="act" id="act"></div>
+      </div>
+      <div class="banner" id="banner" role="status"></div>
+      <div class="log" id="log" aria-live="polite"><p>Press “New game” to deal.</p></div>
+    </section>
+
+    <div class="side">
+      <aside class="coach" aria-live="polite">
+        <div class="lbl">The coach</div>
+        <h2 id="cTitle">Ready when you are</h2>
+        <div id="cBody"><p class="idle">Deal a game. On your turn, the coach shows which numbers you can play on, and if you have to draw, your chance of pulling a domino that fits.</p></div>
+      </aside>
+      <section class="panel">
+        <h2>Lucky draws?</h2>
+        <p>Every draw has odds. Here's what the odds said should happen this visit, and what really did.</p>
+        <div class="luck" id="luck"></div>
+      </section>
+      <section class="panel">
+        <h2>Scoreboard</h2>
+        <p>Points are the dots left in your hand when a round ends. Lowest total wins.</p>
+        <table class="scores" id="scores"></table>
+      </section>
+    </div>
+  </div>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Shuffling: demo mode, from your browser's generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>How Mexican Train works</h3>
+  <p>A double-12 set has 91 dominoes. Each round starts with a double, called the engine, in the middle: 12|12 in the first round, then 11|11, and so on down to 0|0. Everyone gets 15 dominoes and the rest stay face down in the boneyard.</p>
+  <p>Each player builds their own train out from the engine, matching numbers end to end. There is also the Mexican train, which anyone can play on. On your turn you play one domino. If you can't, you draw one. If the domino you drew fits, you can play it right away. If not, you pass and your train becomes open, so anyone can play on it until you play on it again.</p>
+  <h3>Your first turn</h3>
+  <p>On your first turn of each round you can lay down as many dominoes as you like on your own train, one after another. Press “I'm done” when you want to stop.</p>
+  <h3>Doubles</h3>
+  <p>When you play a double, you play again. A double has to be covered before anyone can play anywhere else. If nobody can cover it, it waits, and everyone keeps drawing until someone can.</p>
+  <h3>Scoring</h3>
+  <p>The round ends when someone plays their last domino, or when the boneyard is empty and nobody can play. Everyone counts the dots left in their hand. After the last round, the lowest total wins.</p>
+  <h3>How the coach works out the odds</h3>
+  <p>Each number from 0 to 12 is on exactly 13 dominoes. The coach counts the ones you can see: in your hand, on the table, and the engine. Everything else is out of sight, either in the boneyard or in the other players' hands. You can't tell which, so the domino you draw is equally likely to be any one of them. If 12 of the 60 dominoes you can't see have a 6 on them, your chance of drawing a 6 is 12 out of 60, or 20%. With two places to play, any domino with either number counts.</p>
+  <h3>Lucky draws</h3>
+  <p>Each time anyone draws, the page writes down the odds of a fit and whether it happened. Add up the odds and you get how many fits to expect, and you can compare that with what really happened.</p>
+  <p>Here's a twist you'll probably notice: draws tend to fit a little more often than the coach's number. That's not bad luck in reverse. The other players have been playing the numbers showing at the ends of the trains whenever they could, so their hands run short on those numbers. That leaves a few more of them in the boneyard than a plain count would suggest. In our test games, draws fit about a quarter more often than the simple odds said.</p>
+  <h3>Where the shuffles come from</h3>
+  <p>Today the dominoes are shuffled with your browser's random number maker. When this lab's <strong>quantum random number generator</strong> is online, a small USB stick from Crypta Labs that measures tiny particles of light, it will shuffle every round, and the dot at the bottom will turn green.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const DEBUG = location.hash === '#debug';
+
+  // ================= Randomness =================
+  // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let qpool = [], quantum = false, fetching = false;
+  async function topUp() {
+    if (!SOURCE.ENDPOINT || fetching || qpool.length > 256) return; fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { qpool.push(...j.values); quantum = true; } else quantum = false; } catch (e) { quantum = false; }
+    fetching = false; paintSource();
+  }
+  function paintSource() {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Shuffling: quantum, from the ${SOURCE.NAME}.`
+      : SOURCE.ENDPOINT ? 'Shuffling: the quantum generator is offline, so this is demo mode.' : "Shuffling: demo mode, from your browser's generator.";
+  }
+  paintSource(); topUp();
+  function qInt(n) { const lim = 256 - (256 % n);
+    for (;;) { let b; if (quantum && qpool.length) b = qpool.shift(); else { const a = new Uint8Array(1); crypto.getRandomValues(a); b = a[0]; }
+      if (qpool.length < 128) topUp(); if (b < lim) return b % n; } }
+
+  // ================= The set =================
+  const TILES = []; for (let a = 0; a <= 12; a++) for (let b = a; b <= 12; b++) TILES.push({ a, b, id: TILES.length });
+  const isDbl = t => t.a === t.b, pips = t => t.a + t.b, has = (t, n) => t.a === n || t.b === n;
+  const nm = t => `${t.a}|${t.b}`;
+
+  // ================= Drawing dominoes (same set as The Miracle Train) =================
+  const PIP = ['#000', '#2FA4E7', '#1E8C45', '#D7263D', '#8B4A22', '#1F4FB8', '#E0A800', '#8E5BD0', '#0E9488', '#25307A', '#E8650F', '#2B2B2B', '#7D8790'];
+  const L = .25, C = .5, R = .75, r3 = [.24, .5, .76], r4 = [.18, .393, .607, .82];
+  const col = (x, ys) => ys.map(y => [x, y]);
+  const LAYOUT = [[], [[C, C]], [[L, .25], [R, .75]], [[L, .25], [C, C], [R, .75]], [[L, .25], [R, .25], [L, .75], [R, .75]],
+    [[L, .25], [R, .25], [C, C], [L, .75], [R, .75]], [...col(L, r3), ...col(R, r3)], [...col(L, r3), ...col(R, r3), [C, C]],
+    [...col(L, r4), ...col(R, r4)], [...col(L, r3), ...col(C, r3), ...col(R, r3)], [...col(L, r4), ...col(R, r4), ...col(C, [.393, .607])],
+    [...col(L, r4), ...col(R, r4), ...col(C, r3)], [...col(L, r4), ...col(C, r4), ...col(R, r4)]];
+  function half(n, x, y) {
+    const rad = n <= 6 ? .1 : n <= 9 ? .085 : .072;
+    return LAYOUT[n].map(([px, py]) => { const cx = x + .08 + px * .84, cy = y + .08 + py * .84;
+      return `<circle cx="${cx.toFixed(3)}" cy="${cy.toFixed(3)}" r="${rad}" fill="${PIP[n]}"/><circle cx="${(cx - rad * .3).toFixed(3)}" cy="${(cy - rad * .3).toFixed(3)}" r="${(rad * .32).toFixed(3)}" fill="#fff" opacity=".45"/>`; }).join('');
+  }
+  function tile(p, q, x, y, vertical, extra = '') {   // p is left (horizontal) or top (vertical)
+    const w = vertical ? 1 : 2, h = vertical ? 2 : 1;
+    const line = vertical ? `<line x1="${x + .12}" y1="${y + 1}" x2="${x + .88}" y2="${y + 1}"/>` : `<line x1="${x + 1}" y1="${y + .12}" x2="${x + 1}" y2="${y + .88}"/>`;
+    const sp = vertical ? [x + .5, y + 1] : [x + 1, y + .5];
+    return `<g ${extra}><g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".14" fill="url(#ivo)" stroke="#BCAE8C" stroke-width=".025"/>` +
+      `<g stroke="#9B8C6A" stroke-width=".035" stroke-linecap="round">${line}</g>` +
+      half(p, x, y) + (vertical ? half(q, x, y + 1) : half(q, x + 1, y)) +
+      `<circle cx="${sp[0]}" cy="${sp[1]}" r=".065" fill="url(#brass)"/></g></g>`;
+  }
+  const back = (x, y, w, h) => `<g filter="url(#sh)"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".12" fill="url(#backg)" stroke="#fff" stroke-width=".06"/><circle cx="${x + w / 2}" cy="${y + h / 2}" r="${Math.min(w, h) * .16}" fill="url(#brass)"/></g>`;
+  $('boneSvg').innerHTML = back(1.6, .2, .9, 1.6) + back(.95, .15, .9, 1.6) + back(.3, .25, .9, 1.6);
+
+  // ================= Players =================
+  const NAMES = [['🙂', 'You', true], ['👵', 'Grandma Dot'], ['🤠', 'Big Earl'], ['🦊', 'Sneaky Pete']];
+  let nP = 4, speed = DEBUG ? 1 : 850, totalRounds = 13;
+  let players = [], trains = [], bone = [], E = 12, pending = null, roundNo = 0, dealer = -1, gameId = 0, turn = -1;
+  let curFirst = false, roundOver = false, passes = 0, lastPlaced = null, fresh = -1, pick = null, playing = false;
+  const luck = { me: { d: 0, e: 0, h: 0 }, cpu: { d: 0, e: 0, h: 0 } };
+  const MEX = () => players.length;   // index of the Mexican train in trains[]
+  const me = () => players.findIndex(p => p.human);
+
+  // ================= Rules =================
+  function targets(i, first) {
+    if (pending) return [pending.t];
+    if (first) return [i];
+    const t = [i, MEX()];
+    players.forEach((p, k) => { if (k !== i && trains[k].open) t.push(k); });
+    return t;
+  }
+  function legal(i, first) {
+    const out = [];
+    for (const t of targets(i, first)) { const end = trains[t].end; for (const tl of players[i].hand) if (has(tl, end)) out.push({ tile: tl, t }); }
+    return out;
+  }
+  const needs = (i, first) => [...new Set(targets(i, first).map(t => trains[t].end))];
+  function unseenFor(i) {   // every domino player i can't see: the boneyard plus the other hands
+    const out = [...bone]; players.forEach((p, k) => { if (k !== i) out.push(...p.hand); }); return out;
+  }
+  function drawOdds(i, first) {
+    const n = needs(i, first), u = unseenFor(i), fit = u.filter(t => n.some(x => has(t, x))).length;
+    return { n, unseen: u.length, fit, p: u.length ? fit / u.length : 0 };
+  }
+
+  function trainName(t, viewer) {
+    if (t === MEX()) return 'the Mexican train';
+    if (players[t].human) return 'your train';
+    return viewer === t ? 'their own train' : `${players[t].name}'s train`;
+  }
+  const verb = (p, you, them) => p.human ? you : them;
+  function place(i, mv) {
+    const p = players[i], tr = trains[mv.t], tl = mv.tile;
+    p.hand.splice(p.hand.indexOf(tl), 1);
+    const q = tl.a === tr.end ? tl.b : tl.a;
+    tr.tiles.push({ p: tr.end, q, id: tl.id }); tr.end = q;
+    if (mv.t === i) tr.open = false;
+    if (pending && pending.t === mv.t) pending = null;
+    if (isDbl(tl)) pending = { t: mv.t, n: tl.a };
+    passes = 0; lastPlaced = { t: mv.t, k: tr.tiles.length - 1 }; fresh = -1;
+    say(`${p.name} ${verb(p, 'play', 'plays')} <b>${nm(tl)}</b> on ${trainName(mv.t, i)}.${isDbl(tl) && p.hand.length ? ` A double, so ${verb(p, 'you go', 'they go')} again.` : ''}`);
+    if (!p.hand.length) roundOver = true;
+    paint();
+  }
+  function pass(i, drewNothing) {
+    const p = players[i]; trains[i].open = true; passes++;
+    say(`${p.name} can't play${drewNothing ? ' and the boneyard is empty' : ''}. ${p.human ? 'Your' : 'Their'} train is now <b>open</b> to everyone.`);
+    paint();
+  }
+
+  // ================= Computer players =================
+  function aiPick(i, moves) {
+    const p = players[i]; let best = null, bs = -1e9;
+    for (const m of moves) {
+      let s = pips(m.tile);
+      if (isDbl(m.tile)) s += p.hand.some(x => x !== m.tile && has(x, m.tile.a)) ? 30 : -15;
+      if (m.t === i) s += trains[i].open ? 14 : 3; else if (m.t === MEX()) s += 1; else s += 2;
+      if (s > bs) { bs = s; best = m; }
+    }
+    return best;
+  }
+  function longestRun(hand, start) {   // the longest line from start, not ending on an uncovered double
+    let best = [], steps = 0; const used = new Set(), path = [];
+    (function go(cur) {
+      if (++steps > 200000) return true;
+      if (path.length > best.length && !isDbl(path[path.length - 1])) { best = path.slice(); if (best.length === hand.length) return true; }
+      for (const t of hand) {
+        if (used.has(t) || !has(t, cur)) continue;
+        used.add(t); path.push(t);
+        if (go(t.a === cur ? t.b : t.a)) return true;
+        path.pop(); used.delete(t);
+      }
+      return false;
+    })(start);
+    return best;
+  }
+
+  // ================= Your moves =================
+  function ask(moves, opts = {}) { return new Promise(resolve => { pick = { moves, opts, resolve, sel: null }; paint(); }); }
+  function answer(a) { const r = pick && pick.resolve; pick = null; if (r) r(a); }
+
+  // ================= Game flow =================
+  const chk = id => { if (id !== gameId) throw 0; };
+  async function firstTurn(i, id) {
+    const p = players[i]; let n = 0;
+    const run = p.human ? null : longestRun(p.hand, trains[i].end);
+    for (;;) {
+      const moves = legal(i, true); if (!moves.length) break;
+      let mv;
+      if (p.human) { const a = await ask(moves, { done: n > 0, chain: true }); chk(id); if (a.type === 'done') break; mv = a.move; }
+      else { if (n >= run.length) break; mv = moves.find(m => m.tile === run[n]); if (!mv) break; await sleep(n ? speed * .55 : speed); chk(id); }
+      place(i, mv); n++; if (roundOver) return;
+    }
+    if (n > 1) say(`${p.name} ${verb(p, 'laid', 'laid')} <b>${n} dominoes</b> in a row to start ${p.human ? 'your' : 'their'} train.`);
+    if (pending) await normalTurn(i, id);
+  }
+  async function normalTurn(i, id) {
+    const p = players[i], moves = legal(i, false);
+    if (!moves.length) return drawTurn(i, id, false);
+    let mv;
+    if (p.human) { const a = await ask(moves); chk(id); mv = a.move; }
+    else { await sleep(speed); chk(id); mv = aiPick(i, moves); }
+    place(i, mv); if (roundOver) return;
+    if (isDbl(mv.tile)) await normalTurn(i, id);
+  }
+  async function drawTurn(i, id, first) {
+    const p = players[i];
+    if (!bone.length) { if (p.human) { await ask([], { pass: true }); chk(id); } else { await sleep(speed); chk(id); } pass(i, true); return; }
+    const odds = drawOdds(i, first);
+    if (p.human) { await ask([], { draw: true }); chk(id); window.labTrack && labTrack('draw'); } else { await sleep(speed); chk(id); }
+    const t = bone.pop(); p.hand.push(t); fresh = t.id;
+    const moves = legal(i, first).filter(m => m.tile === t), hit = moves.length > 0;
+    const L2 = p.human ? luck.me : luck.cpu; L2.d++; L2.e += odds.p; L2.h += hit ? 1 : 0;
+    const need = odds.n.length > 1 ? `a ${odds.n.slice(0, -1).join(', a ')} or a ${odds.n[odds.n.length - 1]}` : `a ${odds.n[0]}`;
+    say(`${p.name} ${verb(p, 'needed', 'needed')} ${need} (<b>${pct(odds.p)}</b> chance) and ${verb(p, 'drew', 'drew')} <b>${p.human ? nm(t) : 'a domino'}</b>. ${hit ? 'It fits!' : 'No luck.'}`);
+    paint();
+    if (!hit) { await sleep(p.human ? 500 : speed * .5); chk(id); pass(i, false); return; }
+    let mv;
+    if (p.human) { if (moves.length === 1) { await sleep(800); mv = moves[0]; } else { mv = (await ask(moves)).move; } chk(id); }
+    else { await sleep(speed * .7); chk(id); mv = aiPick(i, moves); }
+    if (!p.human) say(`It was <b>${nm(t)}</b>.`);
+    place(i, mv); if (roundOver) return;
+    if (isDbl(mv.tile)) await normalTurn(i, id);
+  }
+  async function doTurn(i, id) {
+    const p = players[i]; turn = i; curFirst = !p.started && !pending; paint();
+    if (curFirst) {
+      p.started = true;
+      if (legal(i, true).length) await firstTurn(i, id); else await drawTurn(i, id, true);
+      curFirst = false; return;
+    }
+    return normalTurn(i, id);
+  }
+
+  function startRound() {
+    const id = gameId; roundNo++; E = 12 - (roundNo - 1);
+    const pool = TILES.filter(t => !(t.a === E && t.b === E)), ids = pool.map((_, k) => k);
+    for (let k = ids.length - 1; k > 0; k--) { const j = qInt(k + 1); [ids[k], ids[j]] = [ids[j], ids[k]]; }
+    const deck = ids.map(k => pool[k]), H = 15;
+    players.forEach((p, k) => { p.hand = deck.slice(k * H, k * H + H); p.started = false; });
+    bone = deck.slice(players.length * H);
+    trains = players.map(() => ({ tiles: [], end: E, open: false })); trains.push({ tiles: [], end: E, open: true });
+    pending = null; passes = 0; roundOver = false; lastPlaced = null; fresh = -1; turn = -1;
+    dealer = (dealer + 1) % players.length; playing = true;
+    $('banner').className = 'banner'; $('log').innerHTML = '';
+    say(`Round ${roundNo}. The engine is <b>${E}|${E}</b>. ${players[dealer].name} ${verb(players[dealer], 'deal', 'deals')}.`);
+    window.labTrack && labTrack('round');
+    paint(); playRound(id);
+  }
+  async function playRound(id) {
+    let i = (dealer + 1) % players.length, blocked = false;
+    try {
+      await sleep(500); chk(id);
+      for (;;) {
+        await doTurn(i, id); chk(id);
+        if (roundOver) break;
+        if (!bone.length && passes >= players.length) { blocked = true; break; }
+        i = (i + 1) % players.length;
+      }
+    } catch (e) { if (e !== 0) console.error(e); return; }
+    endRound(blocked);
+  }
+  function endRound(blocked) {
+    playing = false; turn = -1; pick = null;
+    const pts = players.map(p => p.hand.reduce((s, t) => s + pips(t), 0));
+    players.forEach((p, k) => { p.hist.push(pts[k]); p.score += pts[k]; });
+    const out = players.find(p => !p.hand.length), last = roundNo >= totalRounds;
+    let head = out ? (out.human ? 'You went out! 🎉' : `${out.name} went out`) : 'Blocked! Nobody can play';
+    let body = `<ul>${players.map((p, k) => `<li><span>${p.face} ${p.name}</span><span>${pts[k]} point${pts[k] === 1 ? '' : 's'}</span></li>`).join('')}</ul>`;
+    let btn;
+    if (last) {
+      const low = Math.min(...players.map(p => p.score)), win = players.filter(p => p.score === low);
+      head = win.some(p => p.human) && win.length === 1 ? 'You win the game! 🏆' : win.length > 1 ? 'A tie for the game!' : `${win[0].name} wins the game 🏆`;
+      body = `<p>${out ? (out.human ? 'You went out to finish it.' : `${out.name} went out to finish it.`) : 'The last round was blocked.'} Lowest total: <b>${low}</b>.</p>` + body;
+      btn = `<button class="btn" data-go="new">Play again</button>`;
+    } else btn = `<button class="btn" data-go="next">Next round: ${E - 1}|${E - 1} engine</button>`;
+    $('banner').innerHTML = `<b class="h">${head}</b>${body}<br>${btn}`; $('banner').className = 'banner show';
+    say(blocked ? 'The boneyard is empty and nobody can play, so the round is over.' : `${out.name} played ${out.human ? 'your' : 'their'} last domino.`);
+    paint();
+  }
+  $('banner').onclick = e => { const g = e.target.dataset.go; if (g === 'next') startRound(); if (g === 'new') newGame(); };
+
+  function newGame() {
+    gameId++; answer({ type: 'cancel' });
+    players = NAMES.slice(0, nP).map(([face, name, human]) => ({ face, name, human: !!human, hand: [], score: 0, hist: [], started: false }));
+    roundNo = 0; dealer = -1; startRound();
+  }
+
+  // ================= Painting =================
+  const pct = p => p >= .995 ? '100%' : p <= 0 ? '0%' : p < .01 ? '<1%' : Math.round(p * 100) + '%';
+  function say(msg) { const l = $('log'), p = document.createElement('p'); p.innerHTML = msg; l.prepend(p); while (l.children.length > 4) l.lastChild.remove(); }
+
+  function laneSVG(tr, k) {
+    const el = document.querySelector('.lane .tl'), w = el ? el.clientWidth : 600;
+    const ux = w < 420 ? 30 : w < 640 ? 36 : 42, U = Math.max(8, w / ux);
+    let s = `<circle cx=".8" cy="1.05" r=".72" fill="url(#hub)" stroke="#8D8E85" stroke-width=".04"/><text x=".8" y="1.32" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-weight="700" font-size=".78" fill="#333">${E}</text>`;
+    const g = .08, start = 1.75;
+    let avail = U - start, keep = 0, used = 0;
+    for (let j = tr.tiles.length - 1; j >= 0; j--) { const wd = (tr.tiles[j].p === tr.tiles[j].q ? 1 : 2) + g; if (used + wd > avail - (j > 0 ? 1.3 : 0)) break; used += wd; keep++; }
+    const hidden = tr.tiles.length - keep; let x = start;
+    if (hidden) { s += `<text x="${x + .55}" y="1.28" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size=".62" fill="#E4D3A8">+${hidden}</text>`; x += 1.3; }
+    if (!tr.tiles.length) s += `<text x="${x + .2}" y="1.28" font-family="IBM Plex Sans, sans-serif" font-size=".6" fill="rgba(255,255,255,.55)">starts with a ${E}</text>`;
+    tr.tiles.slice(hidden).forEach((t, j) => {
+      const real = hidden + j, glow = lastPlaced && lastPlaced.t === k && lastPlaced.k === real ? 'filter="url(#glow)"' : '';
+      if (t.p === t.q) { s += tile(t.p, t.q, x, .05, true, glow); x += 1 + g; } else { s += tile(t.p, t.q, x, .55, false, glow); x += 2 + g; }
+    });
+    return `<svg viewBox="0 0 ${U.toFixed(2)} 2.1" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${s}</svg>`;
+  }
+  function paintLanes() {
+    if (!players.length) { $('lanes').innerHTML = ''; return; }
+    const mi = me(), order = [...players.keys()].filter(k => k !== mi); order.push(MEX(), mi);
+    const sel = pick && pick.sel, tset = new Set(sel ? pick.moves.filter(m => m.tile === sel).map(m => m.t) : []);
+    if (!$('lanes').children.length || $('lanes').children.length !== order.length) $('lanes').innerHTML = order.map(k => `<div class="lane" data-t="${k}"><div class="who"></div><div class="tl"></div></div>`).join('');
+    order.forEach((k, row) => {
+      const el = $('lanes').children[row]; el.dataset.t = k;
+      const tr = trains[k], mex = k === MEX(), p = players[k];
+      el.className = 'lane' + (mex ? ' mex' : '') + (k === mi ? ' mine' : '') + (!mex && k === turn && playing ? ' turn' : '') + (tset.has(k) ? ' target' : '');
+      const chips = [];
+      if (pending && pending.t === k) chips.push(`<span class="chip dbl">double ${pending.n} to cover</span>`);
+      else chips.push(`<span class="chip end">ends on ${tr.end}</span>`);
+      if (!mex && tr.open) chips.push('<span class="chip open">🚂 open</span>');
+      const title = mex ? '🇲🇽 Mexican train' : p.human ? '🙂 Your train' : `${p.face} ${p.name}`;
+      const sub = mex ? 'anyone can play here' : p.human ? '' : `${p.hand.length} domino${p.hand.length === 1 ? '' : 'es'} in hand`;
+      el.children[0].innerHTML = `<span class="nm">${title}</span><span class="info">${sub ? sub + ' ' : ''}${chips.join('')}</span>`;
+      el.children[1].innerHTML = laneSVG(tr, k);
+    });
+  }
+  function paintHand() {
+    const mi = me(), p = players[mi], h = $('hand');
+    if (!p) { h.innerHTML = ''; $('handInfo').textContent = ''; return; }
+    const ok = new Set(pick ? pick.moves.map(m => m.tile) : []);
+    const hand = [...p.hand].sort((x, y) => (y.b - x.b) || (y.a - x.a));
+    h.classList.toggle('picking', !!pick && pick.moves.length > 0);
+    h.innerHTML = hand.map(t => `<button class="dom${ok.has(t) ? ' ok' : ''}${pick && pick.sel === t ? ' sel' : ''}${t.id === fresh ? ' fresh' : ''}" data-id="${t.id}" aria-label="Domino ${t.b} and ${t.a}${ok.has(t) ? ', playable' : ''}"${ok.has(t) ? '' : ' tabindex="-1"'}><svg viewBox="-.06 -.06 1.12 2.12">${tile(t.b, t.a, 0, 0, true)}</svg></button>`).join('');
+    const dots = p.hand.reduce((s, t) => s + pips(t), 0);
+    $('handInfo').textContent = `${p.hand.length} domino${p.hand.length === 1 ? '' : 'es'} · ${dots} dots`;
+  }
+  function paintAct() {
+    const a = $('act');
+    if (!pick) {
+      const p = players[turn];
+      a.innerHTML = playing && p && !p.human ? `<p class="prompt">${p.face} ${p.name} is thinking…</p>` : '';
+      return;
+    }
+    const o = pick.opts; let html = '';
+    if (pick.sel) {
+      const ms = pick.moves.filter(m => m.tile === pick.sel);
+      html = `<p class="prompt">Where should <b>${nm(pick.sel)}</b> go? Tap a glowing train, or:</p>` + ms.map(m => `<button class="btn gold" data-t="${m.t}">${m.t === MEX() ? 'Mexican train' : players[m.t].human ? 'My train' : players[m.t].name + "'s train"}</button>`).join('') + `<button class="btn ghost" data-x="1">Cancel</button>`;
+    } else if (o.draw) {
+      html = `<p class="prompt">Nothing fits. Your chance of drawing one that does: <b>${pct(odds().p)}</b></p><button class="btn gold" data-a="draw">Draw a domino</button>`;
+    } else if (o.pass) html = `<p class="prompt">Nothing fits and the boneyard is empty.</p><button class="btn gold" data-a="pass">Pass</button>`;
+    else if (o.chain) html = `<p class="prompt">${o.done ? 'Keep building <b>your train</b>, or stop here.' : 'Your first turn: start <b>your train</b> off the engine. You can lay as many as you like.'}</p>` + (o.done ? `<button class="btn gold" data-a="done">I'm done</button>` : '');
+    else html = `<p class="prompt">Your turn. Tap a glowing domino to play it.${pending ? ` The <b>double ${pending.n}</b> has to be covered first.` : ''}</p>`;
+    a.innerHTML = html;
+  }
+  function myFirst() { if (playing && turn === me()) return curFirst; const p = players[me()]; return !p.started && !pending; }
+  function odds() { return drawOdds(me(), myFirst()); }
+
+  function paintCoach() {
+    const mi = me(); if (!players.length) return;
+    if (!playing) { $('cTitle').textContent = roundNo ? 'Round over' : 'Ready when you are'; $('cBody').innerHTML = `<p class="idle">${roundNo ? 'Start the next round when you are ready. Keep an eye on the Lucky draws panel as the game goes on.' : 'Press “New game” to deal.'}</p>`; return; }
+    const p = players[mi], mine = turn === mi && playing, first = myFirst();
+    const od = drawOdds(mi, first), moves = legal(mi, first);
+    $('cTitle').textContent = !playing ? 'Round over' : mine ? (moves.length ? 'Your turn' : 'Your turn: you need to draw') : 'Getting ready for your turn';
+    const ends = targets(mi, first).map(t => `<span>${t === MEX() ? 'Mexican train' : t === mi ? 'Your train' : players[t].name + "'s train"} <b>${pending && pending.t === t ? pending.n : trains[t].end}</b></span>`).join('');
+    // what you can see of each number
+    const seen = new Array(13).fill(0), hold = new Array(13).fill(0), hid = new Array(13).fill(0);
+    const count = (arr, t) => { arr[t.a]++; if (t.b !== t.a) arr[t.b]++; };
+    p.hand.forEach(t => count(hold, t)); trains.forEach(tr => tr.tiles.forEach(t => count(seen, { a: t.p, b: t.q }))); seen[E]++;
+    unseenFor(mi).forEach(t => count(hid, t));
+    const rows = [...Array(13).keys()].map(n => {
+      const v = od.unseen ? hid[n] / od.unseen : 0, need = od.n.includes(n);
+      return `<div class="nrow${need ? ' need' : ''}"><span class="n" style="background:${n ? PIP[n] : '#444'}">${n}</span><span class="t"><i style="width:${Math.min(100, Math.max(1, v * 100 / .4))}%"></i></span><span class="h">${hid[n]} hidden</span><span class="p">${pct(v)}</span>${need ? `<small>Of the 13 with a ${n}: you hold ${hold[n]}, ${seen[n]} on the table, ${hid[n]} out of sight</small>` : ''}</div>`;
+    }).join('');
+    const nums = od.n.map(n => `${n}`), askTxt = nums.length > 1 ? `${nums.slice(0, -1).join(', ')} or ${nums[nums.length - 1]}` : nums[0];
+    let headline = moves.length && mine
+      ? `<p class="why">You have <b>${moves.length === 1 ? '1 domino' : new Set(moves.map(m => m.tile)).size + ' dominoes'}</b> that fit right now. If you ever have to draw, here are your odds:</p>`
+      : '';
+    let tip = '';
+    if (od.n.length > 1) {
+      const by = od.n.map(n => ({ n, h: hid[n] })).sort((x, y) => y.h - x.h);
+      tip = by[0].h === by[by.length - 1].h ? `Your numbers are equally likely: ${by[0].h} of each still hidden.`
+        : `A <b>${by[0].n}</b> is your best hope: ${by[0].h} are still hidden, against only ${by[by.length - 1].h} with a <b>${by[by.length - 1].n}</b>.`;
+    } else if (od.n.length === 1) {
+      const n = od.n[0], gone = hold[n] + seen[n];
+      tip = gone >= 9 ? `Most of the ${n}s are already out of play (${gone} of 13), so a ${n} is getting scarce. That's when trains go open.` : `${hid[n]} of the 13 dominoes with a ${n} are still out of sight.`;
+    }
+    if (!first && !pending) tip += ` Playing on an open train or the Mexican train gives you more numbers to hope for.`;
+    $('cBody').innerHTML = `<div class="lbl">Where you can play</div><div class="ends">${ends}</div>${headline}
+      <div class="chance"><div class="lbl">Chance a draw fits (any ${askTxt})</div><div class="num">${pct(od.p)} <small>${od.fit} of ${od.unseen} you can't see</small></div><div class="meter"><i style="width:${od.p * 100}%"></i></div></div>
+      <p class="why">There are <b>${bone.length}</b> face down in the boneyard and <b>${od.unseen - bone.length}</b> in the other players' hands. You can't tell which are which, so the one you draw is equally likely to be any of the <b>${od.unseen}</b>.</p>
+      <div class="nums"><h3>Each number, from where you sit<small>Every number is on 13 dominoes. The percent is your chance a draw has that number.</small></h3>${rows}</div>
+      ${tip ? `<p class="tip">${tip}</p>` : ''}`;
+  }
+  function paintLuck() {
+    const row = (who, s) => {
+      if (!s.d) return `<div><b>${who}</b><span>No draws yet.</span></div>`;
+      const diff = s.h - s.e, word = Math.abs(diff) < .75 ? 'right on the odds' : diff > 0 ? 'running lucky 🍀' : 'running cold 🥶';
+      return `<div><b>${who}: ${word}</b><span>${s.d} draw${s.d === 1 ? '' : 's'}. The odds said about <b style="display:inline;color:#fff">${s.e.toFixed(1)}</b> should fit; <b style="display:inline;color:#fff">${s.h}</b> did.</span></div>`;
+    };
+    $('luck').innerHTML = row('You', luck.me) + row('Computer players', luck.cpu);
+  }
+  function paintScores() {
+    if (!players.length) { $('scores').innerHTML = ''; return; }
+    const low = Math.min(...players.map(p => p.score));
+    $('scores').innerHTML = `<tr><th>Player</th><th>Last round</th><th>Total</th></tr>` + players.map(p => `<tr class="${p.hist.length && p.score === low ? 'lead' : ''}"><td>${p.face} ${p.name}</td><td>${p.hist.length ? p.hist[p.hist.length - 1] : '—'}</td><td>${p.score}</td></tr>`).join('') +
+      `<tr><td colspan="3" style="color:var(--dim);font-family:'IBM Plex Sans',sans-serif;font-size:.9rem">Round ${Math.max(1, roundNo)} of ${totalRounds}</td></tr>`;
+  }
+  function paint() {
+    $('engSvg').innerHTML = tile(E, E, 0, 0, false);
+    $('roundLbl').textContent = `Round ${Math.max(1, roundNo)} of ${totalRounds}`; $('engLbl').textContent = `Engine ${E}|${E}`;
+    $('boneN').textContent = players.length ? bone.length : '—';
+    paintLanes(); paintHand(); paintAct(); paintCoach(); paintLuck(); paintScores();
+  }
+
+  // ================= Controls =================
+  $('hand').onclick = e => {
+    const b = e.target.closest('.dom'); if (!b || !pick || !pick.moves.length) return;
+    const t = TILES[+b.dataset.id], ms = pick.moves.filter(m => m.tile === t); if (!ms.length) return;
+    if (ms.length === 1) return answer({ type: 'play', move: ms[0] });
+    pick.sel = pick.sel === t ? null : t; paint();
+  };
+  $('lanes').onclick = e => {
+    const l = e.target.closest('.lane'); if (!l || !pick || !pick.sel) return;
+    const m = pick.moves.find(x => x.tile === pick.sel && x.t === +l.dataset.t); if (m) answer({ type: 'play', move: m });
+  };
+  $('act').onclick = e => {
+    const b = e.target.closest('button'); if (!b || !pick) return;
+    if (b.dataset.x) { pick.sel = null; return paint(); }
+    if (b.dataset.t !== undefined) { const m = pick.moves.find(x => x.tile === pick.sel && x.t === +b.dataset.t); if (m) answer({ type: 'play', move: m }); return; }
+    if (b.dataset.a) answer({ type: b.dataset.a });
+  };
+  $('newGame').onclick = newGame;
+  const setN = d => { nP = Math.max(2, Math.min(4, nP + d)); $('pN').textContent = nP; if (!playing) newGame(); else say(`Next game: ${nP} players. Press “New game” to start it now.`); };
+  $('pMinus').onclick = () => setN(-1); $('pPlus').onclick = () => setN(1);
+  document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { totalRounds = +b.dataset.r; document.querySelectorAll('[data-r]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    if (roundNo > totalRounds) newGame(); else paint(); });
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { speed = DEBUG ? 1 : +b.dataset.s; document.querySelectorAll('[data-s]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  let lastW = innerWidth; addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 30) { lastW = innerWidth; paintLanes(); } });
+  if (DEBUG) window.MT = { get players() { return players; }, get trains() { return trains; }, get bone() { return bone; }, get pending() { return pending; }, get pick() { return pick; }, get roundNo() { return roundNo; }, get playing() { return playing; }, luck };
+
+  newGame();
+})();
+</script>
+</body>
+</html>
