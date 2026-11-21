@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation Detector · AugieLab</title>
+<meta name="description" content="Two quantum random sources on opposite sides of the planet, watched live for any sign of a glitch in reality.">
+<meta property="og:title" content="Simulation Detector">
+<meta property="og:description" content="Two quantum sources, 12,600 km apart, watched for any sign that reality is glitching.">
+<meta property="og:url" content="https://augielab.dev/glitch/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #DCDDD8; --panel: #EFEFEA; --panel-dk: #C9CAC3; --ink: #1B1D1F; --dim: #4F555B; --orange: #F25C05; --lcd: #12181B; --lcd-ink: #9BF3C9;
+    --a: #F25C05; --b: #2F6FDB; --x: #8A3FD1; --ok: #1FAE5B; --warn: #E8A10C; --bad: #D7263D; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 19px; background: var(--bg); }
+  body { min-height: 100vh; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 16px 100px;
+    background: radial-gradient(circle at 1px 1px, rgba(0,0,0,.08) 1px, transparent 1.5px) 0 0 / 22px 22px, var(--bg); }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--ink); }
+  .top span { color: var(--dim); }
+
+  .unit { background: linear-gradient(180deg, #F7F7F3, var(--panel)); border-radius: 18px; padding: 22px 24px;
+    box-shadow: inset 0 1px 0 #fff, inset 0 -2px 0 rgba(0,0,0,.08), 0 18px 34px -18px rgba(0,0,0,.45); }
+  .unit + .unit, .grid + .unit, .unit + .grid { margin-top: 18px; }
+  .grid > .unit { margin-top: 0; }
+  .lbl { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  h2.lbl { margin-bottom: 8px; }
+  .screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #FFF, #A9AAA4);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+  .screw::after { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 2px; background: rgba(0,0,0,.35); transform: rotate(35deg); }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; display: grid; grid-template-columns: 1.3fr 1fr; gap: 26px; align-items: center; }
+  .hero .screw:nth-of-type(1) { top: 12px; left: 12px; } .hero .screw:nth-of-type(2) { top: 12px; right: 12px; }
+  .hero .screw:nth-of-type(3) { bottom: 12px; left: 12px; } .hero .screw:nth-of-type(4) { bottom: 12px; right: 12px; }
+  h1 { font: 700 clamp(2.2rem, 6.5vw, 3.6rem)/1 "IBM Plex Sans Condensed", sans-serif; letter-spacing: -.01em; }
+  h1 em { font-style: normal; color: var(--orange); }
+  .hero p { margin-top: 10px; font-size: 1.08rem; color: #33383D; max-width: 44ch; }
+  .status { background: var(--lcd); border-radius: 14px; padding: 18px 20px; color: var(--lcd-ink); box-shadow: inset 0 3px 12px rgba(0,0,0,.6), 0 0 0 4px #A8A9A2; }
+  .status .lbl { color: #7C8B86; }
+  .state { display: flex; align-items: center; gap: 14px; margin: 4px 0 10px; }
+  .lamp { width: 30px; height: 30px; border-radius: 50%; flex: none; background: var(--ok); box-shadow: 0 0 18px 4px rgba(31,174,91,.6), inset 0 -4px 6px rgba(0,0,0,.3); }
+  .state b { font: 600 clamp(1.8rem, 5vw, 2.4rem)/1 "IBM Plex Mono", monospace; letter-spacing: .02em; color: #D7FFE9; }
+  .status.warn .lamp { background: var(--warn); box-shadow: 0 0 18px 4px rgba(232,161,12,.6); } .status.warn .state b { color: #FFE3A3; }
+  .status.bad .lamp { background: var(--bad); box-shadow: 0 0 22px 6px rgba(215,38,61,.7); animation: alarm .5s steps(1) infinite; } .status.bad .state b { color: #FFB3BD; }
+  .status.test .lamp { background: var(--x); box-shadow: 0 0 18px 4px rgba(138,63,209,.6); } .status.test .state b { color: #E4CCFF; }
+  @keyframes alarm { 50% { opacity: .35; } }
+  .readouts { display: grid; grid-template-columns: repeat(3, auto); gap: 6px 18px; font: 500 .95rem "IBM Plex Mono", monospace; color: #C9F5DE; }
+  .readouts span { color: #7C8B86; display: block; font-size: .78rem; }
+  .status .why { margin-top: 10px; font-size: .95rem; color: #C9F5DE; min-height: 1.5em; max-width: none; }
+
+  /* ---------- the link ---------- */
+  .link { position: relative; padding: 16px 24px 12px; }
+  .link svg { display: block; width: 100%; height: auto; }
+  .pulse { stroke-dasharray: 2 26; animation: flow 1.4s linear infinite; }
+  .pulse.rev { animation-direction: reverse; }
+  @keyframes flow { to { stroke-dashoffset: -28; } }
+  .linkcap { text-align: center; color: var(--dim); font-size: .98rem; margin-top: 2px; }
+
+  /* ---------- stations ---------- */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .station { position: relative; }
+  .station header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .station h3 { font: 700 1.35rem/1.15 "IBM Plex Sans Condensed", sans-serif; }
+  .station h3 i { font-style: normal; display: inline-block; width: 1.4em; height: 1.4em; line-height: 1.4em; text-align: center; border-radius: 6px; color: #fff; margin-right: 8px; font-size: .9em; }
+  .station .where { color: var(--dim); font-size: .98rem; }
+  .tag { font: 600 .8rem "IBM Plex Mono", monospace; padding: 4px 9px; border-radius: 999px; white-space: nowrap; background: #F7E3B5; color: #7A5200; border: 1px solid #E8C26A; }
+  .tag.live { background: #CFF3DD; color: #0E6B36; border-color: #7FD4A2; }
+  .bits { margin: 14px 0 12px; padding: 0 2px; border: 10px solid var(--lcd); border-radius: 10px; background: var(--lcd); font: 600 1.15rem/1.45 "IBM Plex Mono", monospace; color: #3E5A50;
+    letter-spacing: .12em; height: calc(1.45em * 2 + 20px); box-sizing: border-box; overflow: hidden; word-break: break-all; box-shadow: inset 0 2px 8px rgba(0,0,0,.6); }
+  .bits b { color: var(--lcd-ink); font-weight: 600; }
+  .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .meter { background: #E3E4DE; border-radius: 10px; padding: 10px 12px; }
+  .meter .v { font: 600 1.35rem/1.2 "IBM Plex Mono", monospace; }
+  .meter .s { color: var(--dim); font-size: .88rem; }
+  .gauge { position: relative; height: 16px; margin-top: 8px; border-radius: 8px; background: linear-gradient(90deg, #F3C9CF, #F7E3B5 30%, #CFF3DD 42%, #CFF3DD 58%, #F7E3B5 70%, #F3C9CF); }
+  .gauge::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: rgba(0,0,0,.35); }
+  .needle { position: absolute; top: -5px; width: 6px; height: 26px; margin-left: -3px; border-radius: 3px; background: var(--ink); left: 50%; transition: left .3s; }
+
+  /* ---------- chart ---------- */
+  canvas#trace { display: block; width: 100%; height: 280px; margin-top: 6px; border-radius: 10px; background: var(--lcd); }
+  .key { display: flex; gap: 18px; flex-wrap: wrap; color: var(--dim); font-size: .95rem; margin-top: 10px; }
+  .key i { display: inline-block; width: 22px; height: 5px; border-radius: 3px; vertical-align: 4px; margin-right: 6px; }
+  .note { color: #33383D; font-size: 1rem; margin-top: 6px; }
+
+  /* ---------- checks ---------- */
+  .checks { display: grid; gap: 10px; }
+  .check { display: grid; grid-template-columns: 22px 1fr auto; gap: 14px; align-items: center; background: #E3E4DE; border-radius: 10px; padding: 12px 14px; }
+  .check .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px rgba(31,174,91,.6); }
+  .check.warn .dot { background: var(--warn); box-shadow: 0 0 8px rgba(232,161,12,.7); }
+  .check.bad .dot { background: var(--bad); box-shadow: 0 0 10px rgba(215,38,61,.8); }
+  .check b { display: block; font-size: 1.05rem; }
+  .check span { color: var(--dim); font-size: .95rem; }
+  .check .r { text-align: right; font: 600 1rem "IBM Plex Mono", monospace; white-space: nowrap; }
+  .check .r small { display: block; font: 500 .82rem "IBM Plex Sans", sans-serif; color: var(--dim); }
+
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .btn { cursor: pointer; border: 0; border-radius: 10px; padding: 12px 18px; font: 600 1rem "IBM Plex Sans", sans-serif; color: #fff; background: var(--x);
+    box-shadow: 0 3px 0 #5B2490, 0 6px 12px rgba(0,0,0,.2); }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #5B2490; }
+  .btn:disabled { opacity: .55; cursor: wait; }
+  .log { list-style: none; display: grid; gap: 8px; max-height: 360px; overflow-y: auto; }
+  .log li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; padding: 10px 12px; border-radius: 10px; background: #E3E4DE; font-size: 1rem; }
+  .log time { font: 600 .9rem "IBM Plex Mono", monospace; color: var(--dim); }
+  .log .warn { border-left: 5px solid var(--warn); } .log .bad { border-left: 5px solid var(--bad); } .log .test { border-left: 5px solid var(--x); }
+  .log .quiet { color: var(--dim); background: transparent; padding-left: 0; }
+  .source { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 18px; color: var(--dim); font-size: .95rem; text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E8A10C; flex: none; }
+  .source.quantum i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  button:focus-visible { outline: 3px solid var(--b); outline-offset: 3px; }
+
+  @media (max-width: 820px) {
+    html { font-size: 17px; } body { padding: 14px 10px 100px; }
+    .hero, .grid { grid-template-columns: 1fr; } .unit { padding: 18px 16px; }
+    .readouts { grid-template-columns: repeat(2, auto); }
+    .check { grid-template-columns: 18px 1fr; } .check .r { grid-column: 2; text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { .pulse, .status.bad .lamp { animation: none; } .needle { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a><span>Watching reality for glitches since you opened this page</span></div>
+
+  <section class="unit hero">
+    <i class="screw"></i><i class="screw"></i><i class="screw"></i><i class="screw"></i>
+    <div>
+      <h1>Simulation <em>Detector</em></h1>
+      <p>Two quantum random sources on opposite sides of the planet. If our world were a computer simulation, maybe its dice would slip now and then. This instrument watches, live, for any sign of it.</p>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite">
+      <div class="lbl">Reality status</div>
+      <div class="state"><span class="lamp" aria-hidden="true"></span><b id="stateWord">NOMINAL</b></div>
+      <div class="readouts">
+        <div><span>Watching for</span><b id="rTime">0:00</b></div>
+        <div><span>Bits checked</span><b id="rBits">0</b></div>
+        <div><span>Real glitches</span><b id="rGlitch">0</b></div>
+      </div>
+      <p class="why" id="why">All checks normal. The universe looks fair.</p>
+    </div>
+  </section>
+
+  <section class="unit link" aria-label="The two stations">
+    <svg viewBox="0 0 1000 150" role="img" aria-label="Station A in Oregon linked to Station B in Australia, about 12,600 kilometres apart">
+      <path d="M90 110 Q500 -20 910 110" fill="none" stroke="#C9CAC3" stroke-width="10" stroke-linecap="round"/>
+      <path class="pulse" d="M90 110 Q500 -20 910 110" fill="none" stroke="#F25C05" stroke-width="10" stroke-linecap="round"/>
+      <path class="pulse rev" d="M90 110 Q500 -20 910 110" fill="none" stroke="#2F6FDB" stroke-width="10" stroke-linecap="round" style="animation-delay:-.7s"/>
+      <circle cx="90" cy="110" r="22" fill="#F25C05"/><text x="90" y="118" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="700" font-size="24" fill="#fff">A</text>
+      <circle cx="910" cy="110" r="22" fill="#2F6FDB"/><text x="910" y="118" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="700" font-size="24" fill="#fff">B</text>
+    </svg>
+    <p class="linkcap">About 12,600 km apart. Light takes 42 thousandths of a second to cross between them. Nothing should connect what they do.</p>
+  </section>
+
+  <div class="grid" id="stations"></div>
+
+  <section class="unit">
+    <h2 class="lbl">The drift chart</h2>
+    <canvas id="trace" aria-label="Running drift of each station and of their agreement, inside the range luck normally stays in"></canvas>
+    <div class="key"><span><i style="background:var(--a)"></i>Station A drift</span><span><i style="background:var(--b)"></i>Station B drift</span><span><i style="background:#C38BFF"></i>how often they agree</span><span><i style="background:rgba(155,243,201,.35);height:12px;vertical-align:-1px"></i>where luck normally stays</span></div>
+    <p class="note">Each line wanders like a drunk walker: up for every extra 1, down for every extra 0. Fair dice keep it inside the shaded zone almost all the time. A line that breaks out and keeps going would be a real sign of trouble.</p>
+  </section>
+
+  <section class="unit">
+    <h2 class="lbl">Live checks (this session)</h2>
+    <div class="checks" id="checks"></div>
+  </section>
+
+  <section class="unit">
+    <div class="row"><h2 class="lbl">Glitch log</h2><button class="btn" id="inject">Send a fake glitch</button></div>
+    <p class="note" style="margin:0 0 12px">Every 10 seconds the detector runs four checks on the newest batch of bits. Odd results get written here. The button tilts Station B for 10 seconds, so you can see the detector catch it.</p>
+    <ul class="log" id="log"><li class="quiet">Nothing odd yet. That's what a fair universe looks like.</li></ul>
+  </section>
+
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode. Both stations are stood in for by your browser's generator.</span></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The idea</h3>
+  <p>Some scientists and philosophers have asked whether our universe could be a giant computer simulation. If it were, it might cut corners. Quantum events are the most truly random things we know of, so if the "dice" of reality ever slipped, a quantum random source is a good place to look.</p>
+  <h3>The two stations</h3>
+  <p><strong>Station A</strong> is this lab's own quantum random number generator, a USB stick from Crypta Labs in Oak Grove, Oregon, that measures tiny particles of light. <strong>Station B</strong> is planned to be a public quantum source in Canberra, Australia, nearly on the other side of the world. Each one streams 1s and 0s that should be perfectly fair and perfectly unconnected to each other.</p>
+  <h3>What it checks</h3>
+  <p>Four things, all the time: is each station giving 1s and 0s equally often? Do the two stations agree with each other half the time, the way unconnected coins should? And are there any suspiciously long streaks, like 30 heads in a row?</p>
+  <h3>Odd results happen. That's the trick.</h3>
+  <p>Luck alone makes a "1 in 1,000" result here about once every 40 minutes, because the detector runs over 1,400 checks an hour. So a single odd moment means nothing. Scientists call this the look-elsewhere effect. The detector only says "glitch" for something rarer than 1 in a million, which pure luck should produce about once every month of non-stop watching. And even then, the real test is whether it happens again.</p>
+  <h3>The fake glitch button</h3>
+  <p>It quietly makes Station B give 1s about 56% of the time for 10 seconds. That's a small tilt you'd never notice by eye, but the detector should catch it within one or two checks. It shows the instrument works.</p>
+  <h3>Right now: demo mode</h3>
+  <p>Until the quantum stick and the Australian link are switched on, both stations are stood in for by your web browser's random number maker. The checks, chart and alarms all work the same way. When the real sources are connected, the station tags will say LIVE and the dot at the bottom will turn green.</p>
+  <h3>Has anyone found a glitch?</h3>
+  <p>Not convincingly. A long-running project at Princeton, the Global Consciousness Project, ran random number generators around the world for decades and claimed small effects, but most scientists aren't persuaded. So far, reality looks fair.</p>
+</template>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Stations =================
+  // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const STATIONS = [
+    { id: 'A', color: '#F25C05', name: 'Station A', place: 'Oak Grove, Oregon, USA', device: 'Crypta Labs Cicada quantum generator', ENDPOINT: '' },
+    { id: 'B', color: '#2F6FDB', name: 'Station B', place: 'Canberra, Australia', device: 'public quantum source (planned)', ENDPOINT: '' }
+  ];
+  const RATE = 2000;            // bits per second per station
+  const WINDOW = 10;            // seconds per batch of checks
+  STATIONS.forEach(s => Object.assign(s, { pool: [], live: false, fetching: false, n: 0, ones: 0, wN: 0, wOnes: 0, run: 0, last: -1, wLongest: 0, longest: 0, recent: [], drift: 0 }));
+
+  async function topUp(s) {
+    if (!s.ENDPOINT || s.fetching || s.pool.length > 1024) return; s.fetching = true;
+    try { const r = await fetch(s.ENDPOINT + '?n=1024', { cache: 'no-store' }); const j = await r.json();
+      if (j.ok && Array.isArray(j.values)) { s.pool.push(...j.values); s.live = true; } else s.live = false; } catch (e) { s.live = false; }
+    s.fetching = false; paintTags();
+  }
+  const buf = new Uint8Array(4096); let bp = buf.length;
+  function localByte() { if (bp >= buf.length) { crypto.getRandomValues(buf); bp = 0; } return buf[bp++]; }
+  function bitsFrom(s, count, tilt) {
+    const out = new Uint8Array(count);
+    if (tilt) { for (let i = 0; i < count; i++) out[i] = localByte() < 143 ? 1 : 0; return out; }   // test signal: about 56% ones
+    for (let i = 0; i < count; i += 8) {
+      let b; if (s.live && s.pool.length) b = s.pool.shift(); else b = localByte();
+      for (let j = 0; j < 8 && i + j < count; j++) out[i + j] = (b >> j) & 1;
+    }
+    if (s.ENDPOINT && s.pool.length < 512) topUp(s);
+    return out;
+  }
+
+  // ================= Station panels =================
+  STATIONS.forEach(s => {
+    const el = document.createElement('section'); el.className = 'unit station';
+    el.innerHTML = `<header><div><h3><i style="background:${s.color}">${s.id}</i>${s.name}</h3><div class="where">${s.place}</div></div><span class="tag" data-tag>DEMO</span></header>
+      <div class="bits" data-bits aria-hidden="true"></div>
+      <div class="meters">
+        <div class="meter"><div class="lbl">1s in the last 10 s</div><div class="v" data-pct>50.0%</div><div class="gauge"><span class="needle" data-needle></span></div></div>
+        <div class="meter"><div class="lbl">Longest streak</div><div class="v" data-run>0</div><div class="s" data-runs>same digit in a row</div></div>
+      </div>`;
+    $('stations').appendChild(el);
+    s.el = { tag: el.querySelector('[data-tag]'), bits: el.querySelector('[data-bits]'), pct: el.querySelector('[data-pct]'), needle: el.querySelector('[data-needle]'), run: el.querySelector('[data-run]'), runs: el.querySelector('[data-runs]') };
+    s.el.tag.title = s.device;
+  });
+  function paintTags() {
+    STATIONS.forEach(s => { s.el.tag.textContent = s.live ? 'LIVE · QUANTUM' : s.ENDPOINT ? 'OFFLINE · DEMO' : 'DEMO'; s.el.tag.classList.toggle('live', s.live); });
+    const live = STATIONS.filter(s => s.live).length;
+    $('source').classList.toggle('quantum', live > 0);
+    $('sourceText').textContent = live === 2 ? 'Randomness: both stations live and quantum.'
+      : live === 1 ? `Randomness: ${STATIONS.find(s => s.live).name} is live and quantum; the other is in demo mode.`
+      : "Randomness: demo mode. Both stations are stood in for by your browser's generator.";
+  }
+  paintTags(); STATIONS.forEach(topUp);
+
+  // ================= Math helpers =================
+  function erfc(x) {   // Numerical Recipes erfc, plenty accurate here
+    const z = Math.abs(x), t = 1 / (1 + .5 * z);
+    const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (.37409196 + t * (.09678418 + t * (-.18628806 + t * (.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-.82215223 + t * .17087277)))))))));
+    return x >= 0 ? r : 2 - r;
+  }
+  const pTwo = z => erfc(Math.abs(z) / Math.SQRT2);                     // chance luck lands this far out, either way
+  const pRun = (n, r) => 1 - Math.exp(-n * Math.pow(2, -r));            // chance of a streak this long somewhere in n bits
+  const oneIn = p => { const v = 1 / Math.max(p, 1e-15); return v < 10 ? v.toFixed(1) : v < 1e6 ? Math.round(v).toLocaleString() : v < 1e9 ? (v / 1e6).toFixed(1) + ' million' : 'billions'; };
+  const level = p => p < 1e-6 ? 'bad' : p < 1e-3 ? 'warn' : 'ok';
+
+  // ================= The detector =================
+  let agreeN = 0, agree = 0, wAgreeN = 0, wAgree = 0, driftX = 0, totalBits = 0, glitches = 0, started = performance.now(), windowStart = started;
+  let tiltUntil = 0, alertUntil = 0, alertKind = 'ok', alertWhy = '', windowTilted = false;
+  const trace = [];   // {n, a, b, x}
+
+  function tick() {
+    const now = performance.now(), tilt = now < tiltUntil; if (tilt) windowTilted = true;
+    const count = Math.round(RATE / 10);
+    const A = bitsFrom(STATIONS[0], count, false), B = bitsFrom(STATIONS[1], count, tilt);
+    [[STATIONS[0], A], [STATIONS[1], B]].forEach(([s, bits]) => {
+      for (const b of bits) {
+        s.n++; s.wN++; s.ones += b; s.wOnes += b; s.drift += b ? 1 : -1;
+        if (b === s.last) s.run++; else { s.run = 1; s.last = b; }
+        if (s.run > s.wLongest) s.wLongest = s.run; if (s.run > s.longest) s.longest = s.run;
+      }
+      s.recent = s.recent.concat([...bits.slice(-48)]).slice(-48);
+    });
+    for (let i = 0; i < count; i++) { const same = A[i] === B[i] ? 1 : 0; agree += same; wAgree += same; driftX += same ? 1 : -1; }
+    agreeN += count; wAgreeN += count; totalBits += 2 * count;
+    if (now - windowStart >= WINDOW * 1000) closeWindow(now);
+  }
+
+  function closeWindow(now) {
+    const [A, B] = STATIONS, test = windowTilted;
+    const checks = [
+      { what: `${A.name} 1s vs 0s`, p: pTwo((A.wOnes - A.wN / 2) / Math.sqrt(A.wN / 4)), detail: `${(A.wOnes / A.wN * 100).toFixed(2)}% 1s` },
+      { what: `${B.name} 1s vs 0s`, p: pTwo((B.wOnes - B.wN / 2) / Math.sqrt(B.wN / 4)), detail: `${(B.wOnes / B.wN * 100).toFixed(2)}% 1s` },
+      { what: 'A and B agreeing', p: pTwo((wAgree - wAgreeN / 2) / Math.sqrt(wAgreeN / 4)), detail: `agreed ${(wAgree / wAgreeN * 100).toFixed(2)}% of the time` },
+      { what: 'Streaks', p: Math.min(pRun(A.wN, A.wLongest), pRun(B.wN, B.wLongest)), detail: `longest streak ${Math.max(A.wLongest, B.wLongest)} in a row` }
+    ];
+    checks.forEach(c => {
+      const lv = level(c.p); if (lv === 'ok') return;
+      const kind = test ? 'test' : lv;
+      if (lv === 'bad' && !test) glitches++;
+      const verdict = test ? 'Caught the test signal.' : lv === 'bad' ? 'Rarer than 1 in a million. Watch whether it happens again.' : 'Odd, but luck does this about every 40 minutes here.';
+      log(kind, `<b>${c.what}</b>: ${c.detail}. Luck alone: about 1 in ${oneIn(c.p)}. ${verdict}`);
+      const rank = { warn: 1, bad: 2, test: 3 };
+      if (!(now < alertUntil && rank[alertKind] > rank[kind])) { alertKind = kind; alertUntil = now + (kind === 'warn' ? 15000 : 30000); alertWhy = `${c.what}: about 1 in ${oneIn(c.p)}.`; }
+    });
+    STATIONS.forEach(s => { s.lastPct = s.wOnes / s.wN; s.lastRun = s.wLongest; s.wN = 0; s.wOnes = 0; s.wLongest = 0; });
+    wAgreeN = 0; wAgree = 0; windowStart = now; windowTilted = false;
+    trace.push({ n: agreeN, a: STATIONS[0].drift, b: STATIONS[1].drift, x: driftX });
+    if (trace.length > 2000) for (let i = 1; i < trace.length; i++) trace.splice(i, 1);   // thin out old points
+    paintChecks(); saveWatched();
+  }
+
+  let logEmpty = true;
+  function log(kind, html) {
+    const el = $('log'); if (logEmpty) { el.innerHTML = ''; logEmpty = false; }
+    const li = document.createElement('li'); li.className = kind;
+    li.innerHTML = `<time>${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</time><span>${html}</span>`;
+    el.prepend(li); while (el.children.length > 40) el.lastChild.remove();
+  }
+
+  // ================= Painting =================
+  const fmtTime = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}` : `${m}:${String(ss).padStart(2, '0')}`; };
+  function paintFast() {
+    const now = performance.now();
+    STATIONS.forEach(s => {
+      s.el.bits.innerHTML = s.recent.map(b => b ? '<b>1</b>' : '0').join('');
+      const pct = s.wN > 200 ? s.wOnes / s.wN : (s.lastPct ?? .5);
+      s.el.pct.textContent = (pct * 100).toFixed(1) + '%';
+      s.el.needle.style.left = Math.max(2, Math.min(98, 50 + (pct - .5) * 1000)) + '%';   // full scale is 45% to 55%
+      s.el.run.textContent = s.longest; s.el.runs.textContent = `same digit in a row (luck expects about ${Math.round(Math.log2(Math.max(2, s.n)))})`;
+    });
+    $('rTime').textContent = fmtTime(now - started);
+    $('rBits').textContent = totalBits.toLocaleString();
+    $('rGlitch').textContent = glitches;
+    const st = $('status'), tilting = now < tiltUntil;
+    const kind = tilting ? 'test' : now < alertUntil ? alertKind : 'ok';
+    st.className = 'status' + (kind === 'ok' ? '' : ' ' + kind);
+    $('stateWord').textContent = { ok: 'NOMINAL', warn: 'CURIOUS', bad: 'GLITCH?', test: 'TEST SIGNAL' }[kind];
+    $('why').textContent = tilting ? 'Station B is being tilted on purpose. Watch the checks.' : kind === 'ok' ? 'All checks normal. The universe looks fair.' : alertWhy;
+  }
+
+  function paintChecks() {
+    const [A, B] = STATIONS;
+    const z = (k, n) => n ? (k - n / 2) / Math.sqrt(n / 4) : 0;
+    const rows = [
+      [`${A.name} is fair`, `${(A.ones / Math.max(1, A.n) * 100).toFixed(3)}% 1s out of ${A.n.toLocaleString()} bits`, pTwo(z(A.ones, A.n))],
+      [`${B.name} is fair`, `${(B.ones / Math.max(1, B.n) * 100).toFixed(3)}% 1s out of ${B.n.toLocaleString()} bits`, pTwo(z(B.ones, B.n))],
+      ['The stations are unconnected', `they agreed ${(agree / Math.max(1, agreeN) * 100).toFixed(3)}% of the time (should be 50%)`, pTwo(z(agree, agreeN))],
+      ['No impossible streaks', `longest: ${Math.max(A.longest, B.longest)} in a row`, Math.min(pRun(A.n, A.longest), pRun(B.n, B.longest))]
+    ];
+    $('checks').innerHTML = rows.map(([t, d, p]) => `<div class="check ${level(p)}"><span class="dot" aria-hidden="true"></span><div><b>${t}</b><span>${d}</span></div>
+      <div class="r">${p > .05 ? 'Normal' : '1 in ' + oneIn(p)}<small>${p > .05 ? 'well within luck' : 'how often luck does this'}</small></div></div>`).join('');
+  }
+
+  const cv = $('trace'), cx = cv.getContext('2d');
+  function chart() {
+    const dpr = Math.min(devicePixelRatio || 1, 2), W = cv.clientWidth * dpr, H = cv.clientHeight * dpr;
+    if (!W) return; if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    cx.clearRect(0, 0, W, H);
+    const pts = [{ n: 0, a: 0, b: 0, x: 0 }, ...trace, { n: agreeN, a: STATIONS[0].drift, b: STATIONS[1].drift, x: driftX }];
+    const N = Math.max(RATE * 60, agreeN), lim = Math.max(3 * Math.sqrt(N), ...pts.map(p => Math.max(Math.abs(p.a), Math.abs(p.b), Math.abs(p.x)))) * 1.1;
+    const padL = 12 * dpr, padR = 12 * dpr, X = n => padL + n / N * (W - padL - padR), Y = v => H / 2 - v / lim * (H / 2 - 14 * dpr);
+    cx.fillStyle = 'rgba(155,243,201,.12)'; cx.beginPath();
+    for (let i = 0; i <= 120; i++) { const n = N * i / 120; cx.lineTo(X(n), Y(2 * Math.sqrt(n))); }
+    for (let i = 120; i >= 0; i--) { const n = N * i / 120; cx.lineTo(X(n), Y(-2 * Math.sqrt(n))); } cx.fill();
+    cx.strokeStyle = 'rgba(155,243,201,.35)'; cx.lineWidth = dpr; cx.setLineDash([5 * dpr, 6 * dpr]); cx.beginPath(); cx.moveTo(padL, H / 2); cx.lineTo(W - padR, H / 2); cx.stroke(); cx.setLineDash([]);
+    [['x', '#C38BFF'], ['b', '#5E95F2'], ['a', '#FF7A2E']].forEach(([k, c]) => {
+      cx.strokeStyle = c; cx.lineWidth = 2.5 * dpr; cx.lineJoin = 'round'; cx.beginPath();
+      pts.forEach((p, i) => i ? cx.lineTo(X(p.n), Y(p[k])) : cx.moveTo(X(p.n), Y(p[k]))); cx.stroke();
+    });
+    cx.fillStyle = '#7C8B86'; cx.font = `${12 * dpr}px "IBM Plex Mono", monospace`;
+    cx.fillText(`${(N / 1e6 >= 1 ? (N / 1e6).toFixed(1) + ' million' : Math.round(N / 1000) + ' thousand')} pairs of bits`, W - padR - 220 * dpr, H - 8 * dpr);
+  }
+
+  // ================= Controls, saving, loop =================
+  $('inject').onclick = () => {
+    tiltUntil = performance.now() + 10000; $('inject').disabled = true;
+    log('test', '<b>Test signal sent.</b> Station B will give about 56% 1s for the next 10 seconds.');
+    setTimeout(() => $('inject').disabled = false, 12000);
+  };
+  let watchedBefore = 0; try { watchedBefore = +localStorage.getItem('lab-glitch-ms') || 0; } catch (e) {}
+  let savedAt = performance.now();
+  function saveWatched() { const now = performance.now(); watchedBefore += now - savedAt; savedAt = now; try { localStorage.setItem('lab-glitch-ms', String(Math.round(watchedBefore))); } catch (e) {} }
+  if (watchedBefore > 60000) log('quiet', `This device has watched for ${fmtTime(watchedBefore)} before today's session. No glitch yet.`);
+
+  let last = performance.now();
+  setInterval(() => {   // catch up after the tab was in the background, but never by more than a few seconds
+    const now = performance.now(); let steps = Math.min(30, Math.round((now - last) / 100)); last = now;
+    while (steps-- > 0) tick();
+  }, 100);
+  function frame() { requestAnimationFrame(frame); paintFast(); chart(); }
+  paintChecks(); requestAnimationFrame(frame);
+  setInterval(() => { if (document.visibilityState === 'visible' && window.labTrack) labTrack('minute'); }, 60000);
+})();
+</script>
+</body>
+</html>
