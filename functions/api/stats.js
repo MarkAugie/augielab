@@ -8,7 +8,7 @@ function sameKey(a, b) {
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 export async function onRequestGet({ request, env }) {
-  if (!env.STATS_KEY || !env.DB) return json({ ok: false, error: 'setup' }, 503);
+  if (!env.STATS_KEY || !env.DB) return json({ ok: false, error: 'setup', missing: [!env.DB && 'DB', !env.STATS_KEY && 'STATS_KEY'].filter(Boolean) }, 503);
   const key = new URL(request.url).searchParams.get('key') || '';
   if (!sameKey(key, env.STATS_KEY)) return json({ ok: false, error: 'key' }, 401);
   await ensureTable(env.DB);
