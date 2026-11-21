@@ -14,10 +14,13 @@ export async function ensureTable(db) {
 
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 
+export const dbOf = env => env.DB || env['augielab--stats'] || env['augielab-stats'] || env.augielab_stats;
+
 export async function onRequestPost({ request, env }) {
+  const DB = dbOf(env);
   const done = new Response(null, { status: 204 });
   try {
-    if (!env.DB) return done;
+    if (!DB) return done;
     const b = await request.json().catch(() => ({}));
     const page = PAGES.includes(b.page) ? b.page : null;
     const kind = KINDS.includes(b.kind) ? b.kind : null;
@@ -28,8 +31,8 @@ export async function onRequestPost({ request, env }) {
     if (kind === 'view' && b.ref) {
       try { const h = new URL(b.ref).hostname.replace(/^www\./, ''); if (!/augielab\.(dev|pages\.dev)$/.test(h)) ref = h.slice(0, 60); } catch (e) {}
     }
-    await ensureTable(env.DB);
-    await env.DB.prepare(`INSERT INTO hits (day, page, kind, country, ref, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+    await ensureTable(DB);
+    await DB.prepare(`INSERT INTO hits (day, page, kind, country, ref, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
       ON CONFLICT (day, page, kind, country, ref) DO UPDATE SET n = n + excluded.n`)
       .bind(today(), page, kind, country, ref, n).run();
   } catch (e) {}
