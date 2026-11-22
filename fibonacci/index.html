@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coincidence Hunter · AugieLab</title>
+<meta name="description" content="Quantum random digits pour in while the hunter looks for Fibonacci runs like 2-3-5-8. How often does pure chance fake a pattern?">
+<meta property="og:title" content="The Coincidence Hunter">
+<meta property="og:description" content="Random digits, a sunflower, and Fibonacci runs that appear by pure chance. Exactly as often as the math says.">
+<meta property="og:url" content="https://augielab.dev/fibonacci/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #0D1912; --leaf: #16291E; --leaf2: #1D3527; --line: #2F4C39;
+    --text: #F4EFE2; --dim: #B9C7B8; --soft: #8FA192;
+    --l3: #E8A33A; --l4: #FFD447; --l5: #FFF3C4;   /* run highlights: 3, 4, 5+ */
+    --petal: #F2B705;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--night); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 120% 900px at 25% 0%, #1F3A2A, var(--night) 70%) no-repeat, var(--night); }
+  a { color: inherit; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+
+  header { margin: 4px 0 22px; }
+  h1 { font: 800 clamp(2.5rem, 7vw, 4.4rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; color: var(--l4); }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 52ch; }
+  .rule { display: inline-block; margin-top: 14px; padding: 8px 16px; border-radius: 18px;
+    background: rgba(255,212,71,.1); border: 1px solid rgba(255,212,71,.35); font-size: 1rem; color: #F5E7B8; }
+  .rule b { white-space: nowrap; font: 600 1.05rem "IBM Plex Mono", monospace; color: var(--l4); }
+
+  .lab { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 30px; align-items: start; }
+  .flower { position: relative; width: 100%; aspect-ratio: 1; }
+  .flower canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .flowercap { text-align: center; color: var(--soft); font-size: .92rem; margin-top: 6px; }
+  .key { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin-top: 6px; font-size: .92rem; color: var(--dim); }
+  .key i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+  .panel { background: rgba(22,41,30,.82); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .lbl { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .big { font: 600 clamp(1.9rem, 4vw, 2.7rem)/1.1 "IBM Plex Mono", monospace; margin-top: 2px; }
+  .big.gold { color: var(--l4); }
+  .bestdigits { font: 600 1.05rem "IBM Plex Mono", monospace; color: var(--l5); margin-top: 2px; min-height: 1.5em; }
+  .odds { font-size: .95rem; color: var(--dim); }
+
+  .stream { margin-top: 16px; }
+  .digits { font: 600 1.45rem/1.6 "IBM Plex Mono", monospace; letter-spacing: .04em; color: #8FA192; min-height: 5.2em;
+    word-break: break-all; margin-top: 6px; }
+  .digits span { border-radius: 4px; padding: 0 1px; }
+  .digits .h3 { color: #1A1206; background: var(--l3); }
+  .digits .h4 { color: #1A1206; background: var(--l4); }
+  .digits .h5 { color: #1A1206; background: var(--l5); box-shadow: 0 0 12px rgba(255,243,196,.7); }
+  .digits .new { color: var(--text); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .btn { font: 600 1.02rem "IBM Plex Sans", sans-serif; padding: 12px 18px; border-radius: 8px; cursor: pointer;
+    color: var(--text); background: var(--leaf2); border: 1px solid #44664F; }
+  .btn:hover { border-color: var(--text); }
+  .btn.primary { background: var(--l4); color: #1A1206; border-color: var(--l4); }
+  .btn.primary:hover { background: #FFE27A; }
+  .btn.on { background: var(--l3); color: #1A1206; border-color: var(--l3); }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--l4); outline-offset: 2px; }
+
+  .verdict { margin-top: 16px; padding: 12px 16px; border-radius: 10px; background: rgba(255,212,71,.08); border: 1px solid rgba(255,212,71,.25);
+    font-size: 1.05rem; min-height: 3.4em; }
+  .verdict b { color: var(--l4); }
+
+  /* ---------- scoreboard ---------- */
+  h2 { font: 600 1.6rem/1.2 "Fraunces", Georgia, serif; }
+  .board { margin-top: 30px; }
+  .board p.note { color: var(--dim); margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 1.02rem; }
+  th { text-align: left; font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--soft);
+    padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px; border-bottom: 1px solid rgba(47,76,57,.6); vertical-align: middle; }
+  td.num, th.num { text-align: right; font-family: "IBM Plex Mono", monospace; }
+  td.ex { font: 600 1.05rem "IBM Plex Mono", monospace; white-space: nowrap; }
+  td .chip { display: inline-block; min-width: 1.7em; text-align: center; padding: 1px 8px; border-radius: 999px; font: 700 .95rem "IBM Plex Mono", monospace; color: #1A1206; }
+  .found { font-weight: 600; font-size: 1.15rem; }
+  .meter { width: 120px; height: 10px; border-radius: 6px; background: rgba(255,255,255,.08); position: relative; display: inline-block; vertical-align: middle; }
+  .meter b { position: absolute; top: -3px; width: 4px; height: 16px; border-radius: 2px; background: var(--l4); transform: translateX(-2px); }
+  .meter::after { content: ""; position: absolute; left: 50%; top: -5px; height: 20px; border-left: 2px dashed rgba(244,239,226,.45); }
+  td.fit { white-space: nowrap; color: var(--dim); font-size: .95rem; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+  .cards p { color: var(--dim); margin-top: 4px; }
+  .fibline { font: 600 1.35rem/1.6 "IBM Plex Mono", monospace; margin-top: 12px; word-break: break-all; color: #5E7363; }
+  .fibline .got { color: #1A1206; background: var(--l4); border-radius: 4px; }
+  .own { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .own input { flex: 1 1 10rem; min-width: 0; font: 600 1.3rem "IBM Plex Mono", monospace; letter-spacing: .08em; padding: 10px 14px;
+    border-radius: 8px; color: var(--text); background: #0F1F16; border: 1px solid #44664F; }
+  .ownres { margin-top: 12px; font-size: 1.05rem; min-height: 3em; }
+  .ownres b { color: var(--l4); font-family: "IBM Plex Mono", monospace; }
+
+  .finds { list-style: none; margin-top: 10px; }
+  .finds li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: .98rem; color: var(--dim);
+    animation: pop .5s ease; }
+  .finds li b { font: 600 1.1rem "IBM Plex Mono", monospace; color: var(--l4); letter-spacing: .05em; }
+  .finds li.empty { color: var(--soft); animation: none; }
+  @keyframes pop { from { background: rgba(255,212,71,.25); } }
+
+  .source { margin-top: 28px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 900px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; }
+    .lab, .cards { grid-template-columns: 1fr; gap: 20px; }
+    .hide-sm { display: none; }
+    .meter { width: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .finds li { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">AugieLab</a></div>
+
+  <header>
+    <h1>The coincidence <em>hunter</em></h1>
+    <p class="sub">Quantum random digits pour in. Every time pure chance fakes a Fibonacci pattern, the sunflower lights up. Watch how often it happens, and how exactly the math predicts it.</p>
+    <div class="rule">The pattern: each digit is the two before it added together, like <b>2 3 5 8</b></div>
+  </header>
+
+  <main>
+    <div class="lab">
+      <div>
+        <div class="flower"><canvas id="flower" aria-label="A sunflower made of random digits. Seeds that belong to a Fibonacci run glow."></canvas></div>
+        <div class="flowercap" id="flowerCap">Each seed is one random digit, set at the golden angle like a real sunflower.</div>
+        <div class="key">
+          <span><i style="background:var(--l3)"></i>run of 3</span>
+          <span><i style="background:var(--l4)"></i>run of 4</span>
+          <span><i style="background:var(--l5);box-shadow:0 0 8px var(--l5)"></i>run of 5 or more</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="stats">
+            <div><div class="lbl">Digits hunted</div><div class="big" id="nDigits">0</div></div>
+            <div><div class="lbl">Longest run found</div><div class="big gold" id="best">—</div><div class="odds" id="bestUnit"></div>
+              <div class="bestdigits" id="bestDigits"></div><div class="odds" id="bestOdds"></div></div>
+          </div>
+          <div class="stream">
+            <div class="lbl">The newest digits</div>
+            <div class="digits" id="digits" aria-hidden="true">Press Hunt to start the stream…</div>
+          </div>
+          <div class="controls">
+            <button class="btn primary" data-n="1000">Hunt 1,000 digits</button>
+            <button class="btn" data-n="10000">Hunt 10,000</button>
+            <button class="btn" data-n="100000">Hunt 100,000</button>
+            <button class="btn" id="auto">Keep hunting</button>
+            <button class="btn" id="reset">Start over</button>
+          </div>
+          <div class="verdict" id="verdict" aria-live="polite">The hunter counts every Fibonacci run that chance makes, and compares it to what the math says to expect.</div>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <div class="lbl">Rare finds (runs of 4 or more)</div>
+          <ul class="finds" id="finds"><li class="empty">Nothing yet. Runs of 4 show up about once in every 345 digits.</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <section class="board panel" aria-labelledby="boardTitle">
+      <h2 id="boardTitle">Found by chance vs. what the math expects</h2>
+      <p class="note">Every possible spot in the stream is checked. "Math expects" is how many a perfectly fair random source should make by now.</p>
+      <table>
+        <thead><tr><th>Run</th><th class="hide-sm">Example</th><th class="num">Found</th><th class="num">Math expects</th><th class="num hide-sm">Odds per spot</th><th class="hide-sm">Fit</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+
+    <div class="cards">
+      <section class="panel" aria-labelledby="realTitle">
+        <h2 id="realTitle">Hunting the real Fibonacci</h2>
+        <p>How far into the actual sequence 1, 1, 2, 3, 5, 8, 13, 21… has the stream gotten, digit by digit, anywhere so far? Each extra digit is 10 times rarer.</p>
+        <div class="fibline" id="fibLine"></div>
+        <div class="ownres" id="fibRes"></div>
+      </section>
+      <section class="panel" aria-labelledby="ownTitle">
+        <h2 id="ownTitle">Hunt for your own number</h2>
+        <p>Your birthday, your old phone extension, a lucky number. Type up to 8 digits and see how often chance "finds" it.</p>
+        <div class="own">
+          <input id="ownIn" inputmode="numeric" maxlength="8" placeholder="e.g. 1960" aria-label="Your number, up to 8 digits">
+          <button class="btn primary" id="ownGo">Hunt it</button>
+        </div>
+        <div class="ownres" id="ownRes" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <div class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></div>
+  </main>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>What you're looking at</h3>
+  <p>A stream of random digits, 0 through 9, pours in. The hunter checks every spot in the stream for a Fibonacci-style run: digits where each one is the two before it added together, like 2 3 5 8 (2+3=5, 3+5=8) or 1 4 5 9. Each digit also becomes a seed in the sunflower, and seeds that belong to a run light up.</p>
+  <h3>How often chance makes a pattern</h3>
+  <p>A run of 3 shows up about once every 19 digits. A run of 4, about once every 345. A run of 5, once in about 9,100. A run of 6, once in 200,000. The longest one possible with single digits is 1 0 1 1 2 3 5 8, and it shows up about once in 100 million. Hunt enough digits and they all appear, right on schedule. The table compares what the stream found to what the math expects.</p>
+  <h3>Why this matters</h3>
+  <p>When you see 2 3 5 8 pop out of random noise, it feels like it means something. It doesn't. Patterns appear in true randomness all the time, at exactly the rate the math predicts. Our brains are built to spot patterns, which is great for finding food and dodging danger, but it also makes us see faces in clouds and "signs" in coincidences. Scientists call this apophenia. This page lets you watch it happen and see that chance did it.</p>
+  <h3>The sunflower</h3>
+  <p>Each new seed is placed 137.5° around from the last one. That's the golden angle, which comes from the Fibonacci numbers. Real sunflowers grow their seeds this way, and the spirals you see usually come in Fibonacci counts like 34 and 55, or 55 and 89. Each flower here holds 1,597 seeds, which is also a Fibonacci number. When it fills up, a new flower starts.</p>
+  <h3>Hunting the real Fibonacci</h3>
+  <p>The real sequence starts 1, 1, 2, 3, 5, 8, 13, 21, 34… Written as one string of digits, that's 1123581321345… The bottom-left card shows the longest piece of that string that has turned up anywhere in the stream. Matching the first 5 digits takes about 100,000 tries on average, and every extra digit takes 10 times longer.</p>
+  <h3>Your own number</h3>
+  <p>Any 4-digit number, like a birth year, should turn up about once every 10,000 digits. Seeing your number appear can feel spooky. It's just arithmetic.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Right now the digits come from your browser's built-in random number maker. It's good, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, the dot at the bottom turns from yellow to green.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [];
+  async function bytes(n) {
+    if (SOURCE.ENDPOINT) {
+      try {
+        while (pool.length < n) {
+          const res = await fetch(SOURCE.ENDPOINT + '?n=' + Math.min(4096, Math.max(n - pool.length, 512)), { cache: 'no-store' });
+          const j = await res.json(); if (!j.ok || !Array.isArray(j.values) || !j.values.length) throw 0;
+          pool.push(...j.values);
+        }
+        setSource(true); return pool.splice(0, n);
+      } catch (e) { setSource(false, true); }
+    }
+    const a = new Uint8Array(n); for (let i = 0; i < n; i += 65536) crypto.getRandomValues(a.subarray(i, Math.min(n, i + 65536)));
+    return a;
+  }
+  function setSource(quantum, fellBack) {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Randomness: quantum, from the ${SOURCE.NAME}.`
+      : fellBack ? 'Randomness: the quantum generator is offline, so this is demo mode from your browser.' : "Randomness: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  // Fair digits 0-9: use bytes 0..249 (250 = 25 × 10), skip 250..255.
+  async function digits(n) {
+    const out = [];
+    while (out.length < n) { const b = await bytes(Math.ceil((n - out.length) * 1.03) + 4); for (let i = 0; i < b.length && out.length < n; i++) if (b[i] < 250) out.push(b[i] % 10); }
+    return out;
+  }
+
+  // ================= The math =================
+  // P(a given spot starts a Fibonacci run of at least k digits), worked out by checking all 100 starting pairs.
+  // A pair of zeros doesn't count (0 0 0 is too boring to be a "pattern").
+  const MAXK = 8, P = [], EXAMPLE = {};
+  for (let k = 3; k <= MAXK; k++) {
+    let n = 0;
+    for (let a = 0; a < 10; a++) for (let b = 0; b < 10; b++) {
+      if (!a && !b) continue; const s = [a, b];
+      while (s.length < 12) { const c = s[s.length - 1] + s[s.length - 2]; if (c > 9) break; s.push(c); }
+      if (s.length >= k) n++;
+    }
+    P[k] = n / 100 * Math.pow(10, -(k - 2));
+  }
+  Object.assign(EXAMPLE, { 3: '2 3 5', 4: '1 3 4 7', 5: '1 2 3 5 8', 6: '2 0 2 2 4 6', 7: '0 1 1 2 3 5 8', 8: '1 0 1 1 2 3 5 8' });
+  const oneIn = k => Math.round(1 / P[k]);
+  const fmt = n => Math.round(n).toLocaleString('en-US');
+  const fmtE = x => x >= 100 ? fmt(x) : x >= 10 ? x.toFixed(1) : x >= .1 ? x.toFixed(2) : x > 0 ? x.toPrecision(1) : '0';
+  const COL = { 3: '#E8A33A', 4: '#FFD447', 5: '#FFF3C4' }; const colOf = k => COL[Math.min(5, k)];
+
+  // The real sequence, written as one string of digits.
+  let FIBS = ''; { let x = 1n, y = 1n; while (FIBS.length < 40) { FIBS += x; [x, y] = [y, x + y]; } FIBS = FIBS.slice(0, 40); }
+  function kmp(p) { const f = Array(p.length).fill(0); for (let i = 1, k = 0; i < p.length; i++) { while (k && p[i] !== p[k]) k = f[k - 1]; if (p[i] === p[k]) k++; f[i] = k; } return f; }
+  const FIBF = kmp(FIBS);
+
+  // ================= State =================
+  const FLOWER = 1597, RECENT = 60;
+  let N, found, cur, prev1, prev2, best, bestRun, finds, fibState, fibBest, fibAt, flowerNo, fDig, fLvl, rDig, rLvl, own;
+  function resetState() {
+    N = 0; found = Array(MAXK + 1).fill(0); cur = 0; prev1 = prev2 = -1; best = 0; bestRun = ''; finds = [];
+    fibState = 0; fibBest = 0; fibAt = 0; flowerNo = 1; fDig = []; fLvl = []; rDig = []; rLvl = [];
+    own = own && own.p ? { p: own.p, f: kmp(own.p), s: 0, n: 0, base: 0 } : null;
+  }
+
+  function feed(d) {
+    // Fibonacci-rule run ending here?
+    if (prev2 >= 0 && !(prev1 === 0 && prev2 === 0) && d === prev1 + prev2) cur = cur ? cur + 1 : 3; else cur = 0;
+    N++;
+    // flower and recent-digit buffers
+    if (fDig.length >= FLOWER) { fDig = []; fLvl = []; flowerNo++; }
+    fDig.push(d); fLvl.push(0); rDig.push(d); rLvl.push(0); if (rDig.length > RECENT) { rDig.shift(); rLvl.shift(); }
+    if (cur) {
+      for (let k = 3; k <= Math.min(cur, MAXK); k++) found[k]++;
+      for (let j = 0; j < cur; j++) {
+        const fi = fLvl.length - 1 - j; if (fi >= 0) fLvl[fi] = Math.max(fLvl[fi], cur);
+        const ri = rLvl.length - 1 - j; if (ri >= 0) rLvl[ri] = Math.max(rLvl[ri], cur);
+      }
+      if (cur >= 4) {
+        const start = N - cur + 1, run = runDigits(cur);
+        if (finds.length && finds[0].start === start) { finds[0].k = cur; finds[0].run = run; } else finds.unshift({ start, k: cur, run });
+        if (finds.length > 6) finds.pop();
+      }
+      if (cur > best) { best = cur; bestRun = runDigits(cur); }
+    }
+    // the real sequence
+    const c = String(d);
+    while (fibState && FIBS[fibState] !== c) fibState = FIBF[fibState - 1];
+    if (FIBS[fibState] === c) fibState++;
+    if (fibState > fibBest) { fibBest = fibState; fibAt = N; }
+    if (fibState === FIBS.length) fibState = FIBF[fibState - 1];
+    // the visitor's own number
+    if (own) {
+      while (own.s && own.p[own.s] !== c) own.s = own.f[own.s - 1];
+      if (own.p[own.s] === c) own.s++;
+      if (own.s === own.p.length) { own.n++; own.s = own.f[own.s - 1]; }
+    }
+    prev2 = prev1; prev1 = d;
+  }
+  function runDigits(k) { // the run's digits, from the recent buffer
+    return rDig.slice(-k).join(' ');
+  }
+
+  // ================= Sunflower =================
+  const cv = $('flower'), x = cv.getContext('2d'); let S = 0;
+  const GOLD = Math.PI * (3 - Math.sqrt(5));
+  const SEED = ['#3B2614', '#432B16', '#4B3119', '#53371B', '#5B3C1E', '#634221', '#6B4824', '#734E27', '#7B5429', '#835A2C'];
+  function sizeFlower() { const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); S = Math.round(r.width * dpr); cv.width = cv.height = S; drawFlower(); }
+  function drawFlower() {
+    if (!S) return;
+    const c = S / 2, R = S * .335, petalR = S * .47;
+    x.clearRect(0, 0, S, S);
+    // petals
+    for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 34; i++) {
+      const a = i / 34 * Math.PI * 2 + ring * Math.PI / 34;
+      x.save(); x.translate(c, c); x.rotate(a);
+      const g = x.createLinearGradient(R * .9, 0, petalR, 0); g.addColorStop(0, ring ? '#C98A06' : '#E0A206'); g.addColorStop(1, ring ? '#E9B10F' : '#F7C531');
+      x.fillStyle = g; x.beginPath(); x.ellipse((R + petalR) / 2 + (ring ? -S * .01 : 0), 0, (petalR - R) / 2 + S * .02, S * (ring ? .03 : .026), 0, 0, Math.PI * 2); x.fill(); x.restore();
+    }
+    // seed bed
+    const bed = x.createRadialGradient(c, c, 0, c, c, R * 1.04); bed.addColorStop(0, '#2A1A0C'); bed.addColorStop(1, '#1A0F06');
+    x.fillStyle = bed; x.beginPath(); x.arc(c, c, R * 1.04, 0, Math.PI * 2); x.fill();
+    // seeds: position i at the golden angle, radius grows with the square root
+    const scale = R / Math.sqrt(FLOWER), sr = scale * .48;
+    for (let i = 0; i < fDig.length; i++) {
+      const a = i * GOLD, r = scale * Math.sqrt(i + .5), px = c + r * Math.cos(a), py = c + r * Math.sin(a), lv = fLvl[i];
+      if (lv >= 5) { x.shadowColor = '#FFF3C4'; x.shadowBlur = sr * 3; } else if (lv === 4) { x.shadowColor = '#FFD447'; x.shadowBlur = sr * 1.6; } else x.shadowBlur = 0;
+      x.fillStyle = lv ? colOf(lv) : SEED[fDig[i]];
+      x.beginPath(); x.arc(px, py, lv ? sr * 1.12 : sr, 0, Math.PI * 2); x.fill();
+    }
+    x.shadowBlur = 0;
+  }
+
+  // ================= Readouts =================
+  const rowsEl = $('rows');
+  for (let k = 3; k <= MAXK; k++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="chip" style="background:${colOf(k)}">${k}</span></td><td class="ex hide-sm">${EXAMPLE[k]}</td>
+      <td class="num found" id="f${k}">0</td><td class="num" id="e${k}">0</td><td class="num hide-sm">1 in ${fmt(oneIn(k))}</td>
+      <td class="fit hide-sm"><span class="meter"><b id="m${k}" style="left:50%"></b></span> <span id="t${k}"></span></td>`;
+    rowsEl.append(tr);
+  }
+  const expected = k => Math.max(0, N - k + 1) * P[k];
+  function render() {
+    $('nDigits').textContent = fmt(N);
+    $('best').textContent = best || '—'; $('bestUnit').textContent = best ? 'digits in a row' : '';
+    $('bestDigits').textContent = bestRun;
+    $('bestOdds').textContent = best ? `About 1 in ${fmt(oneIn(best))} for any one spot` : '';
+    // stream
+    const el = $('digits');
+    if (rDig.length) el.innerHTML = rDig.map((d, i) => { const lv = rLvl[i]; const cls = lv ? `h${Math.min(5, lv)}` : (i >= rDig.length - 3 ? 'new' : ''); return cls ? `<span class="${cls}">${d}</span>` : d; }).join('');
+    // table
+    for (let k = 3; k <= MAXK; k++) {
+      const e = expected(k), f = found[k];
+      $('f' + k).textContent = fmt(f); $('e' + k).textContent = fmtE(e);
+      const sd = Math.sqrt(Math.max(e, 1e-9)), z = e > 0 ? (f - e) / (sd * 1.6) : 0;   // 1.6: overlapping runs wobble a bit more
+      $('m' + k).style.left = (50 + Math.max(-46, Math.min(46, z * 15))) + '%';
+      $('t' + k).textContent = e < 1 && f === 0 ? 'none due yet' : e < 1 && f > 0 ? 'lucky early!' : Math.abs(z) <= 2.5 ? 'right on' : z > 0 ? 'a bit high' : 'a bit low';
+    }
+    // verdict
+    const e4 = expected(4);
+    $('verdict').innerHTML = !N ? 'The hunter counts every Fibonacci run that chance makes, and compares it to what the math says to expect.'
+      : N < 400 ? `<b>${fmt(found[3])}</b> runs of 3 so far. Keep going: runs of 4 take a few hundred digits.`
+      : `Chance made <b>${fmt(found[4])}</b> runs of 4. The math expected about <b>${fmtE(e4)}</b>. ${Math.abs(found[4] - e4) <= 2.5 * 1.6 * Math.sqrt(e4) + 1 ? 'No magic: that is pure chance doing exactly what chance does.' : 'A little off, which happens now and then. Keep hunting and it evens out.'}`;
+    // finds
+    const fl = $('finds');
+    if (finds.length) fl.innerHTML = finds.map(f => `<li><b>${f.run}</b><span>${f.k} in a row · digit #${fmt(f.start)}</span></li>`).join('');
+    else fl.innerHTML = '<li class="empty">Nothing yet. Runs of 4 show up about once in every 345 digits.</li>';
+    // real Fibonacci
+    const show = Math.max(14, fibBest + 4);
+    $('fibLine').innerHTML = `<span class="got">${FIBS.slice(0, fibBest)}</span>${FIBS.slice(fibBest, show)}…`;
+    $('fibRes').innerHTML = !N ? '' : fibBest < 2 ? 'Not even "1 1" yet.'
+      : `Best so far: the first <b>${fibBest}</b> digits, found ending at digit #${fmt(fibAt)}. Odds for any one spot: 1 in ${fmt(Math.pow(10, fibBest))}.`;
+    renderOwnSince();
+    $('flowerCap').textContent = N ? `Flower #${flowerNo}: ${fmt(fDig.length)} of ${fmt(FLOWER)} seeds. Each seed is one random digit.` : 'Each seed is one random digit, set at the golden angle like a real sunflower.';
+  }
+
+  // ================= Hunting =================
+  let queue = 0, auto = false, busy = false, sinceTrack = 0;
+  async function pump() {
+    if (busy) return; busy = true;
+    while (queue > 0 || auto) {
+      const k = auto ? (N < 400 ? 3 : N < 4000 ? 12 : 40) : Math.min(queue, Math.max(4, Math.min(5000, Math.ceil(queue / 40))));
+      const ds = await digits(k);
+      for (const d of ds) feed(d);
+      if (!auto) queue -= k;
+      sinceTrack += k; if (sinceTrack >= 1000) { window.labTrack && labTrack('kdigits', Math.floor(sinceTrack / 1000)); sinceTrack %= 1000; }
+      render(); drawFlower();
+      await new Promise(r => auto && k < 40 ? setTimeout(r, 40) : requestAnimationFrame(r));
+    }
+    busy = false;
+  }
+  document.querySelectorAll('button[data-n]').forEach(b => b.onclick = () => { queue += Number(b.dataset.n); pump(); });
+  const autoBtn = $('auto');
+  const stopAuto = () => { auto = false; autoBtn.classList.remove('on'); autoBtn.textContent = 'Keep hunting'; };
+  autoBtn.onclick = () => { if (auto) return stopAuto(); auto = true; autoBtn.classList.add('on'); autoBtn.textContent = 'Stop'; pump(); };
+  $('reset').onclick = () => { stopAuto(); queue = 0; resetState(); $('digits').textContent = 'Press Hunt to start the stream…'; render(); drawFlower(); };
+
+  // your own number: starts counting from now on
+  function setOwn() {
+    const p = $('ownIn').value.replace(/\D/g, '').slice(0, 8); $('ownIn').value = p;
+    if (!p) { own = null; $('ownRes').textContent = 'Type a number first, up to 8 digits.'; return; }
+    own = { p, f: kmp(p), s: 0, n: 0, base: N };   // counting starts from this moment
+    renderOwnSince();
+  }
+  function renderOwnSince() {
+    if (!own) { $('ownRes').textContent = ''; return; }
+    const seen = N - (own.base || 0), m = own.p.length, e = Math.max(0, seen - m + 1) / Math.pow(10, m);
+    $('ownRes').innerHTML = !seen ? `Hunting for <b>${own.p}</b> from here on. Press a Hunt button.`
+      : `<b>${own.p}</b> turned up <b>${fmt(own.n)}</b> time${own.n === 1 ? '' : 's'} in ${fmt(seen)} digits. Pure chance expects about <b>${fmtE(e)}</b> (one per ${fmt(Math.pow(10, m))} digits).`;
+  }
+  $('ownGo').onclick = setOwn;
+  $('ownIn').addEventListener('keydown', e => { if (e.key === 'Enter') setOwn(); });
+
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(sizeFlower, 150); });
+  resetState(); render(); sizeFlower();
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
