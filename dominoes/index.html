@@ -172,13 +172,14 @@
   <div class="top"><a href="/">AugieLab</a><span>Classic 12-spot dominoes, with the odds on every draw</span></div>
   <header>
     <h1>Dominoes</h1>
-    <p class="sub">The classic game with a double-12 set. Highest double starts, and you play on either end of the line. The coach shows your odds every step of the way.</p>
+    <p class="sub">The classic game with a double-12 set. Highest double starts, and you play on any open end. Pick whether doubles open up their sides. The coach shows your odds every step of the way.</p>
   </header>
 
   <div class="bar">
     <button class="btn" id="newGame">New game</button>
     <div class="seg" role="group" aria-label="Game type"><button data-m="draw" aria-pressed="true">Draw</button><button data-m="block">Block</button></div>
     <div class="pill">Players <button id="pMinus" aria-label="Fewer players">−</button><b id="pN">4</b><button id="pPlus" aria-label="More players">+</button></div>
+    <div class="seg" role="group" aria-label="Doubles"><button data-dbl="plain">Plain doubles</button><button data-dbl="open" aria-pressed="true">Doubles open sides</button></div>
     <div class="seg" role="group" aria-label="Game length"><button data-r="1">1 round</button><button data-r="5" aria-pressed="true">5 rounds</button><button data-r="10">10 rounds</button></div>
     <div class="seg" role="group" aria-label="Computer speed"><button data-s="1400">Relaxed</button><button data-s="850" aria-pressed="true">Normal</button><button data-s="350">Fast</button></div>
   </div>
@@ -190,7 +191,7 @@
         <div class="bone"><svg viewBox="0 0 3 2" aria-hidden="true" id="boneSvg"></svg><div><b id="boneN">—</b><span id="boneTxt">face down in the boneyard</span></div></div>
       </div>
       <div id="seatsRow" class="seatsRow"></div>
-      <div id="lanes"></div>
+      <div id="board" class="board"></div>
       <div class="handbox">
         <div class="hd"><span class="lbl">Your dominoes</span><span id="handInfo"></span></div>
         <div class="hand" id="hand"></div>
@@ -222,6 +223,13 @@
   <p class="source" id="source"><i></i><span id="sourceText">Shuffling: demo mode, from your browser's generator.</span></p>
 </div>
 <style>
+  .board { background: rgba(0,0,0,.12); border-radius: 14px; padding: 4px; }
+  .board svg { display: block; width: 100%; height: auto; max-height: 66vh; margin: 0 auto; }
+  .mk.target { cursor: pointer; }
+  .mk.target .ring { animation: ring 1.1s ease-in-out infinite; }
+  @keyframes ring { 50% { stroke-width: .2; } }
+  @media (prefers-reduced-motion: reduce) { .mk.target .ring { animation: none; } }
+  @media (max-width: 620px) { .board svg { max-height: none; } }
   .seatsRow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
   .seatsRow div { flex: 1 1 140px; background: rgba(0,0,0,.2); border-radius: 12px; padding: 7px 12px; border: 2px solid transparent; }
   .seatsRow div.turn { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.1); }
@@ -232,7 +240,11 @@
 <template id="explain">
   <h2>What's happening?</h2>
   <h3>How the game works</h3>
-  <p>A double-12 set has 91 dominoes. Everyone gets 12 (10 each with five players). Whoever holds the highest double plays it to start the line. After that, each player in turn plays one domino on either end of the line, matching the number showing there. Doubles go crosswise and work like any other domino.</p>
+  <p>A double-12 set has 91 dominoes. Everyone gets 12 (10 each with five players). Whoever holds the highest double plays it to start the line. After that, each player in turn plays one domino on any open end, matching the number showing there. Each open end has a round marker with its number.</p>
+  <h3>Doubles</h3>
+  <p><strong>Doubles open sides</strong> (the house rule): every double is laid crosswise, and when it goes down, its two sides open up too. So a double in the middle of a line adds two new ends to play on, and a starting double can be played on all four ways.</p>
+  <p><strong>Plain doubles</strong>: a double is just one more link in the line, so there are only ever two open ends.</p>
+  <p>When a line runs out of room, it turns a corner, just like on a real table.</p>
   <h3>Draw or Block</h3>
   <p><strong>Draw:</strong> if you can't play, you draw from the boneyard, one at a time, until you get a domino that fits. If the boneyard is empty, you pass.</p>
   <p><strong>Block:</strong> there's no drawing. If you can't play, you pass. The leftover dominoes stay face down and out of play the whole round.</p>
@@ -310,6 +322,8 @@
   // ================= Players and state =================
   const NAMES = [['🙂', 'You', true], ['👵', 'Grandma Dot'], ['🤠', 'Big Earl'], ['🦊', 'Sneaky Pete'], ['🐻', 'Bear']];
   let nP = 4, speed = DEBUG ? 1 : 850, totalRounds = 5, mode = 'draw', gMode = 'draw';
+  let spin = true; try { spin = localStorage.getItem('dom-doubles') !== 'plain'; } catch (e) {}
+  let gSpin = spin, board = [], occ = new Set();
   let players = [], sides = [], center = null, bone = [], roundNo = 0, gameId = 0, turn = -1;
   let roundOver = false, passes = 0, lastPlaced = null, fresh = -1, pick = null, playing = false;
   const luck = { me: { d: 0, e: 0, h: 0 }, cpu: { d: 0, e: 0, h: 0 } };
@@ -319,12 +333,7 @@
   // ================= Rules =================
   function legal(i) {
     const out = [], ends = sides.map(s => s.end);
-    for (const tl of players[i].hand) {
-      if (has(tl, ends[0])) out.push({ tile: tl, t: 0 });
-      if (has(tl, ends[1]) && !(ends[0] === ends[1] && has(tl, ends[0]))) out.push({ tile: tl, t: 1 });
-    }
-    // when both ends show the same number, use the shorter side
-    if (ends[0] === ends[1] && sides[1].tiles.length < sides[0].tiles.length) out.forEach(m => m.t = 1);
+    for (const tl of players[i].hand) ends.forEach((e, t) => { if (has(tl, e)) out.push({ tile: tl, t }); });
     return out;
   }
   const needs = () => [...new Set(sides.map(s => s.end))];
@@ -337,15 +346,71 @@
   // Block: chance a player holding h dominoes (out of the u you can't see) has at least one with these numbers
   function holdOdds(u, fit, h) { if (fit === 0) return 0; let miss = 1; for (let k = 0; k < h; k++) miss *= Math.max(0, (u - fit - k) / (u - k)); return 1 - miss; }
 
-  const sideName = t => t === 0 ? 'the left end' : 'the right end';
+  // ================= The board: where each domino sits =================
+  // Positions are in half-domino-widths. Each open end has a point p on its line and a direction d.
+  let BX = 20, BY = 14, narrow = false;
+  const ARW = { '1,0': '➡', '-1,0': '⬅', '0,-1': '⬆', '0,1': '⬇' };
+  const arrow = sd => ARW[sd.d.join(',')];
+  const sideName = t => `the ${sides[t].end} end ${arrow(sides[t])}`;
+  const mv2 = (p, d, a, n = [0, 0], c = 0) => [p[0] + d[0] * a + n[0] * c, p[1] + d[1] * a + n[1] * c];
+  const perps = d => [[-d[1], d[0]], [d[1], -d[0]]];
+  function rect(p, d, n, a0, a1, c0, c1) {
+    const xs = [], ys = []; for (const a of [a0, a1]) for (const c of [c0, c1]) { const q = mv2(p, d, a, n, c); xs.push(q[0]); ys.push(q[1]); }
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  }
+  const cellsOf = r => { const o = []; for (let x = r.x0; x < r.x1; x++) for (let y = r.y0; y < r.y1; y++) o.push(x + ',' + y); return o; };
+  const over = r => Math.max(0, -BX - r.x0) + Math.max(0, r.x1 - BX) + Math.max(0, -BY - r.y0) + Math.max(0, r.y1 - BY);
+  const isFree = r => cellsOf(r).every(c => !occ.has(c));
+  function putOnBoard(r, axis, match, other, id) {
+    cellsOf(r).forEach(c => occ.add(c));
+    const pos = axis[0] + axis[1] > 0;   // the matching half sits nearest the line it joins
+    board.push({ r, vertical: axis[0] === 0, first: pos ? match : other, second: pos ? other : match, id });
+  }
+  // Work out where a domino goes on an open end: straight on, or around a corner if the way is blocked.
+  function plan(sd, dbl) {
+    const p = sd.p, d = sd.d, ns = perps(d);
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
+    if (sd.side) ns.sort((a, b) => dot(b, sd.side) - dot(a, sd.side));   // each line stacks its rows toward its own side
+    const straight = dbl
+      ? { r: rect(p, d, ns[0], 0, 2, -2, 2), axis: ns[0], np: mv2(p, d, 2), nd: d, opens: ns.map(n => ({ p: mv2(p, d, 1, n, 2), d: n })) }
+      : { r: rect(p, d, ns[0], 0, 4, -1, 1), axis: d, np: mv2(p, d, 4), nd: d };
+    const turns = ns.map(n => ({ r: rect(p, d, n, 0, 2, -1, 3), axis: n, np: mv2(p, d, 1, n, 3), nd: n, turned: true,
+      opens: dbl ? [{ p: mv2(p, d, 2, n, 1), d }, { p: mv2(p, d, 0, n, 1), d: [-d[0], -d[1]] }] : null }));
+    // look ahead: how much connected open table lies past this spot? (avoids dead-end pockets)
+    const room = c => {
+      const mine = new Set(cellsOf(c.r)), seen = new Set(), n = perps(c.nd)[0];
+      const st = [.5, -.5].map(w => mv2(c.np, c.nd, .5, n, w).map(Math.floor));   // the two squares just past the end
+      while (st.length && seen.size < 220) { const q = st.pop(), k = q[0] + ',' + q[1];
+        if (seen.has(k) || occ.has(k) || mine.has(k) || q[0] < -BX || q[0] >= BX || q[1] < -BY || q[1] >= BY) continue;
+        seen.add(k); st.push([q[0] + 1, q[1]], [q[0] - 1, q[1]], [q[0], q[1] + 1], [q[0], q[1] - 1]); }
+      return seen.size; };
+    const ok = c => !over(c.r) && isFree(c.r);
+    const uT = sd.u && turns.find(c => c.nd[0] === sd.u[0] && c.nd[1] === sd.u[1]);
+    if (uT) uT.uturn = true;
+    const good = [straight, ...turns].filter(ok).map(c => ({ c, s: room(c) + (c === straight ? 30 : c === uT ? 40 : 0) + (sd.side && dot(c.nd, sd.side) > 0 ? 20 : 0) }));
+    // a little more room never beats going straight; only a real squeeze makes a line turn
+    if (good.length) return good.sort((x, y) => y.s - x.s)[0].c;
+    // squeezed in: least overlap, then least off the table
+    const cost = c => cellsOf(c.r).filter(k => occ.has(k)).length * 1000 + over(c.r) * 20;
+    const all = [straight, ...turns].sort((x, y) => cost(x) - cost(y));
+    if (DEBUG && cost(all[0]) >= 1000) (window.OVL = window.OVL || []).push({ p, d, n: board.length });
+    return all[0];
+  }
   const verb = (p, you, them) => p.human ? you : them;
   function place(i, mv) {
     const p = players[i], sd = sides[mv.t], tl = mv.tile;
     p.hand.splice(p.hand.indexOf(tl), 1);
-    const q = tl.a === sd.end ? tl.b : tl.a;
-    sd.tiles.push({ p: sd.end, q, id: tl.id }); sd.end = q;
-    passes = 0; lastPlaced = { t: mv.t, k: sd.tiles.length - 1 }; fresh = -1;
-    say(`${p.name} ${verb(p, 'play', 'plays')} <b>${nm(tl)}</b> on ${sideName(mv.t)}.`);
+    const q = tl.a === sd.end ? tl.b : tl.a, where = sideName(mv.t), cameFrom = [-sd.d[0] || 0, -sd.d[1] || 0];
+    const c = plan(sd, isDbl(tl));
+    putOnBoard(c.r, c.axis, sd.end, q, tl.id);
+    sd.u = c.turned && !c.uturn ? [-sd.d[0], -sd.d[1]] : null;   // after a corner, head back the other way (snaking)
+    sd.p = c.np; sd.d = c.nd; sd.end = q; sd.played++;
+    let opened = '';
+    if (isDbl(tl) && gSpin && c.opens) { const o1 = c.opens;
+      // a new branch stacks its rows back toward where its parent line came from
+      o1.forEach(o => { const s2 = perps(o.d).sort((a, b) => (b[0] * cameFrom[0] + b[1] * cameFrom[1]) - (a[0] * cameFrom[0] + a[1] * cameFrom[1]))[0]; sides.push({ end: q, p: o.p, d: o.d, u: null, played: 0, side: s2 }); }); opened = ` Its sides open up: two more ${q} ends.`; }
+    passes = 0; lastPlaced = tl.id; fresh = -1;
+    say(`${p.name} ${verb(p, 'play', 'plays')} <b>${nm(tl)}</b> on ${where}.${opened}`);
     if (!p.hand.length) roundOver = true;
     paint();
   }
@@ -383,7 +448,7 @@
       const t = bone.pop(); p.hand.push(t); fresh = t.id; tries++;
       moves = legal(i); const hit = moves.some(m => m.tile === t);
       const L2 = p.human ? luck.me : luck.cpu; L2.d++; L2.e += odds.p; L2.h += hit ? 1 : 0;
-      const need = odds.n.length > 1 ? `${an(odds.n[0])} or ${an(odds.n[1])}` : an(odds.n[0]);
+      const need = orList(odds.n.map(an));
       if (p.human) say(`You needed ${need} (<b>${pct(odds.p)}</b> chance) and drew <b>${nm(t)}</b>. ${hit ? 'It fits!' : 'No luck.'}`);
       else if (hit) say(`${p.name} drew ${tries === 1 ? 'one' : tries + ' dominoes'} and got ${need}${tries === 1 ? ` (a ${pct(odds.p)} shot)` : ''}.`);
       paint();
@@ -409,11 +474,21 @@
     let si = -1, st = null;
     players.forEach((p, k) => p.hand.forEach(t => { const better = !st || (isDbl(t) && !isDbl(st)) || (isDbl(t) === isDbl(st) && pips(t) > pips(st)); if (better) { st = t; si = k; } }));
     players[si].hand.splice(players[si].hand.indexOf(st), 1);
-    center = st; sides = [{ tiles: [], end: st.a }, { tiles: [], end: st.b }];
+    center = st; board = []; occ = new Set(); narrow = $('board').clientWidth < 560;   // phones get a tall, narrow table so the dominoes stay big
+    BX = narrow ? (gSpin ? 12 : 10) : (gSpin ? 26 : 20); BY = narrow ? (gSpin ? 28 : 24) : (gSpin ? 18 : 14);
+    if (isDbl(st)) {
+      putOnBoard({ x0: -1, x1: 1, y0: -2, y1: 2 }, [0, 1], st.a, st.b, st.id);
+      sides = [{ end: st.a, p: [-1, 0], d: [-1, 0], side: [0, -1] }, { end: st.b, p: [1, 0], d: [1, 0], side: [0, 1] }];
+      if (gSpin) sides.push({ end: st.a, p: [0, -2], d: [0, -1], side: [1, 0] }, { end: st.a, p: [0, 2], d: [0, 1], side: [-1, 0] });
+    } else {
+      putOnBoard({ x0: -2, x1: 2, y0: -1, y1: 1 }, [1, 0], st.a, st.b, st.id);
+      sides = [{ end: st.a, p: [-2, 0], d: [-1, 0], side: [0, -1] }, { end: st.b, p: [2, 0], d: [1, 0], side: [0, 1] }];
+    }
+    sides.forEach(sd => { sd.u = null; sd.played = 0; });
     passes = 0; roundOver = false; lastPlaced = null; fresh = -1; turn = -1; playing = true;
     $('banner').className = 'banner'; $('log').innerHTML = '';
     const sp = players[si];
-    say(`Round ${roundNo}. ${sp.name} ${verb(sp, 'have', 'has')} the highest ${isDbl(st) ? 'double' : 'domino'} and ${verb(sp, 'start', 'starts')} with <b>${nm(st)}</b>.`);
+    say(`Round ${roundNo}. ${sp.name} ${verb(sp, 'have', 'has')} the highest ${isDbl(st) ? 'double' : 'domino'} and ${verb(sp, 'start', 'starts')} with <b>${nm(st)}</b>.${isDbl(st) && gSpin ? ' It can be played on all four ways.' : ''}`);
     window.labTrack && labTrack('round');
     paint(); playRound(id, (si + 1) % players.length);
   }
@@ -451,43 +526,38 @@
   $('banner').onclick = e => { const g = e.target.dataset.go; if (g === 'next') startRound(); if (g === 'new') newGame(); };
 
   function newGame() {
-    gameId++; answer({ type: 'cancel' }); gMode = mode;
+    gameId++; answer({ type: 'cancel' }); gMode = mode; gSpin = spin;
     players = NAMES.slice(0, nP).map(([face, name, human]) => ({ face, name, human: !!human, hand: [], score: 0, hist: [] }));
     roundNo = 0; startRound();
   }
 
   // ================= Painting =================
+  const orList = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1];
   const pct = p => p >= .995 ? '100%' : p <= 0 ? '0%' : p < .01 ? '<1%' : Math.round(p * 100) + '%';
   function say(msg) { const l = $('log'), p = document.createElement('p'); p.innerHTML = msg; l.prepend(p); while (l.children.length > 4) l.lastChild.remove(); }
 
-  function laneSVG(sd, k) {
-    const el = document.querySelector('.lane .tl'), w = el ? el.clientWidth : 600;
-    const ux = w < 420 ? 30 : w < 640 ? 36 : 42, U = Math.max(8, w / ux);
-    const startN = k === 0 ? center.a : center.b;
-    let s = `<circle cx=".8" cy="1.05" r=".72" fill="url(#hub)" stroke="#8D8E85" stroke-width=".04"/><text x=".8" y="1.32" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-weight="700" font-size=".78" fill="#333">${startN}</text>`;
-    const g = .08, start = 1.75, avail = U - start;
-    let keep = 0, used = 0;
-    for (let j = sd.tiles.length - 1; j >= 0; j--) { const wd = (sd.tiles[j].p === sd.tiles[j].q ? 1 : 2) + g; if (used + wd > avail - (j > 0 ? 1.3 : 0)) break; used += wd; keep++; }
-    const hidden = sd.tiles.length - keep; let x = start;
-    if (hidden) { s += `<text x="${x + .55}" y="1.28" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size=".62" fill="#E4D3A8">+${hidden}</text>`; x += 1.3; }
-    if (!sd.tiles.length) s += `<text x="${x + .2}" y="1.28" font-family="IBM Plex Sans, sans-serif" font-size=".6" fill="rgba(255,255,255,.55)">play a ${startN} here</text>`;
-    sd.tiles.slice(hidden).forEach((t, j) => {
-      const real = hidden + j, glow = lastPlaced && lastPlaced.t === k && lastPlaced.k === real ? 'filter="url(#glow)"' : '';
-      if (t.p === t.q) { s += tile(t.p, t.q, x, .05, true, glow); x += 1 + g; } else { s += tile(t.p, t.q, x, .55, false, glow); x += 2 + g; }
-    });
-    return `<svg viewBox="0 0 ${U.toFixed(2)} 2.1" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${s}</svg>`;
-  }
-  function paintLanes() {
-    if (!center) { $('lanes').innerHTML = ''; $('seatsRow').innerHTML = ''; return; }
+  const LET = 'ABCDEFGHIJKLMNOP';
+  function paintBoard() {
+    if (!center) { $('board').innerHTML = ''; $('seatsRow').innerHTML = ''; return; }
     $('seatsRow').innerHTML = players.map((p, k) => p.human ? '' : `<div class="${k === turn && playing ? 'turn' : ''}"><b>${p.face} ${p.name}</b><span>${p.hand.length} domino${p.hand.length === 1 ? '' : 'es'} in hand</span></div>`).join('');
-    const sel = pick && pick.sel, tset = new Set(sel ? pick.moves.filter(m => m.tile === sel).map(m => m.t) : []);
-    if ($('lanes').children.length !== 2) $('lanes').innerHTML = [0, 1].map(k => `<div class="lane" data-t="${k}"><div class="who"></div><div class="tl"></div></div>`).join('');
-    [0, 1].forEach(k => {
-      const el = $('lanes').children[k], sd = sides[k];
-      el.className = 'lane' + (tset.has(k) ? ' target' : '');
-      el.children[0].innerHTML = `<span class="nm">${k === 0 ? '⬅ Left end' : 'Right end ➡'}</span><span class="info">${sd.tiles.length} played <span class="chip end">ends on ${sd.end}</span></span>`;
-      el.children[1].innerHTML = laneSVG(sd, k);
+    const sel = pick && pick.sel, tlist = sel ? pick.moves.filter(m => m.tile === sel).map(m => m.t) : [];
+    let s = '', x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    const grow = (a, b, c, d) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); };
+    board.forEach(b => {
+      const x = b.r.x0 / 2, y = b.r.y0 / 2, w = (b.r.x1 - b.r.x0) / 2, h = (b.r.y1 - b.r.y0) / 2, cx = x + w / 2, cy = y + h / 2;
+      grow(x, y, x + w, y + h);
+      s += tile(b.first, b.second, x, y, b.vertical, `transform="translate(${cx} ${cy}) scale(.94) translate(${-cx} ${-cy})"${b.id === lastPlaced ? ' filter="url(#glow)"' : ''}`);
     });
+    sides.forEach((sd, k) => {
+      const c = mv2(sd.p, sd.d, 1.3).map(v => v / 2), tg = tlist.indexOf(k), on = tg >= 0, R = .56;
+      grow(c[0] - R - .1, c[1] - R - .1, c[0] + R + .1, c[1] + R + .1);
+      s += `<g class="mk${on ? ' target' : ''}" data-t="${k}"><circle cx="${c[0]}" cy="${c[1]}" r="${R + .25}" fill="transparent"/>` +
+        `<circle class="ring" cx="${c[0]}" cy="${c[1]}" r="${R}" fill="${on ? '#5EE39A' : 'url(#hub)'}" stroke="${on ? '#fff' : '#8D8E85'}" stroke-width="${on ? .1 : .04}" opacity="${sel && !on ? .45 : 1}"/>` +
+        `<text x="${c[0]}" y="${c[1] + .23}" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-weight="700" font-size=".66" fill="#222">${on ? LET[tg] : sd.end}</text></g>`;
+    });
+    // keep the view at least this big, so a short game doesn't get blown up huge
+    const W = Math.max(x1 - x0, narrow ? 9 : 13), H = Math.max(y1 - y0, narrow ? 7 : 6.5), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    $('board').innerHTML = `<svg viewBox="${(mx - W / 2 - .3).toFixed(2)} ${(my - H / 2 - .3).toFixed(2)} ${(W + .6).toFixed(2)} ${(H + .6).toFixed(2)}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The dominoes on the table, with ${sides.length} open ends">${s}</svg>`;
   }
   function paintHand() {
     const mi = me(), p = players[mi], h = $('hand');
@@ -505,7 +575,7 @@
     const o = pick.opts; let html = '';
     if (pick.sel) {
       const ms = pick.moves.filter(m => m.tile === pick.sel);
-      html = `<p class="prompt">Which end should <b>${nm(pick.sel)}</b> go on?</p>` + ms.map(m => `<button class="btn gold" data-t="${m.t}">${m.t === 0 ? '⬅ Left end' : 'Right end ➡'}</button>`).join('') + `<button class="btn ghost" data-x="1">Cancel</button>`;
+      html = `<p class="prompt">Where should <b>${nm(pick.sel)}</b> go? Tap a green end on the table, or pick one here.</p>` + ms.map((m, j) => `<button class="btn gold" data-t="${m.t}">${LET[j]}: the ${sides[m.t].end} end ${arrow(sides[m.t])}</button>`).join('') + `<button class="btn ghost" data-x="1">Cancel</button>`;
     } else if (o.draw) html = `<p class="prompt">${o.again ? 'Still nothing. ' : 'Nothing fits. '}Chance the next draw fits: <b>${pct(drawOdds(me()).p)}</b></p><button class="btn gold" data-a="draw">Draw a domino</button>`;
     else if (o.pass) html = `<p class="prompt">Nothing fits${block() ? '' : ' and the boneyard is empty'}.</p><button class="btn gold" data-a="pass">Pass</button>`;
     else html = `<p class="prompt">Your turn. Tap a glowing domino to play it.</p>`;
@@ -519,14 +589,14 @@
     $('cTitle').textContent = mine ? (moves.length ? 'Your turn' : block() ? 'Your turn: you have to pass' : 'Your turn: you need to draw') : 'Getting ready for your turn';
     const seen = new Array(13).fill(0), hold = new Array(13).fill(0), hid = new Array(13).fill(0);
     const count = (arr, t) => { arr[t.a]++; if (t.b !== t.a) arr[t.b]++; };
-    p.hand.forEach(t => count(hold, t)); count(seen, center); sides.forEach(sd => sd.tiles.forEach(t => count(seen, { a: t.p, b: t.q })));
+    p.hand.forEach(t => count(hold, t)); board.forEach(b => count(seen, { a: b.first, b: b.second }));
     unseenFor(mi).forEach(t => count(hid, t));
     const rows = [...Array(13).keys()].map(n => {
       const v = od.unseen ? hid[n] / od.unseen : 0, need = od.n.includes(n);
       return `<div class="nrow${need ? ' need' : ''}"><span class="n" style="background:${n ? PIP[n] : '#444'}">${n}</span><span class="t"><i style="width:${Math.min(100, Math.max(1, v * 100 / .4))}%"></i></span><span class="h">${hid[n]} hidden</span><span class="p">${pct(v)}</span>${need ? `<small>Of the 13 with a ${n}: you hold ${hold[n]}, ${seen[n]} on the table, ${hid[n]} out of sight</small>` : ''}</div>`;
     }).join('');
-    const askTxt = od.n.length > 1 ? `${od.n[0]} or ${od.n[1]}` : `${od.n[0]}`;
-    const ends = `<div class="ends"><span>Left end <b>${sides[0].end}</b></span><span>Right end <b>${sides[1].end}</b></span></div>`;
+    const askTxt = orList(od.n.map(String));
+    const ends = `<div class="ends">${sides.map(sd => `<span>${arrow(sd)} <b>${sd.end}</b></span>`).join('')}</div>`;
     const have = moves.length ? `<p class="why">You have <b>${new Set(moves.map(m => m.tile)).size === 1 ? '1 domino' : new Set(moves.map(m => m.tile)).size + ' dominoes'}</b> that fit${mine ? ' right now' : ' these ends'}.${block() ? '' : ' If you ever have to draw, here are your odds:'}</p>` : '';
     let main;
     if (!block()) {
@@ -542,10 +612,10 @@
     let tip = '';
     if (od.n.length > 1) {
       const by = od.n.map(n => ({ n, h: hid[n] })).sort((x, y) => y.h - x.h);
-      tip = by[0].h === by[1].h ? `Both ends are equally likely: ${by[0].h} of each still out of sight.` : `${An(by[0].n)}<b>${by[0].n}</b> is likelier than ${an(by[1].n).split(' ')[0]} <b>${by[1].n}</b>: ${by[0].h} still out of sight, against ${by[1].h}.`;
-    } else { const n = od.n[0]; tip = `Both ends show a ${n}. ${hid[n]} of the 13 dominoes with a ${n} are still out of sight.`; }
+      tip = by[0].h === by[1].h ? `The likeliest numbers are tied: ${by[0].h} of each still out of sight.` : `${An(by[0].n)}<b>${by[0].n}</b> is likelier than ${an(by[1].n).split(' ')[0]} <b>${by[1].n}</b>: ${by[0].h} still out of sight, against ${by[1].h}.`;
+    } else { const n = od.n[0]; tip = `Every open end shows ${an(n)}. ${hid[n]} of the 13 dominoes with ${an(n)} are still out of sight.`; }
     if (block()) tip += ' In Block, leaving the others ends they are unlikely to have is how you lock them out.';
-    $('cBody').innerHTML = `<div class="lbl">Open ends</div>${ends}${have}${main}
+    $('cBody').innerHTML = `<div class="lbl">Open ends (${sides.length})</div>${ends}${have}${main}
       <div class="nums"><h3>Each number, from where you sit<small>Every number is on 13 dominoes. The percent is the share of the ones you can't see that carry it.</small></h3>${rows}</div>
       <p class="tip">${tip}</p>`;
   }
@@ -569,7 +639,7 @@
     $('engLbl').textContent = center ? `Started with ${nm(center)}` : 'Starting double';
     $('boneN').textContent = players.length ? bone.length : '—';
     $('boneTxt').textContent = block() ? 'sleeping, out of play (Block)' : 'face down in the boneyard';
-    paintLanes(); paintHand(); paintAct(); paintCoach(); paintLuck(); paintScores();
+    paintBoard(); paintHand(); paintAct(); paintCoach(); paintLuck(); paintScores();
   }
 
   // ================= Controls =================
@@ -579,10 +649,14 @@
     if (ms.length === 1) return answer({ type: 'play', move: ms[0] });
     pick.sel = pick.sel === t ? null : t; paint();
   };
-  $('lanes').onclick = e => {
-    const l = e.target.closest('.lane'); if (!l || !pick || !pick.sel) return;
+  $('board').onclick = e => {
+    const l = e.target.closest('.mk'); if (!l || !pick || !pick.sel) return;
     const m = pick.moves.find(x => x.tile === pick.sel && x.t === +l.dataset.t); if (m) answer({ type: 'play', move: m });
   };
+  document.querySelectorAll('[data-dbl]').forEach(b => { b.setAttribute('aria-pressed', (b.dataset.dbl === 'open') === spin);
+    b.onclick = () => { spin = b.dataset.dbl === 'open'; try { localStorage.setItem('dom-doubles', spin ? 'open' : 'plain'); } catch (e) {}
+      document.querySelectorAll('[data-dbl]').forEach(x => x.setAttribute('aria-pressed', x === b));
+      if (!playing) newGame(); else say(`Next game: ${spin ? 'doubles open their sides' : 'plain doubles'}. Press “New game” to start it now.`); }; });
   $('act').onclick = e => {
     const b = e.target.closest('button'); if (!b || !pick) return;
     if (b.dataset.x) { pick.sel = null; return paint(); }
@@ -597,8 +671,7 @@
   document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { totalRounds = +b.dataset.r; document.querySelectorAll('[data-r]').forEach(x => x.setAttribute('aria-pressed', x === b));
     if (roundNo > totalRounds) newGame(); else paint(); });
   document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { speed = DEBUG ? 1 : +b.dataset.s; document.querySelectorAll('[data-s]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
-  let lastW = innerWidth; addEventListener('resize', () => { if (Math.abs(innerWidth - lastW) > 30) { lastW = innerWidth; paintLanes(); } });
-  if (DEBUG) window.MT = { get players() { return players; }, get sides() { return sides; }, get center() { return center; }, get bone() { return bone; }, get pick() { return pick; }, get playing() { return playing; }, luck, setMode(m) { mode = m; } };
+    if (DEBUG) window.MT = { get players() { return players; }, get sides() { return sides; }, get center() { return center; }, get board() { return board; }, get bone() { return bone; }, get pick() { return pick; }, get playing() { return playing; }, luck, setMode(m) { mode = m; } };
 
   newGame();
 })();
