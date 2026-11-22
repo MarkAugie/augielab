@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benford's Law · AugieLab</title>
+<meta name="description" content="Why do almost a third of real-world numbers start with 1? Quantum random numbers and real data, drawn side by side.">
+<meta property="og:title" content="Benford's Law: why the world loves the number 1">
+<meta property="og:description" content="Random numbers start with every digit equally. Real-world numbers don't. Watch both, side by side.">
+<meta property="og:url" content="https://augielab.dev/benford/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3ECDA; --paper2: #FBF7EC; --rule: rgba(64,110,150,.16); --margin: rgba(196,52,52,.45);
+    --ink: #1F2328; --dim: #5E6670; --soft: #8A8F96;
+    --q: #1F6F8B;      /* quantum ink: blue-teal */
+    --r: #B23A2E;      /* real-world ink: red */
+    --gold: #C68A12;   /* Benford's curve */
+    --edge: #D9CFB4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--paper); }
+  body { min-height: 100vh; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5;
+    padding: 18px 18px 110px;
+    background:
+      linear-gradient(90deg, transparent 54px, var(--margin) 54px 56px, transparent 56px),
+      repeating-linear-gradient(180deg, transparent 0 31px, var(--rule) 31px 32px),
+      radial-gradient(ellipse at 30% 10%, #F8F2E3, var(--paper) 70%);
+    background-attachment: fixed; }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--ink); }
+
+  /* ---------- header with a worn thumb index ---------- */
+  header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; margin: 8px 0 26px; }
+  h1 { font: 700 clamp(2.5rem, 7vw, 4.4rem)/1 "Libre Caslon Text", Georgia, serif; letter-spacing: -.01em; }
+  h1 em { font-style: italic; font-weight: 400; color: var(--r); }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: #3E454D; max-width: 40ch; }
+  .thumbs { display: flex; flex-direction: column; gap: 3px; padding-bottom: 4px; }
+  .thumbs span { display: flex; align-items: center; justify-content: flex-end; width: 112px; height: 22px; padding-right: 10px;
+    font: 600 .8rem "IBM Plex Mono", monospace; color: #6B5B3A; border-radius: 4px 0 0 4px; margin-left: auto;
+    background: linear-gradient(90deg, rgba(90,66,30,var(--w)), rgba(90,66,30,calc(var(--w) * .35)) 60%, #E9DFC4); border: 1px solid var(--edge); border-right: 0; }
+  .thumbs small { display: block; text-align: right; font-size: .7rem; color: var(--soft); margin-top: 4px; max-width: 112px; line-height: 1.25; margin-left: auto; }
+
+  /* ---------- the two pages ---------- */
+  .pages { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; }
+  .page { background: var(--paper2); border: 1px solid var(--edge); border-radius: 4px; padding: 20px 22px 18px;
+    box-shadow: 0 1px 0 #fff inset, 0 18px 34px -22px rgba(60,45,20,.55), 4px 4px 0 -1px #E7DDC2, 4px 4px 0 0 var(--edge); }
+  .page h2 { font: 700 1.55rem/1.15 "Libre Caslon Text", Georgia, serif; }
+  .page.q h2 { color: var(--q); }
+  .page.r h2 { color: var(--r); }
+  .what { color: var(--dim); font-size: .98rem; margin-top: 4px; min-height: 3em; }
+
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin-top: 14px; }
+  .one { font: 600 clamp(2.4rem, 5vw, 3.4rem)/1 "IBM Plex Mono", monospace; }
+  .q .one { color: var(--q); } .r .one { color: var(--r); }
+  .onelbl { font-size: .95rem; color: var(--dim); }
+  .count { text-align: right; font-size: .95rem; color: var(--dim); }
+  .count b { display: block; font: 600 1.35rem "IBM Plex Mono", monospace; color: var(--ink); }
+
+  .chart { display: block; width: 100%; height: auto; margin-top: 10px; overflow: visible; }
+  .chart .bar { transition: y .35s ease, height .35s ease; }
+  .chart text { font-family: "IBM Plex Mono", monospace; }
+
+  .verdict { margin-top: 8px; padding: 10px 14px; border-radius: 6px; font-size: 1.02rem; background: #EFE7D2; min-height: 3.2em; }
+  .verdict b { font-weight: 600; }
+
+  .ticker { list-style: none; margin-top: 12px; border-top: 1px dashed var(--edge); height: 9.6rem; overflow: hidden; }
+  .ticker li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 2px; border-bottom: 1px dashed var(--edge);
+    font: 500 1rem "IBM Plex Mono", monospace; white-space: nowrap; animation: drop .35s ease; }
+  .ticker li span:first-child { overflow: hidden; text-overflow: ellipsis; font-family: "IBM Plex Sans", sans-serif; color: var(--dim); }
+  .ticker li b { font-size: 1.25rem; line-height: 1; }
+  .q .ticker li b { color: var(--q); } .r .ticker li b { color: var(--r); }
+  .ticker li.empty { color: var(--soft); font-family: "IBM Plex Sans", sans-serif; justify-content: flex-start; animation: none; }
+  @keyframes drop { from { opacity: 0; transform: translateY(-8px); } }
+
+  .sets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .sets button { font: 500 .92rem "IBM Plex Sans", sans-serif; padding: 7px 12px; border-radius: 999px; cursor: pointer;
+    background: transparent; color: var(--ink); border: 1px solid #C9BB97; }
+  .sets button:hover { border-color: var(--r); }
+  .sets button[aria-pressed="true"] { background: var(--r); color: #fff; border-color: var(--r); }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 24px 0 8px; }
+  .btn { font: 600 1.05rem "IBM Plex Sans", sans-serif; padding: 13px 22px; border-radius: 6px; cursor: pointer;
+    background: var(--paper2); color: var(--ink); border: 2px solid var(--ink); }
+  .btn:hover { background: #fff; }
+  .btn.primary { background: var(--ink); color: var(--paper2); }
+  .btn.primary:hover { background: #000; }
+  .btn.on { background: var(--gold); border-color: var(--gold); color: #fff; }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: center; font-size: .95rem; color: var(--dim); margin-top: 6px; }
+  .legend i { display: inline-block; vertical-align: middle; margin-right: 8px; }
+  .legend .lb { width: 26px; height: 0; border-top: 3px solid var(--gold); position: relative; }
+  .legend .lb::after { content: ""; position: absolute; left: 8px; top: -6.5px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
+  .legend .le { width: 26px; height: 0; border-top: 2px dashed #7C8590; }
+
+  /* ---------- your own numbers ---------- */
+  .own { margin-top: 34px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; }
+  .own h2 { color: var(--ink); }
+  .own p { color: var(--dim); }
+  textarea { width: 100%; min-height: 12.5rem; margin-top: 12px; padding: 12px 14px; resize: vertical;
+    font: 500 1rem/1.5 "IBM Plex Mono", monospace; color: var(--ink); background: #fff; border: 1px solid #C9BB97; border-radius: 6px; }
+  textarea:focus-visible { outline: 3px solid var(--gold); outline-offset: 1px; }
+  .own .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .own .btn { font-size: .98rem; padding: 10px 16px; }
+  .private { font-size: .88rem; color: var(--soft); margin-top: 8px; }
+
+  .source { margin-top: 26px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #2DBE7E; box-shadow: 0 0 8px #2DBE7E; }
+  .credits { margin-top: 10px; text-align: center; font-size: .8rem; color: var(--soft); }
+
+  @media (max-width: 900px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; background: radial-gradient(ellipse at 30% 10%, #F8F2E3, var(--paper) 70%); }
+    .pages, .own { grid-template-columns: 1fr; gap: 20px; }
+    header { grid-template-columns: 1fr; }
+    .thumbs { display: none; }
+    .what { min-height: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .chart .bar, .ticker li { transition: none; animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span></span><a href="/">AugieLab</a></div>
+
+  <header>
+    <div>
+      <h1>Benford's Law: <em>the world loves 1</em></h1>
+      <p class="sub">In real-world numbers, almost a third start with the digit 1. Truly random numbers don't. Watch both, side by side.</p>
+    </div>
+    <div class="thumbs" aria-hidden="true">
+      <span style="--w:.62">1</span><span style="--w:.42">2</span><span style="--w:.3">3</span><span style="--w:.22">4</span><span style="--w:.17">5</span>
+      <span style="--w:.13">6</span><span style="--w:.1">7</span><span style="--w:.08">8</span><span style="--w:.06">9</span>
+      <small>A worn book of number tables, 1881</small>
+    </div>
+  </header>
+
+  <main>
+    <div class="pages">
+      <section class="page q" aria-labelledby="qTitle">
+        <h2 id="qTitle">Quantum random numbers</h2>
+        <p class="what">Whole numbers from 1 to 999,999, each picked by chance. Every one is equally likely.</p>
+        <div class="head">
+          <div><div class="one" id="qOne">—</div><div class="onelbl">start with 1</div></div>
+          <div class="count">numbers drawn<b id="qCount">0</b></div>
+        </div>
+        <svg class="chart" id="qChart" viewBox="0 0 520 300" role="img" aria-label="Bar chart of first digits for the quantum random numbers"></svg>
+        <div class="verdict" id="qVerdict" aria-live="polite">Press <b>Draw 100</b> to start.</div>
+        <ul class="ticker" id="qTicker"><li class="empty">The newest numbers will appear here.</li></ul>
+      </section>
+
+      <section class="page r" aria-labelledby="rTitle">
+        <h2 id="rTitle">Real-world numbers</h2>
+        <div class="sets" id="sets" role="group" aria-label="Choose a set of real-world numbers"></div>
+        <p class="what" id="rWhat"></p>
+        <div class="head">
+          <div><div class="one" id="rOne">—</div><div class="onelbl">start with 1</div></div>
+          <div class="count">numbers drawn<b id="rCount">0</b></div>
+        </div>
+        <svg class="chart" id="rChart" viewBox="0 0 520 300" role="img" aria-label="Bar chart of first digits for the real-world numbers"></svg>
+        <div class="verdict" id="rVerdict" aria-live="polite">Press <b>Draw 100</b> to start.</div>
+        <ul class="ticker" id="rTicker"><li class="empty">The newest numbers will appear here.</li></ul>
+      </section>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" data-n="100">Draw 100</button>
+      <button class="btn" data-n="10">Draw 10</button>
+      <button class="btn" data-n="1000">Draw 1,000</button>
+      <button class="btn" id="auto">Keep drawing</button>
+      <button class="btn" id="reset">Start over</button>
+    </div>
+    <div class="legend">
+      <span><i class="lb"></i>What Benford's Law predicts</span>
+      <span><i class="le"></i>Equal share for every digit (11.1%)</span>
+    </div>
+
+    <div class="own">
+      <section class="page" aria-labelledby="ownTitle">
+        <h2 id="ownTitle">Try your own numbers</h2>
+        <p>Paste in any pile of real numbers: a year of bank transactions, electric bills, house prices, the miles on your trips. A hundred or more works best, and they should range from small to large.</p>
+        <textarea id="ownText" aria-label="Your numbers" placeholder="Paste numbers here, any format. Example:&#10;$1,284.50   $37.12   $196.00   $12.99 ..."></textarea>
+        <div class="row">
+          <button class="btn primary" id="ownGo">Check my numbers</button>
+          <button class="btn" id="ownClear">Clear</button>
+        </div>
+        <p class="private">Checked right here in your browser. Nothing you paste is sent anywhere.</p>
+      </section>
+      <section class="page" aria-labelledby="ownResTitle">
+        <h2 id="ownResTitle">What your numbers say</h2>
+        <div class="head">
+          <div><div class="one" id="oOne" style="color:var(--gold)">—</div><div class="onelbl">start with 1</div></div>
+          <div class="count">numbers found<b id="oCount">0</b></div>
+        </div>
+        <svg class="chart" id="oChart" viewBox="0 0 520 300" role="img" aria-label="Bar chart of first digits for your numbers"></svg>
+        <div class="verdict" id="oVerdict" aria-live="polite">Your result will show here.</div>
+      </section>
+    </div>
+
+    <div class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></div>
+    <p class="credits">Data: city populations from GeoNames (CC BY 4.0) via all-the-cities · country populations (2018) and coastlines from country-json · country areas from mledoze/countries (ODbL).</p>
+  </main>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The surprise</h3>
+  <p>Take a big pile of numbers from real life, such as populations, country sizes or river lengths, and look only at the first digit of each one. You'd expect each digit from 1 to 9 to show up about equally, around 11% of the time. It doesn't. About 30% start with 1, about 18% with 2, and only about 5% start with 9. This is called Benford's Law.</p>
+  <h3>What you're looking at</h3>
+  <p>The left page draws truly random numbers. Its bars stay about level, near the dashed 11% line. The right page draws numbers from real life. Its bars lean down from 1 to 9 and follow the gold curve, which is the pattern Benford's Law predicts. The box under each chart says which pattern the numbers match so far. With only a few numbers, either side can wobble, so draw a few hundred.</p>
+  <h3>Where it came from</h3>
+  <p>In 1881 an astronomer named Simon Newcomb noticed that in library books of number tables, the pages for numbers starting with 1 were dirty and worn, and the pages for 9 were almost clean. People simply looked up numbers starting with 1 more often. In 1938 a physicist named Frank Benford checked over 20,000 numbers, from rivers to baseball stats, and found the same pattern. The law got his name.</p>
+  <h3>Why it happens</h3>
+  <p>Think of things that grow, like a town or a savings account. To go from 1,000 to 2,000, a town has to double, which takes a long time, so its population spends a long time starting with 1. To go from 9,000 to 10,000, it only has to grow 11%, so it passes through the 9s quickly. When numbers span many sizes, from tiny to huge, they pile up on the low digits. It even works in any unit: switch from miles to kilometers and the pattern stays.</p>
+  <h3>Why the random side doesn't follow it</h3>
+  <p>Picking a number from 1 to 999,999 where every number is equally likely gives each first digit the same share: exactly 111,111 numbers start with each digit. So truly random numbers are flat. Real life isn't random in that way.</p>
+  <h3>Catching cheaters</h3>
+  <p>When people make up numbers, they spread them out evenly, the way they think random looks. Real accounts don't look like that. Tax auditors and fraud examiners use Benford's Law to spot books that don't fit the curve. It has been used to question economic figures and election results. A bad fit isn't proof of cheating, though. It's a reason to look closer.</p>
+  <h3>When it doesn't work</h3>
+  <p>Numbers that stay in a narrow range don't follow it: adult heights, ages, prices that all end up around $9.99, or assigned numbers like phone numbers and zip codes. Cutoffs bend it too. The world-cities list only includes places with 1,000 or more people, so it has even more 1s than the law predicts.</p>
+  <h3>And the Fibonacci numbers?</h3>
+  <p>The famous series 1, 1, 2, 3, 5, 8, 13, 21… follows Benford's Law almost perfectly, and so do the powers of 2. Try them on the right page.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Right now the left page uses your browser's built-in random number maker. It's good, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, the dot at the bottom turns from yellow to green.</p>
+</template>
+
+<script src="data.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const D = window.BENFORD_DATA;
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [];
+  async function bytes(n) {
+    if (SOURCE.ENDPOINT) {
+      try {
+        while (pool.length < n) {
+          const res = await fetch(SOURCE.ENDPOINT + '?n=' + Math.min(4096, Math.max(n - pool.length, 512)), { cache: 'no-store' });
+          const j = await res.json(); if (!j.ok || !Array.isArray(j.values) || !j.values.length) throw 0;
+          pool.push(...j.values);
+        }
+        setSource(true); return pool.splice(0, n);
+      } catch (e) { setSource(false, true); }
+    }
+    const a = new Uint8Array(n); for (let i = 0; i < n; i += 65536) crypto.getRandomValues(a.subarray(i, Math.min(n, i + 65536)));
+    return Array.from(a);
+  }
+  function setSource(quantum, fellBack) {
+    $('source').classList.toggle('quantum', quantum);
+    $('sourceText').textContent = quantum ? `Randomness: quantum, from the ${SOURCE.NAME}.`
+      : fellBack ? 'Randomness: the quantum generator is offline, so this is demo mode from your browser.' : "Randomness: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+
+  // Whole numbers 1..999,999, every one equally likely: 20 random bits, throw away anything too big.
+  async function quantumNumbers(n) {
+    const out = [];
+    while (out.length < n) {
+      const need = Math.ceil((n - out.length) * 1.1) + 2, b = await bytes(need * 3);
+      for (let i = 0; i + 2 < b.length && out.length < n; i += 3) {
+        const v = ((b[i] & 15) << 16) | (b[i + 1] << 8) | b[i + 2];
+        if (v < 999999) out.push(v + 1);
+      }
+    }
+    return out;
+  }
+
+  // ================= Number helpers =================
+  const BEN = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => d ? Math.log10(1 + 1 / d) : 0);
+  const firstDigit = s => { const m = String(s).match(/[1-9]/); return m ? +m[0] : 0; };
+  const pct = (x, d = 1) => (x * 100).toFixed(d) + '%';
+  const fmtN = v => typeof v === 'number' ? v.toLocaleString('en-US', { maximumFractionDigits: 1 }) : v;
+  function bigLabel(str) { // long Fibonacci / power-of-2 numbers
+    const sup = n => String(n).replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
+    return str.length <= 15 ? Number(str).toLocaleString('en-US') : `${str[0]}.${str.slice(1, 4)} × 10${sup(str.length - 1)}`;
+  }
+  // Mean absolute deviation from a pattern (how far the bars sit from it, on average).
+  const mad = (c, n, exp) => { let s = 0; for (let d = 1; d <= 9; d++) s += Math.abs(c[d] / n - exp(d)); return s / 9; };
+  const benExp = d => BEN[d], flatExp = () => 1 / 9;
+
+  // ================= Real-world sets =================
+  function fib(n) { const a = []; let x = 1n, y = 1n; for (let i = 1; i <= n; i++) { a.push([`Fibonacci #${i}`, x.toString()]); [x, y] = [y, x + y]; } return a; }
+  function pow2(n) { const a = []; let x = 1n; for (let i = 0; i < n; i++) { a.push([`2 to the power ${i}`, x.toString()]); x *= 2n; } return a; }
+  const SETS = {
+    pop:   { btn: 'Country populations', what: 'How many people live in each country (2018).', unit: ' people', rows: () => D.countryPop },
+    area:  { btn: 'Country sizes', what: 'How big each country is, in square kilometers. Switch to square miles and the pattern stays.', unit: ' km²', rows: () => D.countryArea },
+    coast: { btn: 'Coastlines', what: 'How long each country\'s coastline is, in kilometers.', unit: ' km', rows: () => D.coastline },
+    city:  { btn: 'World cities', what: `Populations of 2,000 cities picked at random from ${D.cityAll.count.toLocaleString()} around the world.`, unit: '', rows: () => D.citySample.map(([n, cc, p]) => [`${n}, ${cc}`, p]) },
+    fib:   { btn: 'Fibonacci numbers', what: 'The series 1, 1, 2, 3, 5, 8, 13… where each number is the two before it added together.', unit: '', rows: () => fib(1000) },
+    pow2:  { btn: 'Powers of 2', what: '1, 2, 4, 8, 16, 32… doubling every time.', unit: '', rows: () => pow2(1000) }
+  };
+
+  // ================= Charts =================
+  const W = 520, H = 300, L = 46, R = 10, T = 14, B = 34, MAXP = .4;
+  const xOf = d => L + (d - .5) * (W - L - R) / 9, bw = (W - L - R) / 9 * .62;
+  const yOf = p => T + (1 - Math.min(p, MAXP) / MAXP) * (H - T - B);
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+  function buildChart(svg, color) {
+    svg.innerHTML = '';
+    for (const p of [0, .1, .2, .3, .4]) {
+      svg.append(el('line', { x1: L, x2: W - R, y1: yOf(p), y2: yOf(p), stroke: 'rgba(60,70,80,.13)' }));
+      svg.append(el('text', { x: L - 8, y: yOf(p) + 5, 'text-anchor': 'end', 'font-size': 13, fill: '#8A8F96' }, (p * 100) + '%'));
+    }
+    const bars = [], labels = [], labelsLayer = [];
+    for (let d = 1; d <= 9; d++) {
+      bars[d] = el('rect', { class: 'bar', x: xOf(d) - bw / 2, y: yOf(0), width: bw, height: 0, rx: 2, fill: color });
+      labels[d] = el('text', { x: xOf(d), y: yOf(0) - 6, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 600, fill: '#3E454D', stroke: '#FBF7EC', 'stroke-width': 4, 'paint-order': 'stroke' }, '');
+      svg.append(bars[d]); labelsLayer.push(labels[d]);
+      svg.append(el('text', { x: xOf(d), y: H - 10, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 600, fill: '#1F2328' }, d));
+    }
+    svg.append(el('line', { x1: L, x2: W - R, y1: yOf(1 / 9), y2: yOf(1 / 9), stroke: '#7C8590', 'stroke-width': 2, 'stroke-dasharray': '7 6' }));
+    let path = ''; for (let d = 1; d <= 9; d++) path += (d === 1 ? 'M' : 'L') + xOf(d) + ' ' + yOf(BEN[d]);
+    svg.append(el('path', { d: path, fill: 'none', stroke: '#C68A12', 'stroke-width': 3, 'stroke-linejoin': 'round' }));
+    for (let d = 1; d <= 9; d++) svg.append(el('circle', { cx: xOf(d), cy: yOf(BEN[d]), r: 5.5, fill: '#C68A12', stroke: '#FBF7EC', 'stroke-width': 2 }));
+    svg.append(...labelsLayer); // percentages sit on top of the curve so they stay readable
+    return { bars, labels };
+  }
+  function drawChart(ch, c, n) {
+    for (let d = 1; d <= 9; d++) {
+      const p = n ? c[d] / n : 0;
+      ch.bars[d].setAttribute('y', yOf(p)); ch.bars[d].setAttribute('height', yOf(0) - yOf(p));
+      ch.labels[d].setAttribute('y', yOf(p) - 6); ch.labels[d].textContent = n ? Math.round(p * 100) + '%' : '';
+    }
+  }
+  function verdictFor(c, n, few) {
+    if (n < few) return `Only ${n} so far. Draw more to see the pattern.`;
+    const b = mad(c, n, benExp), f = mad(c, n, flatExp);
+    return b < f
+      ? `<b>Follows Benford's Law:</b> lots of 1s, few 9s, close to the gold curve.`
+      : `<b>Flat, like pure chance:</b> every digit about the same, near the dashed line.`;
+  }
+
+  // ================= State =================
+  const qChart = buildChart($('qChart'), '#1F6F8B'), rChart = buildChart($('rChart'), '#B23A2E'), oChart = buildChart($('oChart'), '#C68A12');
+  let q = { c: Array(10).fill(0), n: 0 }, r = { c: Array(10).fill(0), n: 0, deck: [], set: 'pop' };
+
+  function shuffle(a) { // the real-world list is dealt in random order
+    const out = a.slice(); for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; } return out;
+  }
+  function chooseSet(key) {
+    r = { c: Array(10).fill(0), n: 0, deck: shuffle(SETS[key].rows()), set: key };
+    document.querySelectorAll('#sets button').forEach(b => b.setAttribute('aria-pressed', b.dataset.set === key ? 'true' : 'false'));
+    $('rWhat').textContent = SETS[key].what;
+    $('rTicker').innerHTML = '<li class="empty">The newest numbers will appear here.</li>';
+    render();
+  }
+  for (const k in SETS) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.set = k; b.textContent = SETS[k].btn;
+    b.onclick = () => chooseSet(k); $('sets').append(b);
+  }
+
+  function tick(list, label, value, unit) {
+    const ul = $(list); if (ul.firstElementChild && ul.firstElementChild.classList.contains('empty')) ul.innerHTML = '';
+    const li = document.createElement('li');
+    const s = typeof value === 'string' ? bigLabel(value) : fmtN(value) + unit;
+    const i = s.search(/[1-9]/);
+    const a = document.createElement('span'); a.textContent = label;
+    const v = document.createElement('span'); v.append(s.slice(0, i)); const bb = document.createElement('b'); bb.textContent = s[i]; v.append(bb, s.slice(i + 1));
+    li.append(a, v); ul.prepend(li); while (ul.children.length > 6) ul.lastElementChild.remove();
+  }
+
+  function render() {
+    drawChart(qChart, q.c, q.n); drawChart(rChart, r.c, r.n);
+    $('qCount').textContent = q.n.toLocaleString(); $('rCount').textContent = r.n.toLocaleString();
+    $('qOne').textContent = q.n ? pct(q.c[1] / q.n) : '—'; $('rOne').textContent = r.n ? pct(r.c[1] / r.n) : '—';
+    $('qVerdict').innerHTML = q.n ? verdictFor(q.c, q.n, 30) : 'Press <b>Draw 100</b> to start.';
+    let rv = r.n ? verdictFor(r.c, r.n, 30) : 'Press <b>Draw 100</b> to start.';
+    if (r.n && !r.deck.length) {
+      const total = r.n.toLocaleString();
+      rv += r.set === 'city'
+        ? ` That's all 2,000 sample cities. Across all ${D.cityAll.count.toLocaleString()} cities, ${pct(D.cityAll.firstDigits[1] / D.cityAll.count)} start with 1.`
+        : ` That's the whole list: all ${total}.`;
+    }
+    $('rVerdict').innerHTML = rv;
+  }
+
+  // ================= Drawing =================
+  let queue = 0, auto = false, busy = false;
+  async function pump() {
+    if (busy) return; busy = true;
+    while (queue > 0 || auto) {
+      const done = q.n + r.n, k = auto ? (done < 60 ? 1 : done < 600 ? 4 : 12) : Math.max(1, Math.min(60, Math.ceil(queue / 25)));
+      const nums = await quantumNumbers(k);
+      nums.forEach((v, i) => { q.c[firstDigit(v)]++; q.n++; if (i < 2) tick('qTicker', 'random pick', v, ''); });
+      for (let i = 0; i < k && r.deck.length; i++) {
+        const [label, v] = r.deck.pop(), d = firstDigit(v); if (!d) continue;
+        r.c[d]++; r.n++; if (i < 2) tick('rTicker', label, v, SETS[r.set].unit);
+      }
+      if (!auto) queue -= k;
+      window.labTrack && labTrack('draw', k);
+      render();
+      await new Promise(res => setTimeout(res, auto ? 70 : 45));
+    }
+    busy = false;
+  }
+  document.querySelectorAll('button[data-n]').forEach(b => b.onclick = () => { queue += Number(b.dataset.n); pump(); });
+  const autoBtn = $('auto');
+  const stopAuto = () => { auto = false; autoBtn.classList.remove('on'); autoBtn.textContent = 'Keep drawing'; };
+  autoBtn.onclick = () => { if (auto) return stopAuto(); auto = true; autoBtn.classList.add('on'); autoBtn.textContent = 'Stop'; pump(); };
+  $('reset').onclick = () => {
+    stopAuto(); queue = 0; q = { c: Array(10).fill(0), n: 0 };
+    $('qTicker').innerHTML = '<li class="empty">The newest numbers will appear here.</li>'; chooseSet(r.set);
+  };
+
+  // ================= Your own numbers =================
+  function checkOwn() {
+    const text = $('ownText').value;
+    const toks = text.replace(/(\d),(?=\d{3}\b)/g, '$1').match(/\d*\.?\d+(?:[eE][+-]?\d+)?/g) || [];
+    const c = Array(10).fill(0); let n = 0;
+    for (const t of toks) { const v = Math.abs(parseFloat(t)); if (!v || !isFinite(v)) continue; const d = firstDigit(v.toExponential()); if (d) { c[d]++; n++; } }
+    drawChart(oChart, c, n);
+    $('oCount').textContent = n.toLocaleString(); $('oOne').textContent = n ? pct(c[1] / n) : '—';
+    if (!n) { $('oVerdict').textContent = 'No numbers found. Paste some numbers above.'; return; }
+    if (n < 50) { $('oVerdict').innerHTML = `Only ${n} numbers. The pattern needs at least 50, and 100+ is better, so treat this as a rough look.`; return; }
+    const b = mad(c, n, benExp);
+    let msg = b < .006 ? '<b>Very close to Benford\'s Law.</b> These look like natural, real-world numbers.'
+      : b < .012 ? '<b>A good fit with Benford\'s Law.</b> These look natural.'
+      : b < .015 ? '<b>A loose fit.</b> Partly natural. Small sets, price limits or rounding can do this.'
+      : '<b>Doesn\'t follow Benford\'s Law.</b> That can be innocent: numbers in a narrow range, like ages or fixed prices, never fit. Made-up numbers don\'t fit either.';
+    $('oVerdict').innerHTML = msg + ` <span style="color:var(--soft)">(average gap from the curve: ${(b * 100).toFixed(1)} points)</span>`;
+  }
+  $('ownGo').onclick = checkOwn;
+  $('ownClear').onclick = () => { $('ownText').value = ''; drawChart(oChart, Array(10).fill(0), 0); $('oCount').textContent = '0'; $('oOne').textContent = '—'; $('oVerdict').textContent = 'Your result will show here.'; $('ownText').focus(); };
+
+  chooseSet('pop');
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>

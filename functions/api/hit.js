@@ -1,6 +1,6 @@
 // POST /api/hit  {page, kind, n, ref}  -> adds to a daily counter in D1 (binding: DB).
 // Stores only: day, page, kind, country, referring website, count. Nothing personal.
-const PAGES = ['/', '/split/', '/darts/', '/passwords/', '/dice/', '/pomodoro/', '/opscon/', '/jukebox/', '/monkeys/', '/future/', '/glitch/', '/train/', '/nopeek/', '/mexican/', '/dominoes/'];
+const PAGES = ['/', '/split/', '/darts/', '/passwords/', '/dice/', '/pomodoro/', '/opscon/', '/jukebox/', '/monkeys/', '/future/', '/glitch/', '/train/', '/nopeek/', '/mexican/', '/dominoes/', '/benford/'];
 const KINDS = ['view', 'split', 'darts', 'password', 'roll', 'flip', 'lotto', 'round', 'minute', 'kkeys', 'phrase', 'guess', 'deal', 'hand', 'draw'];
 let ready = false;
 
