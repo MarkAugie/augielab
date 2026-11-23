@@ -1,0 +1,3 @@
+# Make the GPS classroom edition download as a file instead of opening in the browser.
+/gps/classroom*
+  Content-Disposition: attachment; filename="gps-accuracy-classroom.html"
