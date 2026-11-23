@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Muon Rain · AugieLab</title>
+<meta name="description" content="Muons fall from 15 km up and should die long before reaching the ground. Quantum randomness decides when each one decays. Einstein decides whether they make it.">
+<meta property="og:title" content="Muon Rain">
+<meta property="og:description" content="Quantum dice decide when each muon dies. Einstein's slow clocks decide if it reaches the ground. Flip relativity off and watch the rain stop.">
+<meta property="og:url" content="https://augielab.dev/muons/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #080B1C; --deep: #10153A; --panel: #141A3F; --line: #2B3470;
+    --text: #EEF0FF; --dim: #B7BCE6; --soft: #8C92C4;
+    --muon: #7DF9FF; --decay: #C58BFF; --hit: #FFE066; --off: #FF7A8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--night); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 90% 700px at 50% 0%, #1B2160, var(--night) 75%) no-repeat, var(--night); }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  header { margin: 4px 0 20px; }
+  h1 { font: 800 clamp(2.5rem, 7vw, 4.4rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; color: var(--muon); }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 58ch; }
+
+  .lab { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .sky { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #050716; }
+  .sky canvas { display: block; width: 100%; height: 600px; }
+  .einbadge { position: absolute; top: 46px; left: 64px; padding: 6px 12px; border-radius: 999px; font: 700 .8rem "IBM Plex Sans Condensed", sans-serif;
+    letter-spacing: .08em; text-transform: uppercase; background: rgba(125,249,255,.15); color: var(--muon); border: 1px solid rgba(125,249,255,.5); }
+  .einbadge.off { background: rgba(255,122,138,.15); color: var(--off); border-color: rgba(255,122,138,.5); }
+
+  .panel { background: rgba(20,26,63,.85); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .panel + .panel { margin-top: 16px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .switch b { font: 600 1.25rem "Fraunces", Georgia, serif; }
+  .toggle { position: relative; width: 86px; height: 44px; border-radius: 999px; border: 2px solid var(--muon); background: rgba(125,249,255,.2); cursor: pointer; flex: none; }
+  .toggle::after { content: "ON"; position: absolute; top: 4px; left: 44px; width: 34px; height: 32px; border-radius: 999px; background: var(--muon); color: #04222A;
+    font: 700 .72rem/32px "IBM Plex Sans Condensed", sans-serif; text-align: center; transition: left .2s; }
+  .toggle[aria-checked="false"] { border-color: var(--off); background: rgba(255,122,138,.15); }
+  .toggle[aria-checked="false"]::after { content: "OFF"; left: 4px; background: var(--off); color: #2A0509; }
+  .switch p { color: var(--dim); font-size: .92rem; }
+
+  .speeds { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+  .btn { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: var(--text); background: #1C2354; border: 1px solid #3A4590; }
+  .btn:hover { border-color: var(--text); }
+  .btn.on { background: var(--muon); color: #04222A; border-color: var(--muon); }
+  .speeds .btn { font: 600 .95rem "IBM Plex Mono", monospace; padding: 9px 4px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .btn.primary { background: var(--hit); color: #2A2100; border-color: var(--hit); min-width: 6.5em; }
+  button:focus-visible { outline: 3px solid var(--hit); outline-offset: 2px; }
+
+  .trip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .clock { padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,.25); }
+  .clock .t { font: 600 1.6rem/1.15 "IBM Plex Mono", monospace; }
+  .clock.earth .t { color: var(--text); } .clock.mu .t { color: var(--muon); }
+  .clock small { display: block; color: var(--dim); font-size: .85rem; }
+  .tripnote { margin-top: 10px; color: var(--dim); font-size: .95rem; }
+  .tripnote b { color: var(--text); }
+
+  .score { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .big { font: 600 clamp(1.7rem, 3.6vw, 2.3rem)/1.1 "IBM Plex Mono", monospace; }
+  .big.hit { color: var(--hit); }
+  .cmp { margin-top: 12px; }
+  .bar { position: relative; height: 16px; border-radius: 8px; background: rgba(255,255,255,.08); margin-top: 6px; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: var(--hit); border-radius: 8px; transition: width .3s; }
+  .bar b { position: absolute; top: -3px; bottom: -3px; width: 3px; background: var(--text); transform: translateX(-1px); }
+  .cmp p { font-size: .95rem; color: var(--dim); margin-top: 6px; }
+  .cmp p span { font-family: "IBM Plex Mono", monospace; color: var(--text); }
+
+  .verdict { margin-top: 20px; padding: 14px 18px; border-radius: 12px; font-size: 1.08rem; background: rgba(125,249,255,.07); border: 1px solid rgba(125,249,255,.25); min-height: 3.6em; }
+  .verdict.off { background: rgba(255,122,138,.08); border-color: rgba(255,122,138,.35); }
+  .verdict b { color: var(--hit); }
+
+  .source { margin-top: 28px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 900px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; }
+    .lab { grid-template-columns: 1fr; gap: 16px; }
+    .sky canvas { height: 470px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>Muon <em>Rain</em></h1>
+    <p class="sub">Cosmic rays make muons 15 km up. A muon lives about 2.2 millionths of a second, far too short to reach the ground. Yet they rain down on you right now. Quantum dice decide when each one dies. Einstein decides whether it makes it.</p>
+  </header>
+
+  <main class="lab">
+    <div>
+      <div class="sky">
+        <canvas id="sky" aria-label="Muons falling from 15 kilometers up toward a town on the ground"></canvas>
+        <div class="einbadge" id="badge">Einstein on</div>
+      </div>
+      <div class="verdict" id="verdict" aria-live="polite">The first muons are on their way down…</div>
+    </div>
+
+    <div>
+      <section class="panel">
+        <div class="switch">
+          <div><b>Einstein</b><p id="einText">Moving clocks run slow. On, like the real universe.</p></div>
+          <button class="toggle" id="ein" role="switch" aria-checked="true" aria-label="Relativity (Einstein)"></button>
+        </div>
+        <div style="margin-top:14px"><span class="lbl">Muon speed (share of light speed)</span>
+          <div class="speeds" role="group" aria-label="Muon speed">
+            <button class="btn" data-b="0.99">99%</button>
+            <button class="btn" data-b="0.995">99.5%</button>
+            <button class="btn on" data-b="0.998">99.8%</button>
+            <button class="btn" data-b="0.9995">99.95%</button>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="run">Pause</button>
+          <button class="btn" id="storm">Fire 1,000</button>
+          <button class="btn" id="reset">Reset</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">The trip down, 15 km</span>
+        <div class="trip">
+          <div class="clock earth"><small>Our clocks</small><span class="t" id="tEarth">50.1 µs</span></div>
+          <div class="clock mu"><small>Muon's clock</small><span class="t" id="tMu">3.2 µs</span></div>
+        </div>
+        <p class="tripnote" id="tripNote"></p>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">Scoreboard</span>
+        <div class="score">
+          <div><div class="lbl">Muons made</div><div class="big" id="made">0</div></div>
+          <div><div class="lbl">Reached the ground</div><div class="big hit" id="hits">0</div></div>
+        </div>
+        <div class="cmp">
+          <div class="bar"><i id="barGot"></i><b id="barExp"></b></div>
+          <p>Made it: <span id="pGot">–</span> · Math says: <span id="pExp">–</span></p>
+          <p>Without Einstein, the math says: <span id="pNoEin">–</span></p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="source" id="source"><i></i><span id="sourceText">Decay times: demo mode, from your browser's generator.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>Muons from space</h3>
+  <p>Cosmic rays (mostly protons, many flung out by exploding stars) slam into the top of the atmosphere about 15 km up. The crash makes showers of particles, including <strong>muons</strong>: heavy cousins of the electron that fly down at nearly the speed of light. About one passes through your hand every second.</p>
+  <h3>The quantum part</h3>
+  <p>A muon is unstable. It falls apart, but nobody can say when. On average it lasts 2.2 microseconds, yet each one is a roll of quantum dice: some die almost at once, a few last much longer. Each muon on this page gets its own roll from a random number, the same way nature does it. That's where the quantum random number generator comes in.</p>
+  <h3>The puzzle</h3>
+  <p>Light covers only about 660 meters in 2.2 microseconds. A muon is a hair slower than light, so it should travel about that far before decaying. Falling 15 km should take about 23 lifetimes, and the odds of surviving that many are around one in 8 billion. Flip Einstein off and that's what you'll see: they all fizzle high in the sky.</p>
+  <h3>Einstein's fix</h3>
+  <p>Einstein showed that a moving clock runs slow. At 99.8% of light speed, the muon's own clock ticks about 16 times slower than ours. We see a 50-microsecond trip, but the muon only lives through about 3 microseconds of it. So about a quarter of them reach the ground. Physicists first measured this in 1941 by counting muons on a mountain and at its base, and it matched Einstein exactly.</p>
+  <h3>Same reason GPS works</h3>
+  <p>GPS satellites move fast enough that their clocks run slow too, while weaker gravity up there makes them run fast. Together their clocks gain about 38 microseconds a day. Engineers correct for it. If they didn't, your GPS position would drift about 10 km every day. The muons reaching your roof and your phone finding the coffee shop are both Einstein, checked every day.</p>
+  <h3>Reading the sky</h3>
+  <p>Each streak is a muon. A purple puff is where one decayed. A yellow flash at the bottom is one reaching the ground. The bars on the right edge show where muons decay at each height; the yellow bar at the bottom is the ones that made it. <strong>Fire 1,000</strong> sends a big batch at once so the scoreboard settles close to the math.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Right now the dice rolls come from your browser's built-in random number maker. Soon this lab plugs in a <strong>quantum random number generator</strong> from Crypta Labs, so each muon's lifetime is decided by a real quantum measurement. When it's connected, the dot at the bottom turns green. Someday this page may also show real muon counts from the lab's Geiger counter.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false;
+  function setSource(q, fellBack) {
+    quantum = q; $('source').classList.toggle('quantum', q);
+    $('sourceText').textContent = q ? `Decay times: quantum, from the ${SOURCE.NAME}.`
+      : fellBack ? 'The quantum generator is offline, so decay times come from your browser (demo mode).' : "Decay times: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 4096) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=4096', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; pool.push(...j.values); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 1500); refill();
+  const u32 = new Uint32Array(1);
+  function uniform() {                       // a number strictly between 0 and 1, from 4 random bytes
+    let x;
+    if (quantum && pool.length >= 4) { const b = pool.splice(0, 4); x = ((b[0] << 24) >>> 0) + (b[1] << 16) + (b[2] << 8) + b[3]; }
+    else x = crypto.getRandomValues(u32)[0];
+    return (x + .5) / 4294967296;
+  }
+
+  // ================= Physics =================
+  const C = 299792458, TAU = 2.197e-6, H0 = 15000;            // light speed (m/s), muon lifetime (s), birth height (m)
+  let beta = .998, einstein = true;
+  const gamma = () => 1 / Math.sqrt(1 - beta * beta);
+  const reach = (ein) => beta * C * TAU * (ein ? gamma() : 1);  // average distance before decay, in metres
+  const pSurvive = (ein) => Math.exp(-H0 / reach(ein));
+  // One muon: its own lifetime is a quantum dice roll (exponential), then Einstein (or not) stretches it.
+  function decayHeight() { const life = -TAU * Math.log(uniform()); const d = beta * C * life * (einstein ? gamma() : 1); return H0 - d; } // < 0 means it reached the ground
+
+  // ================= Stats =================
+  const BANDS = 15; let bands = new Float64Array(BANDS), made = 0, hits = 0, sinceTrack = 0;
+  function record(h) {
+    made++; sinceTrack++;
+    if (h <= 0) hits++; else bands[Math.min(BANDS - 1, Math.floor(h / 1000))]++;
+    if (sinceTrack >= 100) { window.labTrack && labTrack('muon', sinceTrack); sinceTrack = 0; }
+  }
+
+  // ================= Scene =================
+  const cv = $('sky'), ctx = cv.getContext('2d');
+  let W = 0, H = 0, top = 34, ground = 0, stars = [];
+  function size() {
+    const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = r.width; H = r.height; ground = H - 74;
+    stars = Array.from({ length: 70 }, () => [Math.random() * W, Math.random() * (ground - 40), Math.random() * 1.3 + .3]);
+  }
+  addEventListener('resize', size); size();
+  const yOf = h => ground - (h / H0) * (ground - top);
+  const town = Array.from({ length: 26 }, (_, i) => ({ w: 14 + (i * 37 % 22), h: 14 + (i * 53 % 34), lit: (i * 7) % 3 }));
+
+  let muons = [], puffs = [], flashes = [], running = true;
+  const FALL = 3.2;                                    // seconds of screen time for the full 15 km
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const plotW = () => W - 120;                         // leave room for the bars on the right
+  function spawn() { muons.push({ x: 64 + uniform() * (plotW() - 74), h: H0, end: decayHeight() }); }
+
+  let last = performance.now(), acc = 0;
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (running) {
+      acc += dt * 9;                                   // about 9 new muons a second
+      while (acc >= 1) { acc--; spawn(); }
+      const drop = H0 / FALL * dt;
+      for (const m of muons) {
+        m.h -= drop;
+        if (m.h <= Math.max(m.end, 0)) {
+          m.done = true; record(m.end);
+          if (m.end <= 0) flashes.push({ x: m.x, t: 0 }); else puffs.push({ x: m.x, y: yOf(m.end), t: 0 });
+        }
+      }
+      muons = muons.filter(m => !m.done);
+      for (const p of puffs) p.t += dt; puffs = puffs.filter(p => p.t < .7);
+      for (const f of flashes) f.t += dt; flashes = flashes.filter(f => f.t < .6);
+    }
+    draw(); requestAnimationFrame(frame);
+  }
+
+  function draw() {
+    const g = ctx.createLinearGradient(0, 0, 0, ground);
+    g.addColorStop(0, '#0B0E2E'); g.addColorStop(1, '#1A2256');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff'; for (const s of stars) { ctx.globalAlpha = .35; ctx.fillRect(s[0], s[1], s[2], s[2]); } ctx.globalAlpha = 1;
+
+    // where the cosmic rays hit
+    const tg = ctx.createLinearGradient(0, top - 14, 0, top + 14); tg.addColorStop(0, 'rgba(197,139,255,0)'); tg.addColorStop(.5, 'rgba(197,139,255,.35)'); tg.addColorStop(1, 'rgba(197,139,255,0)');
+    ctx.fillStyle = tg; ctx.fillRect(0, top - 14, plotW(), 28);
+
+    // height scale
+    ctx.font = '600 13px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+    for (let km = 0; km <= 15; km += 3) {
+      const y = yOf(km * 1000);
+      ctx.strokeStyle = 'rgba(183,188,230,.14)'; ctx.beginPath(); ctx.moveTo(48, y); ctx.lineTo(plotW(), y); ctx.stroke();
+      ctx.fillStyle = 'rgba(183,188,230,.75)'; ctx.fillText(`${km} km`, 6, y);
+    }
+
+    // muons: bright head with a short tail
+    for (const m of muons) {
+      const y = yOf(m.h), tail = reduced ? 0 : 26;
+      const lg = ctx.createLinearGradient(0, y - tail, 0, y); lg.addColorStop(0, 'rgba(125,249,255,0)'); lg.addColorStop(1, 'rgba(125,249,255,.9)');
+      ctx.strokeStyle = lg; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(m.x, y - tail); ctx.lineTo(m.x, y); ctx.stroke();
+      ctx.fillStyle = '#E8FEFF'; ctx.beginPath(); ctx.arc(m.x, y, 2.6, 0, 7); ctx.fill();
+    }
+    // decays
+    for (const p of puffs) { const k = p.t / .7; ctx.strokeStyle = `rgba(197,139,255,${1 - k})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 3 + k * 12, 0, 7); ctx.stroke(); }
+
+    // ground, town and detector strip
+    ctx.fillStyle = '#060818'; ctx.fillRect(0, ground, W, H - ground);
+    let x = 0; for (const b of town) { ctx.fillStyle = '#0E1330'; ctx.fillRect(x, ground - b.h, b.w, b.h);
+      if (b.lit) { ctx.fillStyle = 'rgba(255,224,102,.55)'; ctx.fillRect(x + 4, ground - b.h + 5, 3, 3); } x += b.w + 2; if (x > plotW()) break; }
+    ctx.fillStyle = 'rgba(255,224,102,.25)'; ctx.fillRect(0, ground, plotW(), 3);
+    for (const f of flashes) { const k = f.t / .6; ctx.fillStyle = `rgba(255,224,102,${1 - k})`; ctx.beginPath(); ctx.arc(f.x, ground, 4 + k * 16, 0, 7); ctx.fill(); }
+    ctx.fillStyle = 'rgba(183,188,230,.85)'; ctx.font = '600 14px "IBM Plex Sans", sans-serif'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Ground level: your town', 10, H - 40);
+    ctx.fillStyle = 'rgba(183,188,230,.6)'; ctx.font = '500 13px "IBM Plex Sans", sans-serif'; ctx.fillText('Yellow flash = a muon made it', 10, H - 20);
+
+    // where they decay: one bar per km, plus the ones that reached the ground
+    const bx = plotW() + 10, bw = W - bx - 10, total = Math.max(1, made);
+    let max = hits; for (const v of bands) if (v > max) max = v; max = Math.max(1, max);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(bx - 4, top - 4, bw + 8, ground - top + 8);
+    for (let i = 0; i < BANDS; i++) {
+      const y1 = yOf((i + 1) * 1000), y0 = yOf(i * 1000), len = bands[i] / max * bw;
+      ctx.fillStyle = 'rgba(197,139,255,.85)'; ctx.fillRect(bx, y1 + 1, len, y0 - y1 - 2);
+    }
+    ctx.fillStyle = '#FFE066'; ctx.fillRect(bx, ground + 6, hits / max * bw, 14);
+    ctx.fillStyle = 'rgba(183,188,230,.85)'; ctx.font = '700 11px "IBM Plex Sans Condensed", sans-serif';
+    ctx.fillText('WHERE THEY', bx, top - 18 > 10 ? top - 18 : 14); ctx.fillText('DECAY', bx, top - 6 > 20 ? top - 6 : 26);
+    ctx.fillStyle = '#FFE066'; ctx.font = '600 12px "IBM Plex Mono", monospace'; ctx.fillText(made ? `${(hits / total * 100).toFixed(1)}%` : '', bx, ground + 38);
+  }
+
+  // ================= Panels =================
+  const fmtN = n => n.toLocaleString('en-US');
+  function odds(p) {
+    if (p > .01) return (p * 100).toFixed(1) + '%';
+    const n = 1 / p; const words = [[1e12, 'trillion'], [1e9, 'billion'], [1e6, 'million'], [1e3, 'thousand']];
+    for (const [v, w] of words) if (n >= v) return `about 1 in ${Math.round(n / v)} ${w}`;
+    return `about 1 in ${Math.round(n)}`;
+  }
+  function updateTrip() {
+    const tEarth = H0 / (beta * C) * 1e6, gm = gamma(), tMu = tEarth / (einstein ? gm : 1);
+    $('tEarth').textContent = tEarth.toFixed(1) + ' µs';
+    $('tMu').textContent = tMu.toFixed(1) + ' µs';
+    $('tripNote').innerHTML = einstein
+      ? `At ${(beta * 100).toFixed(beta >= .9995 ? 2 : 1)}% of light speed the muon's clock runs <b>${gm.toFixed(1)}× slower</b>. A muon lives about <b>2.2 µs</b> of its own time, so many survive the trip.`
+      : `With Einstein off, the muon's clock runs at our speed. The trip takes <b>${tEarth.toFixed(0)} µs</b> but a muon lives about <b>2.2 µs</b>: that's ${Math.round(tEarth / 2.197)} lifetimes.`;
+  }
+  function updateScore() {
+    $('made').textContent = fmtN(made); $('hits').textContent = fmtN(hits);
+    const pe = pSurvive(einstein), got = made ? hits / made : 0;
+    $('barGot').style.width = (got * 100) + '%'; $('barExp').style.left = (pe * 100) + '%';
+    $('pGot').textContent = made ? (got * 100).toFixed(1) + '%' : '–';
+    $('pExp').textContent = odds(pe);
+    $('pNoEin').textContent = odds(pSurvive(false));
+    const v = $('verdict'); v.classList.toggle('off', !einstein);
+    if (made < 20) v.textContent = 'The first muons are on their way down…';
+    else if (einstein) v.innerHTML = `<b>${fmtN(hits)}</b> of ${fmtN(made)} muons reached the ground (<b>${(got * 100).toFixed(1)}%</b>). The math says ${odds(pe)}. Without Einstein's slow clocks it would be ${odds(pSurvive(false))}.`;
+    else v.innerHTML = `Einstein is off. <b>${fmtN(hits)}</b> of ${fmtN(made)} muons reached the ground. Each one decays within a few hundred meters of where it was born. This is the universe physicists expected before 1905, and it isn't the one we live in.`;
+  }
+  setInterval(updateScore, 250);
+
+  function resetAll() { muons = []; puffs = []; flashes = []; bands = new Float64Array(BANDS); made = hits = 0; updateTrip(); updateScore(); }
+
+  $('ein').addEventListener('click', () => {
+    einstein = !einstein; $('ein').setAttribute('aria-checked', einstein);
+    $('badge').textContent = einstein ? 'Einstein on' : 'Einstein off'; $('badge').classList.toggle('off', !einstein);
+    $('einText').textContent = einstein ? 'Moving clocks run slow. On, like the real universe.' : "Off: clocks tick the same for everyone. Not our universe.";
+    resetAll();
+  });
+  document.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => {
+    beta = +b.dataset.b; document.querySelectorAll('[data-b]').forEach(x => x.classList.toggle('on', x === b)); resetAll();
+  }));
+  $('run').addEventListener('click', () => { running = !running; $('run').textContent = running ? 'Pause' : 'Run'; });
+  $('storm').addEventListener('click', () => { for (let i = 0; i < 1000; i++) record(decayHeight()); updateScore(); });
+  $('reset').addEventListener('click', resetAll);
+
+  updateTrip(); updateScore(); requestAnimationFrame(frame);
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
