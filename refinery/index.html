@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Randomness Refinery · AugieLab</title>
+<meta name="description" content="Raw quantum noise goes in, perfect randomness comes out. Watch a quantum generator's raw readings and its SHA-256 refined output side by side.">
+<meta property="og:title" content="The Randomness Refinery">
+<meta property="og:description" content="Raw quantum noise on the left, refined randomness on the right. See what a quantum random number generator does inside.">
+<meta property="og:url" content="https://augielab.dev/refinery/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #0C1116; --steel: #141C24; --steel2: #1B2631; --line: #2C3B49;
+    --text: #EEF2F5; --dim: #B4C1CC; --soft: #8597A6;
+    --raw: #F2A33C; --raw2: #FFCB7D; --ref: #4FE3B5; --ref2: #A6F7DC;
+    --bad: #FF7A6B; --good: #4FE3B5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--night); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 70% 700px at 12% 0%, rgba(242,163,60,.14), transparent 70%),
+                radial-gradient(ellipse 70% 700px at 88% 0%, rgba(79,227,181,.12), transparent 70%), var(--night); }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+
+  header { margin: 4px 0 20px; }
+  h1 { font: 800 clamp(2.4rem, 6.5vw, 4.2rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 .r { color: var(--raw); } h1 .f { color: var(--ref); font-style: italic; font-weight: 500; }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 56ch; }
+
+  /* ---------- pipeline ---------- */
+  .pipe { position: relative; height: 150px; margin: 6px 0 22px; border-radius: 14px; overflow: hidden;
+    background: linear-gradient(90deg, rgba(242,163,60,.08), rgba(20,28,36,.9) 40%, rgba(20,28,36,.9) 60%, rgba(79,227,181,.08));
+    border: 1px solid var(--line); }
+  .pipe canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage { position: absolute; top: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+  .stage b { display: block; font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+  .stage span { display: block; font-size: .85rem; color: var(--dim); }
+  .s1 { left: 9%; } .s1 b { color: var(--raw); }
+  .s3 { left: 91%; } .s3 b { color: var(--ref); }
+  .mixer { left: 50%; width: 150px; padding: 12px 8px; border-radius: 12px; background: #0E151C; border: 2px solid #3E5163;
+    box-shadow: 0 0 24px rgba(0,0,0,.6) inset, 0 0 18px rgba(79,227,181,.12); }
+  .mixer b { color: var(--text); font: 600 1.05rem "IBM Plex Mono", monospace; letter-spacing: .02em; text-transform: none; }
+  .mixer span { font-size: .78rem; }
+  .gear { display: inline-block; animation: spin 2.4s linear infinite; color: var(--soft); }
+  .paused .gear { animation-play-state: paused; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 20px; }
+  .group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .group .lbl { margin-right: 4px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .btn { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 10px 16px; border-radius: 8px; cursor: pointer;
+    color: var(--text); background: var(--steel2); border: 1px solid #3E5163; }
+  .btn:hover { border-color: var(--text); }
+  .btn.primary { background: var(--ref); color: #06261C; border-color: var(--ref); min-width: 7.5em; }
+  .btn.primary:hover { background: var(--ref2); }
+  .btn.on { background: var(--raw); color: #2A1702; border-color: var(--raw); }
+  .btn.on.stuck { background: var(--bad); border-color: var(--bad); color: #2A0904; }
+  button:focus-visible { outline: 3px solid var(--raw2); outline-offset: 2px; }
+  .counter { margin-left: auto; font: 600 .95rem "IBM Plex Mono", monospace; color: var(--dim); text-align: right; }
+  .counter b { color: var(--text); }
+
+  /* ---------- side by side ---------- */
+  .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .side { background: rgba(20,28,36,.85); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 18px; }
+  .side.raw { border-top: 4px solid var(--raw); } .side.ref { border-top: 4px solid var(--ref); }
+  .side h2 { font: 600 1.45rem/1.2 "Fraunces", Georgia, serif; }
+  .side.raw h2 { color: var(--raw); } .side.ref h2 { color: var(--ref); }
+  .side .what { color: var(--dim); font-size: .95rem; margin-top: 2px; min-height: 2.9em; }
+  .viz { margin-top: 14px; }
+  .viz canvas { display: block; width: 100%; image-rendering: pixelated; border-radius: 6px; background: #070A0E; }
+  .wall { aspect-ratio: 64 / 48; }
+  .pairs { aspect-ratio: 1; max-width: 320px; margin: 0 auto; }
+  .hist { aspect-ratio: 512 / 150; image-rendering: auto !important; }
+  .cap { color: var(--soft); font-size: .85rem; margin-top: 4px; }
+  .cap b { color: var(--dim); font-weight: 600; }
+
+  .stats { margin-top: 14px; display: grid; gap: 8px; }
+  .stat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.22); }
+  .stat .k { font-size: .95rem; color: var(--dim); }
+  .stat .v { font: 600 1.25rem "IBM Plex Mono", monospace; }
+  .stat .ideal { grid-column: 1 / -1; font-size: .8rem; color: var(--soft); }
+  .v.good { color: var(--good); } .v.bad { color: var(--bad); } .v.meh { color: var(--raw2); }
+  .test { margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-weight: 600; text-align: center; font-size: 1.05rem; }
+  .test.pass { background: rgba(79,227,181,.14); color: var(--good); border: 1px solid rgba(79,227,181,.4); }
+  .test.fail { background: rgba(255,122,107,.12); color: var(--bad); border: 1px solid rgba(255,122,107,.4); }
+  .test.wait { background: rgba(255,255,255,.04); color: var(--soft); border: 1px solid var(--line); }
+
+  .verdict { margin-top: 22px; padding: 14px 18px; border-radius: 12px; font-size: 1.08rem; background: rgba(79,227,181,.07); border: 1px solid rgba(79,227,181,.25); min-height: 3.6em; }
+  .verdict.warn { background: rgba(255,122,107,.08); border-color: rgba(255,122,107,.35); }
+  .verdict b { color: var(--ref); } .verdict.warn b { color: var(--bad); }
+
+  .source { margin-top: 28px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 860px) {
+    html { font-size: 17px; }
+    body { padding: 14px 10px 110px; }
+    .sides { gap: 10px; }
+    .side { padding: 12px 10px 14px; }
+    .side .what { display: none; }
+    .stat { grid-template-columns: 1fr; }
+    .stat .v { font-size: 1.05rem; }
+    .stat .ideal { display: none; }
+    .counter { margin-left: 0; text-align: left; width: 100%; }
+    .pipe { height: 120px; }
+    .stage span { display: none; }
+    .mixer { width: 112px; }
+    .stage b { font-size: .62rem; letter-spacing: .06em; }
+    .s1 { left: 13%; } .s3 { left: 87%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .gear { animation: none; } }
+</style>
+</head>
+<body data-explain-bottom="16">
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>The <span class="r">Randomness</span> <span class="f">Refinery</span></h1>
+    <p class="sub">Raw quantum noise goes in on the left. A SHA-256 mixer refines it. Perfect randomness comes out on the right. Same source, side by side.</p>
+  </header>
+
+  <main>
+    <div class="pipe" id="pipe">
+      <canvas id="pipeCv" aria-hidden="true"></canvas>
+      <div class="stage s1"><b>Light sensor</b><span>raw readings</span></div>
+      <div class="stage mixer"><b><span class="gear">⚙</span> SHA-256</b><span>64 bytes in → 32 out</span></div>
+      <div class="stage s3"><b>Refined</b><span>random bytes</span></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="run">Pause</button>
+      <div class="group" role="group" aria-label="Speed">
+        <span class="lbl">Speed</span>
+        <button class="btn" data-speed="1">Slow</button>
+        <button class="btn on" data-speed="4">Normal</button>
+        <button class="btn" data-speed="16">Fast</button>
+      </div>
+      <div class="group" role="group" aria-label="Sensor flaws" id="flawGroup">
+        <span class="lbl">Sensor flaws</span>
+        <button class="btn" data-flaw="low">Low</button>
+        <button class="btn on" data-flaw="med">Medium</button>
+        <button class="btn" data-flaw="high">High</button>
+        <button class="btn" data-flaw="stuck">Stuck</button>
+      </div>
+      <button class="btn" id="reset">Reset</button>
+      <div class="counter" aria-live="off">Raw in: <b id="cIn">0</b> bytes · Refined out: <b id="cOut">0</b> bytes</div>
+    </div>
+
+    <div class="sides">
+      <section class="side raw" aria-label="Raw readings">
+        <h2>Raw</h2>
+        <p class="what">Straight off the sensor. Real physics, with real quirks: some values come up more often, and each reading leans toward the last.</p>
+        <div class="viz"><canvas class="wall" id="wallRaw" width="64" height="48"></canvas>
+          <p class="cap"><b>Byte wall.</b> Every byte is a dot: dark = 0, bright = 255. Newest at the top.</p></div>
+        <div class="viz"><canvas class="hist" id="histRaw" width="512" height="150"></canvas>
+          <p class="cap"><b>How often each byte value (0–255) appears.</b> Fair dice would be flat.</p></div>
+        <div class="viz"><canvas class="pairs" id="pairsRaw" width="256" height="256"></canvas>
+          <p class="cap"><b>Pairs map.</b> Each dot is one byte (across) and the next (up). Random fills the square evenly.</p></div>
+        <div class="stats" id="statsRaw"></div>
+      </section>
+
+      <section class="side ref" aria-label="Refined output">
+        <h2>Refined</h2>
+        <p class="what">The same raw readings, 64 bytes at a time, run through SHA-256. Out come 32 bytes that are as even as dice can be.</p>
+        <div class="viz"><canvas class="wall" id="wallRef" width="64" height="48"></canvas>
+          <p class="cap"><b>Byte wall.</b> Every byte is a dot: dark = 0, bright = 255. Newest at the top.</p></div>
+        <div class="viz"><canvas class="hist" id="histRef" width="512" height="150"></canvas>
+          <p class="cap"><b>How often each byte value (0–255) appears.</b> Fair dice would be flat.</p></div>
+        <div class="viz"><canvas class="pairs" id="pairsRef" width="256" height="256"></canvas>
+          <p class="cap"><b>Pairs map.</b> Each dot is one byte (across) and the next (up). Random fills the square evenly.</p></div>
+        <div class="stats" id="statsRef"></div>
+      </section>
+    </div>
+
+    <div class="verdict" id="verdict" aria-live="polite">Warming up the sensor…</div>
+
+    <div class="source" id="source"><i></i><span id="sourceText">Demo mode: the raw side is a simulated light sensor.</span></div>
+  </main>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>Two kinds of random</h3>
+  <p>A quantum random number generator measures something truly unpredictable, like single particles of light hitting a sensor. But real sensors aren't perfect. Some readings come up more often than others, and each reading leans a little toward the one before it. The randomness is real, it's just lumpy. That's the left side: <strong>raw</strong>.</p>
+  <h3>The refinery</h3>
+  <p>To smooth out the lumps, the generator takes 64 raw bytes at a time and runs them through <strong>SHA-256</strong>, a scrambling formula used everywhere in computer security. Change one bit going in and about half the bits coming out change. Out come 32 bytes. Because twice as many bytes go in as come out, all the true randomness in the lumpy readings gets squeezed into a smaller, perfectly even batch. That's the right side: <strong>refined</strong>. Security rules (from NIST, the U.S. standards agency) require this step for anything like passwords or encryption.</p>
+  <h3>Reading the pictures</h3>
+  <p><strong>Byte wall:</strong> raw is a soft, muddy smear of middle tones, because each reading sits close to the last; refined is sharp TV static. <strong>Bar chart:</strong> raw is a hill because middle values are most common; refined is flat. <strong>Pairs map:</strong> raw makes a glowing diagonal smear, because each reading is close to the one before it; refined fills the whole square evenly.</p>
+  <h3>The numbers</h3>
+  <p><strong>Information per byte</strong> is how much true surprise each byte holds, out of a perfect 8 bits. <strong>Guess high or low</strong> bets that the next byte lands in the same half (low 0–127 or high 128–255) as the one before it; on perfect randomness that's a coin flip, 50%. <strong>Fairness test</strong> is a standard statistics check (chi-squared) that asks whether every byte value shows up as often as it should.</p>
+  <h3>Try "Stuck"</h3>
+  <p>This is the most important lesson on the page. Set the sensor to Stuck and it sends the same readings over and over. SHA-256 still scrambles them, but it gets the same answer every time, so the refined side repeats too. A mixer can't create randomness, only spread it out. If a sneakier broken sensor fed it slowly changing junk, the output would <em>look</em> perfect while being completely predictable. That's why the quality of the raw source matters, and why it's worth looking at the raw side at all.</p>
+  <h3>Where the numbers come from</h3>
+  <p>Right now this is <strong>demo mode</strong>: the raw side is a simulated light sensor with typical flaws, built from your browser's random number maker, and the SHA-256 is done right here in your browser. Soon this lab plugs in a real <strong>Crypta Labs Cicada</strong> quantum generator, which has both modes built in: raw readings straight off its sensor, and its own refined output. When it's connected, the dot at the bottom turns green and both sides show the real thing.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL
+  // that returns {"ok":true,"values":[0..255,...]} for ?mode=raw&n=COUNT (Cicada -p 2, raw samples)
+  // and ?mode=p0&n=COUNT (Cicada -p 0, its own SHA-256 conditioned output).
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let live = false;
+
+  async function fetchMode(mode, n) {
+    const res = await fetch(`${SOURCE.ENDPOINT}?mode=${mode}&n=${n}`, { cache: 'no-store' });
+    const j = await res.json();
+    if (!j.ok || !Array.isArray(j.values) || !j.values.length) throw new Error('bad');
+    return Uint8Array.from(j.values);
+  }
+  function setSource(quantum, fellBack) {
+    live = quantum;
+    $('source').classList.toggle('quantum', quantum);
+    $('flawGroup').style.display = quantum ? 'none' : '';
+    $('sourceText').textContent = quantum ? `Live: raw readings and refined output, both from the ${SOURCE.NAME}.`
+      : fellBack ? 'The quantum generator is offline, so this is demo mode: the raw side is a simulated light sensor.'
+      : 'Demo mode: the raw side is a simulated light sensor.';
+  }
+  setSource(false);
+
+  // ================= Simulated sensor (demo mode) =================
+  // A light sensor read by an 8-bit converter: bell-shaped values around the middle,
+  // each reading correlated with the last, plus a slow drift. Flaw levels change how strong this is.
+  const FLAWS = {
+    low:  { sd: 62, rho: .12, drift: .15, driftMax: 5 },
+    med:  { sd: 40, rho: .38, drift: .4,  driftMax: 12 },
+    high: { sd: 22, rho: .72, drift: .9,  driftMax: 26 },
+  };
+  let flaw = 'med', dev = 0, drift = 0, spare = null;
+  const u = new Uint32Array(1);
+  const rand = () => (crypto.getRandomValues(u)[0] + .5) / 4294967296;
+  function gauss() {
+    if (spare !== null) { const s = spare; spare = null; return s; }
+    const a = rand(), b = rand(), r = Math.sqrt(-2 * Math.log(a));
+    spare = r * Math.sin(2 * Math.PI * b); return r * Math.cos(2 * Math.PI * b);
+  }
+  const STUCK = Uint8Array.from({ length: 64 }, (_, i) => 128 + Math.round(34 * Math.sin(i * .9) + 12 * Math.cos(i * 2.3)));
+  let stuckPos = 0;
+  function simRaw(n) {
+    const out = new Uint8Array(n);
+    if (flaw === 'stuck') { for (let i = 0; i < n; i++) out[i] = STUCK[stuckPos++ % 64]; return out; }
+    const f = FLAWS[flaw], k = Math.sqrt(1 - f.rho * f.rho);
+    for (let i = 0; i < n; i++) {
+      drift = Math.max(-f.driftMax, Math.min(f.driftMax, drift + gauss() * f.drift));
+      dev = f.rho * dev + k * f.sd * gauss();
+      out[i] = Math.max(0, Math.min(255, Math.round(128 + drift + dev)));
+    }
+    return out;
+  }
+  async function refine(raw) {
+    const out = new Uint8Array(raw.length / 2), jobs = [];
+    for (let i = 0; i < raw.length; i += 64) jobs.push(crypto.subtle.digest('SHA-256', raw.subarray(i, i + 64)).then(h => out.set(new Uint8Array(h), i / 2)));
+    await Promise.all(jobs); return out;
+  }
+
+  // ================= Statistics =================
+  const POP = Uint8Array.from({ length: 256 }, (_, i) => { let c = 0; for (let x = i; x; x >>= 1) c += x & 1; return c; });
+  function newStats() { return { counts: new Uint32Array(256), pairs: new Uint32Array(65536), n: 0, ones: 0, prev: -1, right: 0, tries: 0, run: 0, last: -1, longest: 0 }; }
+  function addStats(s, bytes) {
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      s.counts[b]++; s.ones += POP[b]; s.n++;
+      if (s.prev >= 0) { s.pairs[(b << 8) | s.prev]++; s.right += (s.prev >> 7) === (b >> 7) ? 1 : 0; s.tries++; }
+      for (let k = 7; k >= 0; k--) { const bit = (b >> k) & 1; if (bit === s.last) s.run++; else { s.run = 1; s.last = bit; } if (s.run > s.longest) s.longest = s.run; }
+      s.prev = b;
+    }
+  }
+  function measure(s) {
+    let H = 0, chi = 0; const e = s.n / 256;
+    for (let i = 0; i < 256; i++) { const c = s.counts[i]; if (c) H -= (c / s.n) * Math.log2(c / s.n); chi += (c - e) * (c - e) / (e || 1); }
+    if (s.n) { let K = 0; for (let i = 0; i < 256; i++) if (s.counts[i]) K++; H = Math.min(8, H + (K - 1) / (2 * s.n * Math.LN2)); }  // small-sample correction
+    const z = (chi - 255) / Math.sqrt(510);
+    return { ones: s.ones / (s.n * 8) * 100, H, guess: s.tries ? s.right / s.tries * 100 : 50, longest: s.longest,
+             expRun: Math.max(1, Math.round(Math.log2(s.n * 8))), z, ready: s.n >= 2048 };
+  }
+  let sRaw = newStats(), sRef = newStats();
+
+  // ================= Drawing =================
+  const WALL_BYTES = 64 * 48;
+  const ring = { raw: new Uint8Array(WALL_BYTES), ref: new Uint8Array(WALL_BYTES) };
+  function pushRing(name, bytes) {
+    const r = ring[name], m = Math.min(bytes.length, WALL_BYTES);
+    r.copyWithin(m, 0, WALL_BYTES - m);                 // shift older rows down
+    for (let i = 0; i < m; i++) r[i] = bytes[bytes.length - 1 - i];   // newest at the top
+  }
+  const COL = { raw: [242, 163, 60], ref: [79, 227, 181] };
+  function drawWall(cv, name) {
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(64, 48), d = img.data, r = ring[name], c = COL[name];
+    for (let i = 0; i < WALL_BYTES; i++) {
+      const p = i * 4, a = r[i] / 255;
+      d[p] = 7 + a * (c[0] - 7); d[p + 1] = 10 + a * (c[1] - 10); d[p + 2] = 14 + a * (c[2] - 14); d[p + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  function drawHist(cv, s, name) {
+    const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, c = COL[name];
+    ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#070A0E'; ctx.fillRect(0, 0, W, H);
+    if (!s.n) return;
+    let max = 0; for (const v of s.counts) if (v > max) max = v;
+    const even = s.n / 256, top = Math.max(max, even * 2.2);
+    ctx.fillStyle = `rgb(${c})`;
+    for (let i = 0; i < 256; i++) { const h = s.counts[i] / top * (H - 8); ctx.fillRect(i * 2, H - h, 1.6, h); }
+    const y = H - even / top * (H - 8);
+    ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(238,242,245,.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '600 16px "IBM Plex Sans", sans-serif'; const tw = ctx.measureText('perfectly even').width;
+    ctx.fillStyle = 'rgba(7,10,14,.85)'; ctx.fillRect(W - tw - 16, y - 24, tw + 12, 20);
+    ctx.fillStyle = 'rgba(238,242,245,.9)'; ctx.fillText('perfectly even', W - tw - 10, y - 9);
+  }
+  function drawPairs(cv, s, name) {
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(256, 256), d = img.data, c = COL[name];
+    let max = 1; for (const v of s.pairs) if (v > max) max = v;
+    const L = Math.log1p(max);
+    for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
+      const v = s.pairs[(y << 8) | x], a = v ? .25 + .75 * Math.log1p(v) / L : 0, p = ((255 - y) * 256 + x) * 4;
+      d[p] = 7 + a * (c[0] - 7); d[p + 1] = 10 + a * (c[1] - 10); d[p + 2] = 14 + a * (c[2] - 14); d[p + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  const fmt = n => n.toLocaleString('en-US');
+  function drawStats(el, s) {
+    const m = measure(s);
+    const cls = (ok, near) => !m.ready ? '' : ok ? 'good' : near ? 'meh' : 'bad';
+    const onesOff = Math.abs(m.ones - 50), guessOff = m.guess - 50;
+    el.innerHTML = `
+      <div class="stat"><span class="k">Information per byte</span><span class="v ${cls(m.H > 7.97, m.H > 7.6)}">${s.n ? m.H.toFixed(2) : '–'} <small>/ 8 bits</small></span><span class="ideal">Perfect: 8.00</span></div>
+      <div class="stat"><span class="k">Guess high or low</span><span class="v ${cls(guessOff < 1, guessOff < 4)}">${s.tries ? m.guess.toFixed(1) + '%' : '–'}</span><span class="ideal">Guess the next byte lands in the same half (0–127 or 128–255) as this one. Perfect: 50%, a coin flip.</span></div>
+      <div class="stat"><span class="k">Bits that are 1</span><span class="v ${cls(onesOff < .6, onesOff < 2)}">${s.n ? m.ones.toFixed(1) + '%' : '–'}</span><span class="ideal">Perfect: 50%</span></div>
+      <div class="stat"><span class="k">Longest streak of same bit</span><span class="v">${s.n ? m.longest : '–'}</span><span class="ideal">Expected about ${m.expRun} for this many bits</span></div>
+      <div class="test ${!m.ready ? 'wait' : Math.abs(m.z) < 3 ? 'pass' : 'fail'}">${!m.ready ? 'Fairness test: collecting…' : Math.abs(m.z) < 3 ? '✓ Passes the fairness test' : '✗ Fails the fairness test'}</div>`;
+    return m;
+  }
+  function drawVerdict(mr, mf) {
+    const v = $('verdict');
+    if (!mr.ready || !mf.ready) { v.className = 'verdict'; v.textContent = 'Collecting readings…'; return; }
+    if (flaw === 'stuck' && !live) {
+      v.className = 'verdict warn';
+      v.innerHTML = `<b>Stuck sensor.</b> The same 64 readings repeat, so SHA-256 gives the same 32 bytes every time. Look at the stripes in the refined byte wall: <b>a mixer can't create randomness, only spread it out.</b>`;
+      return;
+    }
+    v.className = 'verdict';
+    v.innerHTML = `Raw holds <b>${mr.H.toFixed(2)}</b> bits of true information per byte, and the high-or-low guess is right <b>${mr.guess.toFixed(1)}%</b> of the time. After the refinery: <b>${mf.H.toFixed(2)}</b> bits per byte and <b>${mf.guess.toFixed(1)}%</b>, no better than a coin flip. Twice as many raw bytes go in as come out, which is what makes room to squeeze the lumps out.`;
+  }
+
+  // ================= Pipeline animation =================
+  const pcv = $('pipeCv'), pctx = pcv.getContext('2d');
+  let parts = [], lastRaw = new Uint8Array(0), lastRef = new Uint8Array(0), rp = 0, fp = 0;
+  function sizePipe() { const r = pcv.getBoundingClientRect(), dpr = devicePixelRatio || 1; pcv.width = r.width * dpr; pcv.height = r.height * dpr; pctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  addEventListener('resize', sizePipe); sizePipe();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function pipeFrame() {
+    const W = pcv.clientWidth, H = pcv.clientHeight, mid = W / 2, box = W < 600 ? 60 : 80;
+    pctx.clearRect(0, 0, W, H);
+    if (running && !reduced) {
+      if (lastRaw.length && Math.random() < .55) {           // raw: lumpy spacing, bunched near the middle (bell curve)
+        const b = lastRaw[rp++ % lastRaw.length];
+        parts.push({ x: W * .17, y: H * .1 + b / 255 * H * .8, v: 1.2 + Math.random() * 2.4, raw: true });
+      }
+      if (lastRef.length && (fp++ % 3 === 0)) {             // refined: steady stream, spread evenly
+        const b = lastRef[fp % lastRef.length];
+        parts.push({ x: mid + box, y: H * .1 + b / 255 * H * .8, v: 2.2, raw: false });
+      }
+    }
+    parts = parts.filter(p => p.raw ? p.x < mid - box : p.x < W * .83);
+    for (const p of parts) {
+      if (running) { p.x += p.v * speedMul; if (p.raw) p.y += (Math.random() - .5) * 1.2; }
+      pctx.fillStyle = p.raw ? 'rgba(242,163,60,.85)' : 'rgba(79,227,181,.9)';
+      if (p.raw) { pctx.beginPath(); pctx.arc(p.x, p.y, 3.2, 0, 7); pctx.fill(); } else pctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+    }
+    requestAnimationFrame(pipeFrame);
+  }
+  requestAnimationFrame(pipeFrame);
+
+  // ================= Main loop =================
+  let running = true, speed = 4, busy = false, totalIn = 0, totalOut = 0, sinceTrack = 0;
+  const speedMul = 1;
+  async function tick() {
+    if (!running || busy) return;
+    busy = true;
+    try {
+      const n = 64 * speed;
+      let raw, ref;
+      if (SOURCE.ENDPOINT) {
+        try { [raw, ref] = await Promise.all([fetchMode('raw', n), fetchMode('p0', n / 2)]); if (!live) { setSource(true); resetAll(); } }
+        catch (e) { if (live || !SOURCE.fellBack) { SOURCE.fellBack = true; setSource(false, true); resetAll(); } }
+      }
+      if (!raw) { raw = simRaw(n); ref = await refine(raw); }
+      addStats(sRaw, raw); addStats(sRef, ref);
+      pushRing('raw', raw); pushRing('ref', ref);
+      lastRaw = raw; lastRef = ref;
+      totalIn += raw.length; totalOut += ref.length;
+      sinceTrack += raw.length; if (sinceTrack >= 1000) { window.labTrack && labTrack('kbytes', Math.floor(sinceTrack / 1000)); sinceTrack %= 1000; }
+      render();
+    } finally { busy = false; }
+  }
+  function render() {
+    drawWall($('wallRaw'), 'raw'); drawWall($('wallRef'), 'ref');
+    drawHist($('histRaw'), sRaw, 'raw'); drawHist($('histRef'), sRef, 'ref');
+    drawPairs($('pairsRaw'), sRaw, 'raw'); drawPairs($('pairsRef'), sRef, 'ref');
+    const mr = drawStats($('statsRaw'), sRaw), mf = drawStats($('statsRef'), sRef);
+    drawVerdict(mr, mf);
+    $('cIn').textContent = fmt(totalIn); $('cOut').textContent = fmt(totalOut);
+  }
+  function resetAll() {
+    sRaw = newStats(); sRef = newStats(); ring.raw.fill(0); ring.ref.fill(0);
+    totalIn = totalOut = 0; dev = drift = 0; stuckPos = 0; parts = []; render();
+  }
+  setInterval(tick, 120);
+
+  // ================= Controls =================
+  $('run').addEventListener('click', () => {
+    running = !running; $('run').textContent = running ? 'Pause' : 'Run';
+    $('pipe').classList.toggle('paused', !running);
+  });
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+    speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  document.querySelectorAll('[data-flaw]').forEach(b => b.addEventListener('click', () => {
+    flaw = b.dataset.flaw;
+    document.querySelectorAll('[data-flaw]').forEach(x => { x.classList.toggle('on', x === b); x.classList.toggle('stuck', x === b && flaw === 'stuck'); });
+    resetAll();
+  }));
+  $('reset').addEventListener('click', resetAll);
+  render();
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
