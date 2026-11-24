@@ -11,3 +11,5 @@ Hosted on Cloudflare Pages: every push to `main` deploys automatically.
 MIT License: free to use, copy and change, including for teaching. See [LICENSE](LICENSE).
 
 Classroom edition of the GPS page (one file, works offline): [gps/classroom.html](gps/classroom.html)
+
+After changing `gps/index.html`, rebuild the classroom edition with `python3 tools/build_classroom.py` (run from the repo root).

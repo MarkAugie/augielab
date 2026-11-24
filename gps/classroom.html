@@ -46,6 +46,13 @@
   .mode.on span { color: #4A2405; }
   .mode[data-m="einstein"].on { background: var(--off); border-color: var(--off); color: #2A0509; }
   .mode[data-m="einstein"].on span { color: #4A0B16; }
+  .mode[data-m="live"] { grid-column: 1 / -1; }
+  .mode[data-m="live"].on { background: var(--brass); border-color: var(--brass); color: #2A1E00; }
+  .mode[data-m="live"].on span { color: #4A3600; }
+  .badge.live { background: rgba(226,181,72,.16); color: var(--brass); border-color: rgba(226,181,72,.55); }
+  .livebox { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: rgba(226,181,72,.08); border: 1px solid rgba(226,181,72,.35); font-size: .95rem; color: var(--dim); }
+  .livebox b { color: var(--text); }
+  .livebox .btn { margin-top: 10px; }
   .modeinfo { margin-top: 12px; color: var(--dim); font-size: .95rem; }
   .modeinfo b { color: var(--text); }
 
@@ -112,8 +119,13 @@
           <button class="mode" data-m="ppp"><b>Free corrections</b><span>No base station</span></button>
           <button class="mode" data-m="rtk"><b>Surveyor's RTK</b><span>About a centimeter</span></button>
           <button class="mode" data-m="einstein"><b>Einstein off</b><span>Time-lapse, days</span></button>
+          <button class="mode" data-m="live"><b>📍 My phone (live)</b><span>Your device's real location readings</span></button>
         </div>
         <p class="modeinfo" id="modeInfo"></p>
+        <div class="livebox hide" id="liveBox">
+          <span id="liveMsg">This offline copy can't read your location: browsers only share it with real websites. With internet, tap below to use <b>augielab.dev/gps</b>.</span><br>
+          <a class="btn primary" id="liveStart" href="https://augielab.dev/gps/" style="display:inline-block;text-decoration:none">Open the website version</a>
+        </div>
 
         <div class="ctl" id="speedCtl"><span class="lbl">Speed</span>
           <div class="seg" role="group" aria-label="Speed">
@@ -189,6 +201,8 @@
   <p>Two things. First, <strong>the time</strong>. GPS is the world's clock: cell networks, the power grid and stock exchanges sync to it within about a microsecond, and without the fix GPS time would run 38 µs a day fast. Second, the parts that <em>differ</em> from satellite to satellite. Orbits are slightly oval, so each satellite's clock speeds up and slows down twice per orbit, by up to about 45 ns (±15 m of range) for an eccentricity of 0.02. That doesn't cancel, so every receiver corrects it. In the time-lapse, each satellite gets its own random oval orbit, and the satellites are held still in the sky to keep things simple. In real life the ground crew would also notice the clock drift and upload corrections. This page asks what relativity alone would do.</p>
   <h3>The myth switch</h3>
   <p>Set "Receiver solves for its own clock?" to <strong>No</strong> to see how the 10 km story would play out if your receiver had a perfect clock and trusted the satellites completely. All the ranges come up short together, so the solution gets pulled toward the satellites, which are overhead: you end up mostly <em>high in the air</em>, by kilometers a day.</p>
+  <h3>My phone (live)</h3>
+  <p>This mode plots your own device's real location readings, about one a second. Nobody knows your true spot to the centimeter, so the brass marker becomes the <strong>average</strong> of your readings so far, and the dots show how each reading strays from it. The dashed circle is your phone's own estimate of its accuracy. Outdoors under open sky, expect a few meters. Indoors, and especially in a basement, the phone can't see the satellites, falls back on Wi-Fi and cell towers, and the dot can jump tens of meters. Try standing outside, then walking in. Phones also smooth and blend their readings before a web page sees them, so this is a cleaned-up view, not raw satellite data. Your location never leaves your device: this page doesn't send or save it.</p>
   <h3>Where the randomness comes from</h3>
   <p>Real GPS errors come from the atmosphere and electronics. Here, the random parts of every simulated error come from your browser's random number generator. The original page on augielab.dev can use a quantum random number generator instead.</p>
   <h3>About this page</h3>
@@ -251,6 +265,8 @@
       info: 'Precise Point Positioning: precise orbit and clock corrections arrive by satellite or internet (like Galileo\'s free High Accuracy Service). No base station, but it takes <b>about 5 minutes to converge</b>. Try 10×.' },
     rtk: { badge: 'RTK rover · fixed', cls: 'rtk',
       info: 'A survey rover getting corrections every second from a <b>base station</b> on a known point. The scale is now in <b>centimeters</b>.' },
+    live: { badge: 'Your phone · live', cls: 'live',
+      info: 'Your device\'s <b>real</b> location readings. The marker is the average of them; the dots show how each one strays. Works best <b>outdoors</b>, standing still.' },
     einstein: { badge: 'Einstein off · time-lapse', cls: 'off',
       info: 'The satellite clocks lose their relativity fix and gain 38 µs a day. Time-lapse: <b>1 second = 1 hour</b>, one fix per minute.' },
   };
@@ -280,11 +296,37 @@
     return inv.map(row => G.map(g => row.reduce((s, v, k) => s + v * g[k], 0)));
   }
 
+  // ================= My phone (live) =================
+  const CLASSROOM = true;   // offline copy: browsers only share location with real websites
+  const LIVE = { watch: null, pts: [], t0: 0, acc: null, err: '' };
+  function liveStop() { if (LIVE.watch !== null && navigator.geolocation) navigator.geolocation.clearWatch(LIVE.watch); LIVE.watch = null; }
+  function liveStart() {
+    if (CLASSROOM) return;
+    if (!navigator.geolocation) { LIVE.err = 'This browser can\'t share its location.'; updatePanels(); return; }
+    liveStop(); LIVE.pts = []; LIVE.t0 = performance.now(); LIVE.acc = null; LIVE.err = '';
+    $('liveMsg').innerHTML = 'Waiting for your device to share its location… (allow it if your browser asks)';
+    LIVE.watch = navigator.geolocation.watchPosition(onPos, e => {
+      LIVE.err = e.code === 1 ? 'Location permission was turned down. To try again, allow location for augielab.dev in your browser\'s site settings, then tap Start.' : e.code === 2 ? 'Your device couldn\'t get a location. Try near a window or outside.' : 'Still waiting for a location… outdoors works best.';
+      updatePanels();
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+  }
+  function onPos(p) {
+    const c = p.coords; LIVE.err = ''; LIVE.acc = c.accuracy;
+    LIVE.pts.push([c.latitude, c.longitude]); if (LIVE.pts.length > MAXF) LIVE.pts.shift();
+    // average position, then every reading as metres east/north of it
+    let la = 0, lo = 0; for (const q2 of LIVE.pts) { la += q2[0]; lo += q2[1]; } la /= LIVE.pts.length; lo /= LIVE.pts.length;
+    const kx = 111320 * Math.cos(la * Math.PI / 180), ky = 110540;
+    fixes = LIVE.pts.map(q2 => [(q2[1] - lo) * kx, (q2[0] - la) * ky]);
+    nFix = LIVE.pts.length; t = (performance.now() - LIVE.t0) / 1000; sinceTrack++;
+  }
+
   function resetAll() {
+    if (mode !== 'live') liveStop();
     t = 0; fixes = []; nFix = 0; acc = 0; eLast = null; spare = null;
     wA = new Wander(mode === 'rtk' ? 10 : mode === 'ppp' ? 30 : 60); wB = new Wander(4);
     rtkFixAt = 2 + uniform() * 6;              // RTK start-up: 2 to 8 seconds
     if (mode === 'einstein') newSky();
+    if (mode === 'live') { LIVE.pts = []; LIVE.acc = null; if (LIVE.watch !== null) LIVE.t0 = performance.now(); }
     zoom = targetZoom(); updatePanels();
   }
 
@@ -351,7 +393,7 @@
   function niceStep(span) { const raw = span / 3, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : 5) * p; }
   function ringLabel(m) { if (m < 1) return `${+(m * 100).toPrecision(3)} cm`; if (m < 1000) return `${+m.toPrecision(3)} m`; return `${+(m / 1000).toPrecision(3)} km`; }
   function targetZoom() {
-    const floor = { phone: 6, ppp: .4, rtk: mode === 'rtk' && t < rtkFixAt ? .8 : .03 + 2e-6 * baseline, einstein: 6 }[mode];
+    const floor = { phone: 6, ppp: .4, rtk: mode === 'rtk' && t < rtkFixAt ? .8 : .03 + 2e-6 * baseline, einstein: 6, live: 3 }[mode];
     const r = radii(); return Math.max(floor, q(r, .99) * 1.25, fixes.length ? Math.hypot(...fixes[fixes.length - 1]) * 1.15 : 0);
   }
 
@@ -388,7 +430,7 @@
     drawMarker(cx, cy);
 
     // fixes: older ones fade out
-    const col = mode === 'rtk' ? '91,240,166' : mode === 'ppp' ? '127,212,255' : mode === 'einstein' ? '255,111,134' : '255,122,46';
+    const col = mode === 'live' ? '226,181,72' : mode === 'rtk' ? '91,240,166' : mode === 'ppp' ? '127,212,255' : mode === 'einstein' ? '255,111,134' : '255,122,46';
     const n = Math.min(fixes.length, 900), start = fixes.length - n;
     for (let i = start; i < fixes.length; i++) {
       const [x, y] = fixes[i], a = .12 + .6 * (i - start) / n;
@@ -400,6 +442,7 @@
       ctx.fillStyle = `rgba(${col},.25)`; ctx.beginPath(); ctx.arc(px, py, 13, 0, 7); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 7); ctx.fill();
       ctx.fillStyle = `rgb(${col})`; ctx.beginPath(); ctx.arc(px, py, 3.5, 0, 7); ctx.fill();
+      if (mode === 'live' && LIVE.acc) { ctx.setLineDash([4, 5]); ctx.strokeStyle = 'rgba(226,181,72,.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, LIVE.acc * pxm, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
     }
 
     // north arrow and scale bar
@@ -418,7 +461,9 @@
     $('modeInfo').innerHTML = m.info;
     const b = $('badge'); b.className = 'badge ' + m.cls;
     b.textContent = mode === 'rtk' ? (t < rtkFixAt ? 'RTK rover · float, finding the fix…' : 'RTK rover · fixed') : mode === 'ppp' ? (t < 300 ? 'Free corrections · converging…' : 'Free corrections · converged') : m.badge;
-    $('speedCtl').classList.toggle('hide', mode === 'einstein');
+    $('speedCtl').classList.toggle('hide', mode === 'einstein' || mode === 'live');
+    $('liveBox').classList.toggle('hide', mode !== 'live');
+    if (mode === 'live') { if (LIVE.watch !== null) t = (performance.now() - LIVE.t0) / 1000; $('liveMsg').innerHTML = LIVE.err ? `<b>${LIVE.err}</b>` : LIVE.watch === null ? 'This offline copy can\'t read your location: browsers only share it with real websites. With internet, tap below to use <b>augielab.dev/gps</b>.' : LIVE.acc ? `Your device says it's accurate to about <b>${plain(LIVE.acc)}</b> right now.` : 'Waiting for your device to share its location… (allow it if your browser asks)'; }
     $('baseCtl').classList.toggle('hide', mode !== 'rtk');
     $('clockCtl').classList.toggle('hide', mode !== 'einstein');
     $('einPanel').classList.toggle('hide', mode !== 'einstein');
@@ -435,6 +480,7 @@
       ppp: 'Galileo HAS target: within <b>20 cm</b> (95%) after about 5 minutes. Commercial services converge faster.',
       rtk: `Typical spec: <b>8 mm + 1 ppm</b> RMS horizontal. At ${baseline / 1000} km that's <b>${(rms * 1000).toFixed(0)} mm</b> RMS, about <b>${(rms / Math.SQRT2 * 2.448 * 1000).toFixed(0)} mm</b> for 95%.`,
       einstein: 'Stats are for the last 300 fixes (5 hours).',
+      live: 'Real readings from your device, measured from their own average. Stats are for the last 300 readings.',
     }[mode];
 
     if (mode === 'einstein' && eLast) {
@@ -451,6 +497,15 @@
 
   function verdict(r, last) {
     const v = $('verdict'); v.classList.toggle('off', mode === 'einstein');
+    if (mode === 'live') {
+      if (LIVE.watch === null) { v.innerHTML = 'Using your real location needs the website version, <b>augielab.dev/gps</b>, because browsers won\'t share location with a downloaded file.'; return; }
+      if (r.length < 10) { v.innerHTML = `Collecting your real readings… ${nFix} so far. Phones often send one a second, sometimes slower when you're standing still.`; return; }
+      const r95 = q(r, .95), inside = LIVE.acc && LIVE.acc > 15;
+      v.innerHTML = `95% of your device's readings are within <b>${plain(r95)}</b> of their average.` + (inside
+        ? ` Your device rates itself at about ${plain(LIVE.acc)}, so it probably <b>can't see the satellites</b> and is guessing from Wi-Fi and cell towers. Try it outside.`
+        : ` Compare that with the simulated <b>Phone GPS</b> (about 4.9 m for 95%) and with what a surveyor's RTK does.`);
+      return;
+    }
     if (r.length < 20) { v.textContent = mode === 'einstein' ? 'The satellite clocks just lost their relativity fix…' : 'Collecting the first position fixes…'; return; }
     const r95 = q(r, .95);
     if (mode === 'phone') v.innerHTML = `95% of fixes are within <b>${plain(r95)}</b> of the marker. Watch how the dot <b>wanders</b> rather than jumps: the errors change slowly, over a minute or more. That's why averaging for a few seconds barely helps, and why surveyors need corrections.`;
@@ -468,7 +523,7 @@
   let lastT = performance.now(), lastPanel = 0;
   function frame(now) {
     const dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
-    if (running) {
+    if (running && mode !== 'live') {
       const perSec = mode === 'einstein' ? 60 : speed, step = mode === 'einstein' ? 60 : 1;
       acc += dt * perSec;
       while (acc >= 1) { acc--; fixes.push(fix(step)); nFix++; sinceTrack++; }
@@ -496,6 +551,7 @@
   }));
   $('run').addEventListener('click', () => { running = !running; $('run').textContent = running ? 'Pause' : 'Run'; });
   $('reset').addEventListener('click', resetAll);
+  $('liveStart').addEventListener('click', () => { liveStart(); $('liveStart').textContent = 'Start over'; updatePanels(); document.querySelector('.map').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 
   resetAll(); requestAnimationFrame(frame);
 })();
