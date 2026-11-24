@@ -1,7 +1,7 @@
 // POST /api/hit  {page, kind, n, ref}  -> adds to a daily counter in D1 (binding: DB).
 // Stores only: day, page, kind, country, referring website, count. Nothing personal.
-const PAGES = ['/', '/split/', '/darts/', '/passwords/', '/dice/', '/pomodoro/', '/opscon/', '/jukebox/', '/monkeys/', '/future/', '/glitch/', '/train/', '/nopeek/', '/mexican/', '/dominoes/', '/benford/', '/fibonacci/', '/refinery/', '/muons/', '/gps/', '/chaos/'];
-const KINDS = ['view', 'split', 'darts', 'password', 'roll', 'flip', 'lotto', 'round', 'minute', 'kkeys', 'phrase', 'guess', 'deal', 'hand', 'draw', 'kdigits', 'kbytes', 'muon', 'fix', 'kdots', 'flame'];
+const PAGES = ['/', '/split/', '/darts/', '/passwords/', '/dice/', '/pomodoro/', '/opscon/', '/jukebox/', '/monkeys/', '/future/', '/glitch/', '/train/', '/nopeek/', '/mexican/', '/dominoes/', '/benford/', '/fibonacci/', '/refinery/', '/muons/', '/gps/', '/chaos/', '/coast/'];
+const KINDS = ['view', 'split', 'darts', 'password', 'roll', 'flip', 'lotto', 'round', 'minute', 'kkeys', 'phrase', 'guess', 'deal', 'hand', 'draw', 'kdigits', 'kbytes', 'muon', 'fix', 'kdots', 'flame', 'measure'];
 let ready = false;
 
 export async function ensureTable(db) {

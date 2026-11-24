@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Long Is the Coast? · AugieLab</title>
+<meta name="description" content="Measure a quantum-random island with a shorter and shorter ruler and watch its coastline grow and grow. Mandelbrot's coastline paradox, fractal dimension, and why surveyors must say how they measured.">
+<meta property="og:title" content="How Long Is the Coast?">
+<meta property="og:description" content="The shorter your ruler, the longer the coastline. Measure a quantum-random island and find its fractal dimension, like Mandelbrot did for Britain.">
+<meta property="og:url" content="https://augielab.dev/coast/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sea: #0A1F33; --panel: #102A42; --line: #24496B;
+    --text: #F1F5F8; --dim: #B9CAD9; --soft: #8EA6BC;
+    --sand: #E3C98E; --brass: #F2B84B; --foam: #CFEFFF; --red: #FF7A6B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--sea); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 85% 640px at 50% 0%, #17406A, var(--sea) 75%) no-repeat, var(--sea); }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  header { margin: 4px 0 20px; }
+  h1 { font: 800 clamp(2.4rem, 7vw, 4.3rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; color: var(--brass); }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 62ch; }
+
+  .lab { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .chart { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #08192A; }
+  .chart canvas { display: block; width: 100%; height: 640px; }
+  .badge { position: absolute; top: 14px; left: 14px; padding: 6px 12px; border-radius: 999px; font: 700 .8rem "IBM Plex Sans Condensed", sans-serif;
+    letter-spacing: .08em; text-transform: uppercase; background: rgba(8,25,42,.7); color: var(--brass); border: 1px solid rgba(242,184,75,.55); }
+
+  .panel { background: rgba(16,42,66,.9); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .panel + .panel { margin-top: 16px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .ctl + .ctl { margin-top: 14px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .btn { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 9px 13px; border-radius: 8px; cursor: pointer; color: var(--text); background: #143553; border: 1px solid #305E86; }
+  .btn:hover { border-color: var(--text); }
+  .btn.on { background: var(--brass); color: #2A1C00; border-color: var(--brass); }
+  .btn.primary { background: var(--brass); color: #2A1C00; border-color: var(--brass); }
+  .rulers .btn { font: 600 .95rem "IBM Plex Mono", monospace; padding: 8px 10px; }
+  .rulers .btn.done { border-color: var(--brass); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  button:focus-visible { outline: 3px solid var(--foam); outline-offset: 2px; }
+
+  .meas { font: 600 clamp(1.7rem, 3.6vw, 2.3rem)/1.1 "IBM Plex Mono", monospace; color: var(--brass); margin-top: 4px; }
+  .meas small { font-size: .5em; color: var(--dim); }
+  .calc { color: var(--dim); font: 500 1rem "IBM Plex Mono", monospace; margin-top: 4px; }
+  .plotwrap { margin-top: 12px; background: rgba(0,0,0,.25); border-radius: 10px; }
+  .plotwrap canvas { display: block; width: 100%; height: 260px; }
+  .dim { margin-top: 10px; font-size: 1rem; color: var(--dim); }
+  .dim b { font: 600 1.25rem "IBM Plex Mono", monospace; color: var(--text); }
+  .note { margin-top: 10px; color: var(--dim); font-size: .95rem; }
+  .note b { color: var(--text); }
+
+  .verdict { margin-top: 18px; padding: 14px 18px; border-radius: 12px; font-size: 1.08rem; background: rgba(242,184,75,.07); border: 1px solid rgba(242,184,75,.3); min-height: 3.6em; }
+  .verdict b { color: var(--brass); }
+
+  .source { margin-top: 28px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 900px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; }
+    .lab { grid-template-columns: 1fr; gap: 16px; }
+    .chart canvas { height: 470px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>How long is <em>the coast?</em></h1>
+    <p class="sub">It sounds like an easy question. Walk a ruler around this island and count the steps. Then use a shorter ruler. The coast gets longer. And longer. There's no "true" answer, only an answer <em>for your ruler</em>. Every bend of this island was decided by quantum random numbers.</p>
+  </header>
+
+  <main class="lab">
+    <div>
+      <div class="chart">
+        <canvas id="map" aria-label="A random island with a measuring ruler being walked around its coast"></canvas>
+        <div class="badge" id="badge">Island –</div>
+      </div>
+      <div class="verdict" id="verdict" aria-live="polite">Pick a ruler and measure the coast.</div>
+    </div>
+
+    <div>
+      <section class="panel">
+        <div class="ctl"><span class="lbl">Ruler length</span>
+          <div class="seg rulers" id="rulers" role="group" aria-label="Ruler length"></div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="all">Measure with every ruler</button>
+          <button class="btn" id="zoom" aria-pressed="false">🔍 Magnifier</button>
+        </div>
+        <div class="ctl" style="margin-top:16px"><span class="lbl">Kind of coast</span>
+          <div class="seg" role="group" aria-label="Coast roughness">
+            <button class="btn" data-d="1.1">Smooth beach</button>
+            <button class="btn on" data-d="1.25">Rocky, like Britain</button>
+            <button class="btn" data-d="1.4">Fjords</button>
+          </div>
+        </div>
+        <div class="row"><button class="btn" id="island">✦ New quantum island</button></div>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">Coastline length</span>
+        <div class="meas" id="len">–</div>
+        <div class="calc" id="calc">&nbsp;</div>
+        <div class="plotwrap"><canvas id="plot" aria-label="Coast length plotted against ruler length, both on log scales"></canvas></div>
+        <p class="dim" id="dimText">Measure with at least three rulers to find the coast's <b>fractal dimension</b>.</p>
+      </section>
+    </div>
+  </main>
+
+  <div class="source" id="source"><i></i><span id="sourceText">Island shape: demo mode, from your browser's generator.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The puzzle</h3>
+  <p>Measure a coast with a 100 km ruler and you step right across bays and headlands. Use a 10 km ruler and you follow the bays in, around every headland, and the total jumps. Use 1 km and you're tracing coves and rocks. On a real coast this never stops: there are always smaller wiggles, down to pebbles and grains of sand. So the length depends on the ruler, and it keeps growing as the ruler shrinks.</p>
+  <h3>Richardson and Mandelbrot</h3>
+  <p>Lewis Fry Richardson noticed this in the 1950s, when neighboring countries reported different lengths for the same shared border. He measured coasts and borders with many ruler sizes and found the numbers fell on straight lines when plotted on log scales, just like the chart on this page. In 1967 Benoit Mandelbrot published "How Long Is the Coast of Britain?" He explained the slope as a <strong>fractal dimension</strong> D: 1 for a smooth curve, closer to 2 for a curve so wiggly it nearly fills an area. From Richardson's data, the west coast of Britain came out at about 1.25, Australia's coast about 1.13 and South Africa's about 1.02.</p>
+  <h3>Reading the chart</h3>
+  <p>Each dot is one measurement: ruler size across the bottom, length measured up the side, both on log scales. If the dots line up, the slope of the line is 1 − D, so a steeper line means a rougher coast. A smooth circle would give a flat line: shrink the ruler and its length settles down to 2πr.</p>
+  <h3>Real numbers</h3>
+  <p>NOAA lists Maine's general coastline as 228 miles, but its tidal shoreline, following bays, islands and rivers up to where they narrow to 100 feet, as 3,478 miles. Same state, 15 times longer, because of a different rule for measuring. The whole U.S. tidal shoreline is listed as 95,439 miles.</p>
+  <h3>Why surveyors don't get stuck</h3>
+  <p>Surveyors and mapmakers handle this by stating the rule: which line (such as mean high water), at what map scale, with what spacing between points. Old U.S. public land surveys ran straight-line "meander lines" along lakes and rivers to approximate the shore, while the water's edge itself stayed the boundary. A length without its measuring rule doesn't mean much.</p>
+  <h3>The magnifier</h3>
+  <p>Turn it on and it shows the coast 8 times closer. It looks just as wiggly as the whole island. That's what makes it a fractal: zoom in and the roughness doesn't go away. A real coast keeps this up over a huge range of sizes. This island stops at about 100 meters, where the computer stops adding detail, which is why the tiniest rulers start to level off.</p>
+  <h3>The quantum part</h3>
+  <p>The island starts as a rough ten-sided blob. Then every straight edge gets a bend in the middle, and the random source decides whether it bends in or out, by how much, and where. That happens twelve times, giving over 40,000 bends. The "Kind of coast" buttons set how big the bends are, which sets the fractal dimension. Each island has a code, and the same code always makes the same island. When the quantum generator is connected, the code comes from a real quantum measurement and the dot at the bottom turns green.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false;
+  function setSource(q, fellBack) {
+    quantum = q; $('source').classList.toggle('quantum', q);
+    $('sourceText').textContent = q ? `Island codes: quantum, from the ${SOURCE.NAME}.`
+      : fellBack ? 'The quantum generator is offline, so island codes come from your browser (demo mode).' : "Island shape: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 1024) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=256', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; pool.push(...j.values); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 3000); refill();
+  const u32 = new Uint32Array(1);
+  function rand32() {
+    if (quantum && pool.length >= 4) { const b = pool.splice(0, 4); return (((b[0] << 24) >>> 0) + (b[1] << 16) + (b[2] << 8) + b[3]) >>> 0; }
+    return crypto.getRandomValues(u32)[0];
+  }
+  function sfc32(seed) {                       // repeatable generator: the island code fixes every bend
+    let a = 0x9E3779B9, b = 0x243F6A88, c = 0xB7E15162, d = seed >>> 0;
+    const next = () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+    for (let i = 0; i < 16; i++) next();
+    return next;
+  }
+  const hexCode = n => { const h = (n >>> 0).toString(16).toUpperCase().padStart(8, '0'); return h.slice(0, 4) + '-' + h.slice(4); };
+
+  // ================= The island =================
+  // Start with a rough 10-sided blob, then bend every edge, 12 times over. Bend size sets the fractal dimension:
+  // an edge of length ℓ becomes two edges of about s·ℓ, with s = 2^(-1/D).
+  const LEVELS = 12, RADIUS = 220;             // km
+  let D = 1.25, code = 0, pts = null;           // pts: Float64Array [x0,y0,x1,y1,...], closed loop
+  function makeIsland() {
+    const g = sfc32(code ^ Math.round(D * 1000)), n0 = 10;
+    let P = [];
+    for (let i = 0; i < n0; i++) { const a = 2 * Math.PI * (i + (g() - .5) * .5) / n0, r = RADIUS * (.75 + g() * .45); P.push([r * Math.cos(a), r * Math.sin(a)]); }
+    const s = Math.pow(2, -1 / D), c = Math.sqrt(Math.max(0, s * s - .25));
+    for (let lv = 0; lv < LEVELS; lv++) {
+      const Q = [];
+      for (let i = 0; i < P.length; i++) {
+        const A = P[i], B = P[(i + 1) % P.length], dx = B[0] - A[0], dy = B[1] - A[1];
+        const t = .5 + (g() - .5) * .3, h = c * (.65 + g() * .7) * (g() < .5 ? -1 : 1);
+        Q.push(A, [A[0] + dx * t - dy * h, A[1] + dy * t + dx * h]);
+      }
+      P = Q;
+    }
+    pts = new Float64Array(P.length * 2); P.forEach((p, i) => { pts[2 * i] = p[0]; pts[2 * i + 1] = p[1]; });
+  }
+
+  // Walk a pair of dividers of length L around the coast; returns the corner points and the total length.
+  function divide(L) {
+    const N = pts.length / 2, out = [[pts[0], pts[1]]];
+    let px = pts[0], py = pts[1], k = 1, steps = 0;
+    while (true) {
+      let found = false;
+      for (; k <= N; k++) {
+        const j = k % N, x = pts[2 * j], y = pts[2 * j + 1];
+        if (Math.hypot(x - px, y - py) >= L) {
+          const pj = (k - 1) % N, ax = pts[2 * pj], ay = pts[2 * pj + 1];
+          // point on segment a→(x,y) at distance L from (px,py)
+          const dx = x - ax, dy = y - ay, fx = ax - px, fy = ay - py, A = dx * dx + dy * dy, B = 2 * (fx * dx + fy * dy), C = fx * fx + fy * fy - L * L;
+          const t = A > 0 ? Math.min(1, Math.max(0, (-B + Math.sqrt(Math.max(0, B * B - 4 * A * C))) / (2 * A))) : 1;
+          px = ax + dx * t; py = ay + dy * t; out.push([px, py]); steps++; found = true; break;
+        }
+      }
+      if (!found) break;
+    }
+    const tail = Math.hypot(pts[0] - px, pts[1] - py);   // last partial step back to the start
+    out.push([pts[0], pts[1]]);
+    return { out, steps, length: steps * L + tail };
+  }
+
+  // ================= Map =================
+  const cv = $('map'), ctx = cv.getContext('2d');
+  let W = 0, H = 0, sc = 1, ox = 0, oy = 0, dpr = 1, coastPath = null, waves = [];
+  function size() {
+    const r = cv.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
+    cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = r.width; H = r.height; fitView();
+    waves = Array.from({ length: 60 }, () => [Math.random() * W, Math.random() * H, 10 + Math.random() * 26]);
+  }
+  function fitView() {
+    if (!pts) return;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < pts.length; i += 2) { x0 = Math.min(x0, pts[i]); x1 = Math.max(x1, pts[i]); y0 = Math.min(y0, pts[i + 1]); y1 = Math.max(y1, pts[i + 1]); }
+    sc = Math.min((W - 40) / (x1 - x0), (H - 80) / (y1 - y0)); ox = W / 2 - (x0 + x1) / 2 * sc; oy = H / 2 + 10 + (y0 + y1) / 2 * sc;
+    coastPath = new Path2D();
+    for (let i = 0; i < pts.length; i += 2) { const X = ox + pts[i] * sc, Y = oy - pts[i + 1] * sc; i ? coastPath.lineTo(X, Y) : coastPath.moveTo(X, Y); }
+    coastPath.closePath();
+  }
+  const X = x => ox + x * sc, Y = y => oy - y * sc;
+
+  let walk = null, shown = 0, magnify = false;
+  function draw() {
+    ctx.fillStyle = '#0A2238'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(160,210,240,.08)'; ctx.lineWidth = 1.2;
+    for (const [x, y, w] of waves) { ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + w / 2, y - 4, x + w, y); ctx.stroke(); }
+    if (!coastPath) return;
+    ctx.save();
+    ctx.shadowColor = 'rgba(160,230,255,.35)'; ctx.shadowBlur = 14;
+    const g = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, Math.max(W, H) / 2);
+    g.addColorStop(0, '#9DB86E'); g.addColorStop(.55, '#C8BF83'); g.addColorStop(1, '#E3C98E');
+    ctx.fillStyle = g; ctx.fill(coastPath); ctx.restore();
+    ctx.strokeStyle = 'rgba(235,250,255,.85)'; ctx.lineWidth = 1; ctx.stroke(coastPath);
+
+    if (walk) drawWalk(ctx, X, Y, 1);
+    if (magnify) drawLoupe();
+
+    // scale bar
+    const km = niceKm(W / sc / 5), bar = km * sc;
+    ctx.fillStyle = 'rgba(241,245,248,.9)'; ctx.fillRect(16, H - 26, bar, 4); ctx.fillRect(16, H - 32, 2, 16); ctx.fillRect(16 + bar - 2, H - 32, 2, 16);
+    ctx.font = '600 13px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle'; ctx.fillText(`${km} km`, 24 + bar, H - 24);
+  }
+  const niceKm = v => { const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : 5) * p; };
+  function drawWalk(c, fx, fy, lw) {
+    const o = walk.out, n = Math.min(o.length, Math.ceil(shown));
+    c.strokeStyle = '#F2B84B'; c.lineWidth = 2.2 * lw; c.beginPath();
+    for (let i = 0; i < n; i++) { const x = fx(o[i][0]), y = fy(o[i][1]); i ? c.lineTo(x, y) : c.moveTo(x, y); }
+    c.stroke();
+    if (walk.L * sc > 5) { c.fillStyle = '#F2B84B'; for (let i = 0; i < n; i++) { c.beginPath(); c.arc(fx(o[i][0]), fy(o[i][1]), 3 * lw, 0, 7); c.fill(); } }
+    if (n > 0 && n < o.length) {                // the dividers, mid-walk
+      const a = o[n - 1], b = o[Math.min(o.length - 1, n)], ax = fx(a[0]), ay = fy(a[1]), bx = fx(b[0]), by = fy(b[1]);
+      const mx = (ax + bx) / 2, my = (ay + by) / 2, len = Math.hypot(bx - ax, by - ay), hx = -(by - ay) / (len || 1), hy = (bx - ax) / (len || 1), hh = Math.max(14, len * .45) * lw;
+      c.strokeStyle = '#FFF'; c.lineWidth = 2.5 * lw; c.beginPath(); c.moveTo(ax, ay); c.lineTo(mx + hx * hh, my + hy * hh); c.lineTo(bx, by); c.stroke();
+      c.fillStyle = '#FFF'; c.beginPath(); c.arc(mx + hx * hh, my + hy * hh, 4.5 * lw, 0, 7); c.fill();
+    }
+  }
+  function drawLoupe() {
+    // 8× view around the dividers (or a spot on the coast)
+    const N = pts.length / 2;
+    let cx, cy;
+    if (walk && shown >= 1) { const p = walk.out[Math.min(walk.out.length - 1, Math.floor(shown) - 1)]; cx = p[0]; cy = p[1]; }
+    else { const j = Math.floor(N * .37); cx = pts[2 * j]; cy = pts[2 * j + 1]; }
+    const R = Math.min(W, H) * .27, LX = W - R - 16, LY = R + 16, z = 8 * sc;
+    ctx.save(); ctx.beginPath(); ctx.arc(LX, LY, R, 0, 7); ctx.clip();
+    ctx.fillStyle = '#0A2238'; ctx.fillRect(LX - R, LY - R, 2 * R, 2 * R);
+    const fx = x => LX + (x - cx) * z, fy = y => LY - (y - cy) * z;
+    const p = new Path2D(); for (let i = 0; i < pts.length; i += 2) { const x = fx(pts[i]), y = fy(pts[i + 1]); i ? p.lineTo(x, y) : p.moveTo(x, y); } p.closePath();
+    ctx.fillStyle = '#C8BF83'; ctx.fill(p); ctx.strokeStyle = 'rgba(235,250,255,.9)'; ctx.lineWidth = 1.2; ctx.stroke(p);
+    if (walk) drawWalk(ctx, fx, fy, 1);
+    ctx.restore();
+    ctx.strokeStyle = '#F2B84B'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(LX, LY, R, 0, 7); ctx.stroke();
+    ctx.fillStyle = 'rgba(8,25,42,.85)'; ctx.fillRect(LX - 34, LY + R - 30, 68, 24);
+    ctx.fillStyle = '#F2B84B'; ctx.font = '700 14px "IBM Plex Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('8× closer', LX, LY + R - 18); ctx.textAlign = 'left';
+    // where the magnifier is looking
+    const r = R / 8;
+    ctx.strokeStyle = 'rgba(242,184,75,.8)'; ctx.lineWidth = 1.5; ctx.strokeRect(X(cx) - r, Y(cy) - r, 2 * r, 2 * r);
+  }
+
+  // ================= Richardson plot =================
+  const RULERS = [200, 100, 50, 25, 12.5, 6.25, 3.13, 1.56];
+  let results = {};                            // ruler → length
+  const pcv = $('plot'), pctx = pcv.getContext('2d');
+  let PW = 0, PH = 0;
+  function sizePlot() { const r = pcv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); pcv.width = r.width * d; pcv.height = r.height * d; pctx.setTransform(d, 0, 0, d, 0, 0); PW = r.width; PH = r.height; }
+  function fitLine() {
+    const k = Object.keys(results).map(Number); if (k.length < 3) return null;
+    const xs = k.map(v => Math.log10(v)), ys = k.map(v => Math.log10(results[v])), n = xs.length;
+    const mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+    let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
+    const slope = sxy / sxx; return { slope, b: my - slope * mx, D: 1 - slope };
+  }
+  function drawPlot() {
+    const c = pctx, L = 52, R = 14, T = 14, B = 40;
+    c.clearRect(0, 0, PW, PH);
+    const lens = Object.values(results), ymin = lens.length ? Math.log10(Math.min(...lens)) - .08 : 3, ymax = lens.length ? Math.log10(Math.max(...lens)) + .08 : 4;
+    const lo = Math.min(ymin, ymax - .4), hi = Math.max(ymax, lo + .4);
+    const xmin = Math.log10(1.2), xmax = Math.log10(260);
+    const px = v => L + (Math.log10(v) - xmin) / (xmax - xmin) * (PW - L - R), py = lv => T + (hi - lv) / (hi - lo) * (PH - T - B);
+    c.font = '500 12px "IBM Plex Mono", monospace'; c.fillStyle = 'rgba(185,202,217,.85)'; c.strokeStyle = 'rgba(185,202,217,.15)'; c.lineWidth = 1;
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const v of [2, 5, 10, 20, 50, 100, 200]) { const x = px(v); c.beginPath(); c.moveTo(x, T); c.lineTo(x, PH - B); c.stroke(); c.fillText(v, x, PH - B + 5); }
+    c.fillText('ruler length (km), log scale', L + (PW - L - R) / 2, PH - 16);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const r of [500, 1000, 2000, 3000, 5000, 10000, 20000, 30000, 50000, 100000]) {
+      const lv = Math.log10(r); if (lv < lo || lv > hi) continue;
+      const y = py(lv); c.beginPath(); c.moveTo(L, y); c.lineTo(PW - R, y); c.stroke(); c.fillText(r >= 1000 ? (r / 1000) + 'k' : r, L - 6, y);
+    }
+    c.save(); c.translate(12, T + (PH - T - B) / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.fillText('coast length (km)', 0, 0); c.restore();
+    const f = fitLine();
+    if (f) { c.strokeStyle = 'rgba(242,184,75,.7)'; c.setLineDash([6, 5]); c.lineWidth = 2; c.beginPath(); c.moveTo(px(1.3), py(f.slope * Math.log10(1.3) + f.b)); c.lineTo(px(240), py(f.slope * Math.log10(240) + f.b)); c.stroke(); c.setLineDash([]); }
+    for (const [r, l] of Object.entries(results)) { c.fillStyle = '#F2B84B'; c.beginPath(); c.arc(px(+r), py(Math.log10(l)), 6, 0, 7); c.fill(); c.strokeStyle = '#0A1F33'; c.lineWidth = 2; c.stroke(); }
+  }
+
+  // ================= Measuring =================
+  const fmtKm = v => v >= 100 ? Math.round(v).toLocaleString('en-US') : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  let queue = [], speedFactor = 1;
+  function measure(L, fast) {
+    walk = { L, ...divide(L) }; shown = 0; speedFactor = fast ? 3.5 : 1;
+    document.querySelectorAll('[data-r]').forEach(b => b.classList.toggle('on', +b.dataset.r === L));
+    window.labTrack && labTrack('measure', 1);
+  }
+  function finishWalk() {
+    const L = walk.L; results[L] = walk.length;
+    document.querySelector(`[data-r="${L}"]`).classList.add('done');
+    showResult(); drawPlot();
+    if (queue.length) setTimeout(() => measure(queue.shift(), true), 250);
+  }
+  function showResult() {
+    if (!walk) return;
+    const n = Math.min(walk.steps, Math.floor(shown)), L = walk.L, done = shown >= walk.out.length;
+    const len = done ? walk.length : n * L;
+    $('len').innerHTML = `${fmtKm(len)} km <small>${fmtKm(len / 1.609344)} mi</small>`;
+    $('calc').textContent = `${n.toLocaleString('en-US')} steps × ${L} km${done ? ' + the last bit' : ''}`;
+    const f = fitLine(), k = Object.keys(results).map(Number).sort((a, b) => b - a);
+    if (f) $('dimText').innerHTML = `Fractal dimension of this coast: <b>${f.D.toFixed(2)}</b>. Britain's west coast is about 1.25; a smooth curve is 1.`;
+    const v = $('verdict');
+    if (!done) { v.innerHTML = `Walking the dividers around the coast with a <b>${L} km</b> ruler…`; return; }
+    if (k.length <= 1) v.innerHTML = `With a <b>${L} km</b> ruler the coast is <b>${fmtKm(walk.length)} km</b>. Now try a shorter ruler. Will it come out the same?`;
+    else {
+      const big = k[0], small = k[k.length - 1], ratio = results[small] / results[big];
+      v.innerHTML = `With a ${big} km ruler: <b>${fmtKm(results[big])} km</b>. With a ${small} km ruler: <b>${fmtKm(results[small])} km</b>, ${ratio.toFixed(1)} times longer. Same island. The shorter the ruler, the more bays and points it follows, and it never settles down.`;
+    }
+  }
+
+  // ================= Loop =================
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    if (walk && shown < walk.out.length) {
+      const total = walk.out.length, secs = Math.min(4, 1.2 + total / 400) / speedFactor;
+      shown = Math.min(total, shown + total / secs * dt);
+      if (shown >= total) finishWalk(); else showResult();
+    }
+    draw(); requestAnimationFrame(frame);
+  }
+
+  // ================= Controls =================
+  $('rulers').innerHTML = RULERS.map(r => `<button class="btn" data-r="${r}">${r} km</button>`).join('');
+  document.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { queue = []; measure(+b.dataset.r); }));
+  $('all').addEventListener('click', () => { queue = RULERS.slice(1); measure(RULERS[0], true); });
+  $('zoom').addEventListener('click', () => { magnify = !magnify; $('zoom').classList.toggle('on', magnify); $('zoom').setAttribute('aria-pressed', magnify); });
+  document.querySelectorAll('[data-d]').forEach(b => b.addEventListener('click', () => {
+    D = +b.dataset.d; document.querySelectorAll('[data-d]').forEach(x => x.classList.toggle('on', x === b)); rebuild();
+  }));
+  $('island').addEventListener('click', () => { code = rand32(); rebuild(); });
+  function rebuild() {
+    makeIsland(); fitView(); walk = null; queue = []; results = {};
+    document.querySelectorAll('[data-r]').forEach(b => b.classList.remove('on', 'done'));
+    $('badge').textContent = `Island ${hexCode(code)}`;
+    $('len').textContent = '–'; $('calc').innerHTML = '&nbsp;';
+    $('dimText').innerHTML = 'Measure with at least three rulers to find the coast\'s <b>fractal dimension</b>.';
+    $('verdict').innerHTML = 'A new island. Pick a ruler and measure the coast, or press <b>Measure with every ruler</b>.';
+    drawPlot();
+  }
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { size(); sizePlot(); drawPlot(); }, 150); });
+
+  code = rand32(); size(); sizePlot(); rebuild();
+  $('verdict').innerHTML = 'Pick a ruler and measure the coast. Start with the big one.';
+  requestAnimationFrame(frame);
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
