@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mexican Train Helper · AugieLab</title>
+<meta name="description" content="Game-night helper for Double-12 Mexican Train: find your best opening train, count the tiles left in your hand, and keep score for all 13 rounds.">
+<meta property="og:title" content="Mexican Train Helper">
+<meta property="og:description" content="Tap in your tiles and find the best opening train, count your leftovers, and keep score for all 13 rounds. Works with dot or number dominoes.">
+<meta property="og:url" content="https://augielab.dev/mt/">
+<meta name="theme-color" content="#B3122B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=IBM+Plex+Mono:wght@600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FBF6EC; --card: #FFFFFF; --ink: #1E2328; --dim: #4F5862; --line: #E2D8C6;
+    --red: #B3122B; --green: #1E7F4F; --gold: #C98A0B; --tile: #FFFDF7; --tile-edge: #2B2B2B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--paper); -webkit-text-size-adjust: 100%; }
+  body { min-height: 100vh; color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 14px 14px 110px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  h1 { font: 800 clamp(1.9rem, 6vw, 3rem)/1.05 "Fraunces", Georgia, serif; margin: 10px 0 4px; }
+  h1 span { color: var(--red); }
+  .sub { color: var(--dim); font-size: 1.05rem; }
+
+  .style { display: inline-flex; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
+  .style button { font: 700 .9rem "IBM Plex Sans", sans-serif; padding: 6px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+  .style button.on { background: var(--ink); color: #fff; }
+
+  .tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 16px 0; padding: 8px 0; background: var(--paper); }
+  .tab { font: 700 1rem/1.15 "IBM Plex Sans", sans-serif; padding: 12px 6px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  .tab.on { background: var(--red); border-color: var(--red); color: #fff; }
+  .view { display: none; } .view.on { display: block; }
+
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 16px; }
+  .card + .card { margin-top: 14px; }
+  h2 { font: 700 1.2rem "IBM Plex Sans", sans-serif; margin-bottom: 8px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .help { color: var(--dim); font-size: .95rem; margin-top: 6px; }
+
+  /* tile entry */
+  .entry { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+  .pending { min-width: 120px; text-align: center; }
+  .pad { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
+  .pad button { font: 700 1.45rem "IBM Plex Sans", sans-serif; height: 58px; border-radius: 12px; border: 2px solid var(--ink); background: var(--card); color: var(--ink); cursor: pointer; }
+  .pad button:active { transform: scale(.96); }
+  .pad button.first { background: var(--ink); color: #fff; }
+  .pad .u { text-decoration: underline; text-underline-offset: 3px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .btn { font: 700 1rem "IBM Plex Sans", sans-serif; padding: 11px 16px; border-radius: 12px; border: 2px solid var(--ink); background: var(--card); color: var(--ink); cursor: pointer; }
+  .btn.go { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn.red { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn.small { padding: 7px 12px; font-size: .9rem; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .msg { min-height: 1.4em; margin-top: 8px; font-weight: 600; color: var(--red); }
+
+  .hand { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; min-height: 52px; }
+  .hand button { position: relative; padding: 0; border: 0; background: none; cursor: pointer; }
+  .hand button::after { content: "×"; position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: var(--red); color: #fff; font: 700 15px/22px sans-serif; text-align: center; }
+  .empty { color: var(--dim); font-style: italic; align-self: center; }
+  svg.dom { display: block; }
+
+  .engine { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  select { font: 700 1.1rem "IBM Plex Sans", sans-serif; padding: 9px 12px; border-radius: 10px; border: 2px solid var(--ink); background: var(--card); color: var(--ink); }
+
+  .result { margin-top: 14px; }
+  .result h3 { font: 700 1.15rem "IBM Plex Sans", sans-serif; }
+  .result h3 small { font-weight: 500; color: var(--dim); font-size: .85rem; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 6px 0 10px; font-size: 1.02rem; }
+  .facts b { font-family: "IBM Plex Mono", monospace; font-size: 1.15rem; }
+  .train { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 10px; border-radius: 12px; background: #F3EBDB; }
+  .train .eng { font: 700 .85rem "IBM Plex Sans", sans-serif; color: #fff; background: var(--red); border-radius: 8px; padding: 6px 8px; margin-right: 4px; }
+  .train .arrow { color: var(--dim); font-weight: 700; }
+  .left { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .opt { border: 2px solid var(--line); border-radius: 14px; padding: 12px; }
+  .opt + .opt { margin-top: 12px; }
+  .opt.best { border-color: var(--green); }
+  .tag { display: inline-block; font: 700 .75rem "IBM Plex Sans", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--green); padding: 3px 8px; border-radius: 6px; margin-bottom: 6px; }
+  .tag.alt { background: var(--gold); }
+
+  .total { font: 800 clamp(3rem, 14vw, 5rem)/1 "Fraunces", Georgia, serif; color: var(--red); }
+  .totalrow { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .send { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+
+  /* scoreboard */
+  .players { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .players input { font: 600 1.05rem "IBM Plex Sans", sans-serif; padding: 9px 12px; border-radius: 10px; border: 2px solid var(--ink); min-width: 0; flex: 1 1 160px; }
+  .board { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .lead { display: grid; grid-template-columns: 2.2em 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #F3EBDB; font-size: 1.1rem; }
+  .lead:first-child { background: #E3F3EA; border: 2px solid var(--green); }
+  .lead .pl { font: 800 1.3rem "Fraunces", serif; color: var(--dim); }
+  .lead b { font-family: "IBM Plex Mono", monospace; font-size: 1.3rem; }
+  .tablewrap { overflow-x: auto; margin-top: 12px; border-radius: 12px; border: 2px solid var(--line); }
+  table { border-collapse: collapse; width: 100%; min-width: 360px; font-size: 1rem; }
+  th, td { padding: 6px 6px; text-align: center; border-bottom: 1px solid var(--line); }
+  th { background: #F3EBDB; font-weight: 700; position: sticky; top: 0; }
+  td.r { font: 700 1rem "IBM Plex Mono", monospace; white-space: nowrap; }
+  tr.cur td { background: #FFF4D6; }
+  td input { width: 4.2em; font: 600 1.05rem "IBM Plex Mono", monospace; text-align: center; padding: 6px 2px; border-radius: 8px; border: 1px solid #BFB4A0; background: #fff; }
+  tfoot td { font: 700 1.1rem "IBM Plex Mono", monospace; background: #F3EBDB; }
+  .x { background: none; border: 0; color: var(--red); font: 700 1rem sans-serif; cursor: pointer; padding: 0 4px; }
+
+  .rules { margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
+  .rules input { width: 22px; height: 22px; }
+
+  @media (max-width: 640px) {
+    html { font-size: 18px; }
+    .entry { grid-template-columns: 1fr; }
+    .pending { justify-self: center; }
+    .pad { grid-template-columns: repeat(5, 1fr); }
+    .pad button { height: 56px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="/">← AugieLab</a>
+    <div class="style" role="group" aria-label="Domino style">
+      <button data-style="dots">Dots</button><button data-style="nums">Numbers</button>
+    </div>
+  </div>
+  <h1>Mexican Train <span>Helper</span></h1>
+  <p class="sub">Double-12 game night: find your best opening train, count your leftovers, keep score.</p>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab on" data-v="open" role="tab">My opening train</button>
+    <button class="tab" data-v="count" role="tab">Count my tiles</button>
+    <button class="tab" data-v="score" role="tab">Scoreboard</button>
+  </nav>
+
+  <!-- ============ OPENING TRAIN ============ -->
+  <section class="view on" id="v-open">
+    <div class="card">
+      <div class="engine"><span class="lbl">Engine this round</span><select id="engine" aria-label="Engine double"></select></div>
+      <p class="help">Starting double in the middle (12 in round one, then 11, 10 … down to 0).</p>
+    </div>
+    <div class="card">
+      <h2>Enter your tiles</h2>
+      <div class="entry">
+        <div class="pending" id="pend-open"></div>
+        <div class="pad" id="pad-open"></div>
+      </div>
+      <p class="help">Tap the two numbers on a tile, like <b>12</b> then <b>9</b>. Tap a tile below to remove it.</p>
+      <div class="msg" id="msg-open" aria-live="polite"></div>
+      <div class="hand" id="hand-open"></div>
+      <div class="row">
+        <button class="btn go" id="solve">Find my best train</button>
+        <button class="btn small" id="undo-open">Undo</button>
+        <button class="btn small" id="clear-open">Clear all</button>
+      </div>
+    </div>
+    <div class="card" id="result" hidden></div>
+  </section>
+
+  <!-- ============ COUNT ============ -->
+  <section class="view" id="v-count">
+    <div class="card">
+      <span class="lbl">Points left in your hand</span>
+      <div class="totalrow"><div class="total" id="total">0</div><div class="help" id="totalNote">0 tiles</div></div>
+      <label class="rules"><input type="checkbox" id="rule50" checked> Double-blank (0|0) counts <b>50</b></label>
+    </div>
+    <div class="card">
+      <h2>Enter the tiles you're stuck with</h2>
+      <div class="entry">
+        <div class="pending" id="pend-count"></div>
+        <div class="pad" id="pad-count"></div>
+      </div>
+      <div class="msg" id="msg-count" aria-live="polite"></div>
+      <div class="hand" id="hand-count"></div>
+      <div class="row">
+        <button class="btn small" id="undo-count">Undo</button>
+        <button class="btn small" id="clear-count">Clear all</button>
+      </div>
+      <div class="send">
+        <span>Put it on the scoreboard for</span>
+        <select id="sendWho" aria-label="Player"></select>
+        <span>round</span>
+        <select id="sendRound" aria-label="Round"></select>
+        <button class="btn go" id="send">Add score</button>
+      </div>
+      <div class="msg" id="msg-send" aria-live="polite" style="color:var(--green)"></div>
+    </div>
+  </section>
+
+  <!-- ============ SCOREBOARD ============ -->
+  <section class="view" id="v-score">
+    <div class="card">
+      <h2>Leaderboard <small class="help">(lowest score wins)</small></h2>
+      <div class="board" id="board"></div>
+    </div>
+    <div class="card">
+      <h2>Players</h2>
+      <div class="players">
+        <input id="newName" placeholder="Add a player's name" maxlength="16" autocomplete="off">
+        <button class="btn go" id="addP">Add</button>
+      </div>
+      <div class="tablewrap"><table id="table"></table></div>
+      <p class="help">Rounds go from the double-12 engine down to double-0. Type a score in a box, or use <b>Count my tiles</b>. Saved on this phone automatically.</p>
+      <div class="row">
+        <button class="btn small" id="newGame">New game (keep players)</button>
+        <button class="btn small" id="wipe">Start over completely</button>
+      </div>
+      <div class="msg" id="msg-score" aria-live="polite"></div>
+    </div>
+  </section>
+</div>
+
+<template id="explain">
+  <h2>How it works</h2>
+  <h3>Entering tiles</h3>
+  <p>Tap the two numbers on a domino, in either order: 12 then 9 is the same tile as 9 then 12. A Double-12 set has 91 different tiles, so the app won't let you enter the same one twice. Tap a tile in your hand to take it back out. The <strong>Dots / Numbers</strong> switch at the top changes how tiles are drawn, so they look like the set on your table. On number sets the 6 and 9 are underlined, to tell them apart.</p>
+  <h3>Finding the best opening train</h3>
+  <p>Your train has to start with the engine number, and each tile has to match the one before it. Doubles go in line, like any other tile. The app tries <strong>every</strong> possible train from your hand, often thousands of them, and keeps two winners:</p>
+  <p><strong>Longest train</strong> plays the most tiles. <strong>Fewest points left</strong> gets rid of the most points, so if someone goes out early, you're caught holding as little as possible. Usually they're the same train. When they differ, you choose. It also shows which way to turn each tile, and the tiles you'll still be holding.</p>
+  <h3>Counting your hand</h3>
+  <p>At the end of a round, enter the tiles you're stuck with. It adds up every dot or number. With the house rule on, the double-blank counts 50. Then send the total straight to the scoreboard.</p>
+  <h3>The scoreboard</h3>
+  <p>Thirteen rounds, from the double-12 engine down to double-0. The lowest total wins. Everything is saved on this phone, so closing the page or refreshing won't lose the game. Nothing is sent anywhere.</p>
+  <h3>Coming later</h3>
+  <p>A "snap a photo of my tiles" option, which would fill in your hand and let you fix any tile it misread (6s and 9s on number sets are the tricky part).</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('mt-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('mt-' + k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  // ================= Drawing dominoes =================
+  let style = store.get('style', 'dots');
+  const PIP = ['#000', '#1F7FC4', '#1E8A4C', '#C62828', '#7A4E2D', '#1B2A6B', '#C99700', '#7B3FA0', '#0E8C83', '#D2601A', '#8E1B3A', '#5A6672', '#111'];
+  // dots arranged in three columns; [left, middle, right]
+  const COLS = { 4: [2, 0, 2], 5: [2, 1, 2], 6: [3, 0, 3], 7: [3, 1, 3], 8: [3, 2, 3], 9: [3, 3, 3], 10: [4, 2, 4], 11: [4, 3, 4], 12: [4, 4, 4] };
+  function half(v, x0, s) {                    // one half of a tile, s = size of the square
+    if (style === 'nums') {
+      const u = v === 6 || v === 9 ? `<line x1="${x0 + s * .32}" x2="${x0 + s * .68}" y1="${s * .86}" y2="${s * .86}" stroke="#111" stroke-width="${s * .06}" stroke-linecap="round"/>` : '';
+      return v === 0 ? '' : `<text x="${x0 + s / 2}" y="${s * .52}" text-anchor="middle" dominant-baseline="central" font-family="IBM Plex Sans, Arial, sans-serif" font-weight="700" font-size="${s * (v > 9 ? .5 : .6)}" fill="#111">${v}</text>${u}`;
+    }
+    const pts = [], r = s * (v > 9 ? .075 : .085), m = s * .2, w = s - 2 * m;
+    if (v === 1) pts.push([.5, .5]);
+    else if (v === 2) pts.push([0, 0], [1, 1]);
+    else if (v === 3) pts.push([0, 0], [.5, .5], [1, 1]);
+    else if (v >= 4) COLS[v].forEach((k, c) => { for (let i = 0; i < k; i++) pts.push([c / 2, k === 1 ? .5 : i / (k - 1)]); });
+    return pts.map(([a, b]) => `<circle cx="${x0 + m + a * w}" cy="${m + b * w}" r="${r}" fill="${PIP[v]}"/>`).join('');
+  }
+  function tile(a, b, s = 40) {
+    const w = 2 * s;
+    return `<svg class="dom" width="${w + 4}" height="${s + 4}" viewBox="-2 -2 ${w + 4} ${s + 4}" role="img" aria-label="${a} and ${b}">
+      <rect x="0" y="0" width="${w}" height="${s}" rx="${s * .14}" fill="#FFFDF7" stroke="#2B2B2B" stroke-width="2"/>
+      <line x1="${s}" x2="${s}" y1="${s * .14}" y2="${s * .86}" stroke="#2B2B2B" stroke-width="2"/>${half(a, 0, s)}${half(b, s, s)}</svg>`;
+  }
+  const TS = () => innerWidth < 640 ? 34 : 40;
+
+  // ================= Tile entry (used twice) =================
+  const key = (a, b) => a <= b ? `${a}-${b}` : `${b}-${a}`;
+  function makeEntry(id, onChange) {
+    const E = { hand: store.get('hand-' + id, []), first: null };
+    const pad = $('pad-' + id);
+    pad.innerHTML = Array.from({ length: 13 }, (_, i) => `<button data-n="${i}" aria-label="${i}">${i === 6 || i === 9 ? `<span class="u">${i}</span>` : i}</button>`).join('');
+    function draw() {
+      $('pend-' + id).innerHTML = E.first === null ? `<div class="help" style="margin:0">Next tile</div>${tileBlank()}` : `<div class="help" style="margin:0">Now the other end</div>${tileHalf(E.first)}`;
+      pad.querySelectorAll('button').forEach(b => b.classList.toggle('first', +b.dataset.n === E.first));
+      const h = $('hand-' + id);
+      h.innerHTML = E.hand.length ? E.hand.map((t, i) => `<button data-i="${i}" aria-label="Remove ${t[0]} and ${t[1]}">${tile(t[0], t[1], TS())}</button>`).join('') : '<span class="empty">No tiles yet</span>';
+      h.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { E.hand.splice(+b.dataset.i, 1); save(); }));
+    }
+    function save() { store.set('hand-' + id, E.hand); draw(); onChange(); }
+    pad.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return; const n = +b.dataset.n; $('msg-' + id).textContent = '';
+      if (E.first === null) { E.first = n; draw(); return; }
+      const t = [Math.max(E.first, n), Math.min(E.first, n)]; E.first = null;
+      if (E.hand.some(h => key(...h) === key(...t))) { $('msg-' + id).textContent = `You already have ${t[0]}|${t[1]}. A set only has one of each.`; draw(); return; }
+      E.hand.push(t); save();
+    });
+    $('undo-' + id).addEventListener('click', () => { if (E.first !== null) { E.first = null; draw(); } else { E.hand.pop(); save(); } });
+    $('clear-' + id).addEventListener('click', () => { E.first = null; E.hand = []; save(); });
+    E.draw = draw; draw();
+    return E;
+  }
+  const tileBlank = () => `<svg class="dom" width="124" height="64" viewBox="-2 -2 124 64"><rect x="0" y="0" width="120" height="60" rx="8" fill="none" stroke="#9A8F7C" stroke-width="2" stroke-dasharray="6 5"/><line x1="60" x2="60" y1="8" y2="52" stroke="#9A8F7C" stroke-width="2" stroke-dasharray="4 4"/></svg>`;
+  const tileHalf = a => `<svg class="dom" width="124" height="64" viewBox="-2 -2 124 64"><rect x="0" y="0" width="120" height="60" rx="8" fill="#FFFDF7" stroke="#2B2B2B" stroke-width="2"/><line x1="60" x2="60" y1="8" y2="52" stroke="#2B2B2B" stroke-width="2"/>${half(a, 0, 60)}<text x="90" y="32" text-anchor="middle" dominant-baseline="central" font-size="30" font-weight="700" fill="#B3B0A8">?</text></svg>`;
+
+  // ================= Scoring =================
+  const rule50 = () => $('rule50').checked;
+  const value = t => (t[0] === 0 && t[1] === 0 && rule50()) ? 50 : t[0] + t[1];
+  const points = hand => hand.reduce((s, t) => s + value(t), 0);
+
+  // ================= Solver: every train from the engine =================
+  function solve(hand, engine) {
+    const n = hand.length, adj = Array.from({ length: 13 }, () => []);
+    hand.forEach((t, i) => { adj[t[0]].push(i); if (t[1] !== t[0]) adj[t[1]].push(i); });
+    const total = points(hand);
+    let best = null, low = null, count = 0, stopped = false;
+    const path = [];                            // [index, flipped?]
+    function consider(played, pts) {
+      const len = path.length, left = total - pts;
+      if (!best || len > best.len || (len === best.len && left < best.left)) best = { len, left, path: path.slice() };
+      if (!low || left < low.left || (left === low.left && len > low.len)) low = { len, left, path: path.slice() };
+    }
+    function dfs(end, used, pts) {
+      if (++count > 4e6) { stopped = true; return; }
+      for (const i of adj[end]) {
+        if (used & (1 << i)) continue;
+        const t = hand[i], out = t[0] === end ? t[1] : t[0];
+        path.push([i, t[0] !== end]);
+        const p = pts + value(t);
+        consider(used | (1 << i), p);
+        dfs(out, used | (1 << i), p);
+        path.pop();
+        if (stopped) return;
+      }
+    }
+    dfs(engine, 0, 0);
+    return { best, low, count, total, stopped };
+  }
+
+  // ================= Opening view =================
+  const engineSel = $('engine');
+  engineSel.innerHTML = Array.from({ length: 13 }, (_, i) => `<option value="${12 - i}">Double-${12 - i}</option>`).join('');
+  engineSel.value = store.get('engine', 12);
+  engineSel.addEventListener('change', () => { store.set('engine', +engineSel.value); if (!$('result').hidden) runSolve(); });
+
+  const open = makeEntry('open', () => { $('result').hidden = true; });
+  const count = makeEntry('count', updateTotal);
+
+  function trainHTML(sol, hand, engine) {
+    const s = TS(), used = new Set(sol.path.map(p => p[0]));
+    const tiles = sol.path.map(([i, flip]) => { const t = hand[i]; const a = flip ? t[1] : t[0], b = flip ? t[0] : t[1]; return tile(a, b, s); });
+    const left = hand.filter((_, i) => !used.has(i));
+    return `<div class="facts"><span>Plays <b>${sol.len}</b> of ${hand.length} tiles</span><span>Points left in hand: <b>${sol.left}</b></span></div>
+      <div class="train"><span class="eng">ENGINE ${engine}</span><span class="arrow">→</span>${tiles.join('')}</div>
+      ${left.length ? `<div class="left"><span class="lbl">Still in your hand:</span>${left.map(t => tile(t[0], t[1], s * .8)).join('')}</div>` : '<p class="help"><b>Every tile played!</b></p>'}`;
+  }
+  function runSolve() {
+    const hand = open.hand, engine = +engineSel.value, R = $('result'); R.hidden = false;
+    if (!hand.length) { R.innerHTML = '<p>Enter your tiles first.</p>'; return; }
+    if (hand.some(t => t[0] === engine && t[1] === engine)) { R.innerHTML = `<p>You entered the <b>double-${engine}</b>. That's the engine in the middle of the table, not part of your hand. Tap it in your hand to remove it.</p>`; return; }
+    const r = solve(hand, engine);
+    window.labTrack && labTrack('solve', 1);
+    if (!r.best) { R.innerHTML = `<h3>No tile starts with ${engine}</h3><p class="help">You can't start your train this turn. Draw a tile (or play on the Mexican train if your rules allow).</p>`; return; }
+    const same = r.best.len === r.low.len && r.best.left === r.low.left;
+    const checked = `<small>Checked ${r.count.toLocaleString('en-US')} possible trains${r.stopped ? ' (stopped early: very big hand)' : ''}.</small>`;
+    R.innerHTML = same
+      ? `<h3>Your best opening train ${checked}</h3><div class="opt best"><span class="tag">Longest and fewest points left</span>${trainHTML(r.best, hand, engine)}</div>`
+      : `<h3>Two good choices ${checked}</h3>
+         <div class="opt best"><span class="tag">Longest train</span>${trainHTML(r.best, hand, engine)}</div>
+         <div class="opt"><span class="tag alt">Fewest points left</span>${trainHTML(r.low, hand, engine)}</div>
+         <p class="help">The longest train gets rid of more tiles. The other leaves fewer points in your hand if someone goes out soon.</p>`;
+    R.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('solve').addEventListener('click', runSolve);
+
+  // ================= Count view =================
+  $('rule50').checked = store.get('rule50', true);
+  $('rule50').addEventListener('change', () => { store.set('rule50', $('rule50').checked); updateTotal(); });
+  function updateTotal() {
+    const h = count.hand; $('total').textContent = points(h);
+    const z = h.some(t => t[0] === 0 && t[1] === 0) && rule50();
+    $('totalNote').textContent = `${h.length} tile${h.length === 1 ? '' : 's'}${z ? ' (includes 50 for the double-blank)' : ''}`;
+  }
+  updateTotal();
+
+  // ================= Scoreboard =================
+  let game = store.get('game', { players: [], scores: {} });   // scores[player][engine] = number
+  const ROUNDS = Array.from({ length: 13 }, (_, i) => 12 - i);
+  function saveGame() { store.set('game', game); drawBoard(); }
+  const roundsOf = p => ROUNDS.filter(r => { const v = (game.scores[p] || {})[r]; return v !== undefined && v !== ''; }).length;
+  const totalOf = p => ROUNDS.reduce((s, r) => s + (+((game.scores[p] || {})[r]) || 0), 0);
+  function curRound() { for (const r of ROUNDS) if (!game.players.length || game.players.some(p => (game.scores[p] || {})[r] === undefined || (game.scores[p] || {})[r] === '')) return r; return 0; }
+  function drawBoard() {
+    const P = game.players, cur = curRound();
+    $('board').innerHTML = P.length ? P.map(p => [p, totalOf(p)]).sort((a, b) => a[1] - b[1]).map(([p, t], i) =>
+      `<div class="lead"><span class="pl">${i + 1}</span><span>${esc(p)} <small class="help">· ${roundsOf(p)} round${roundsOf(p) === 1 ? '' : 's'}</small></span><b>${t}</b></div>`).join('') : '<p class="help">Add players below to start keeping score.</p>';
+    $('table').innerHTML = P.length ? `<thead><tr><th>Round</th>${P.map((p, j) => `<th>${esc(p)}<button class="x" data-del="${j}" aria-label="Remove ${esc(p)}">×</button></th>`).join('')}</tr></thead>
+      <tbody>${ROUNDS.map(r => `<tr class="${r === cur ? 'cur' : ''}"><td class="r">${r}|${r}</td>${P.map(p => `<td><input inputmode="numeric" pattern="[0-9]*" data-p="${esc(p)}" data-r="${r}" value="${(game.scores[p] || {})[r] ?? ''}" aria-label="${esc(p)} round ${r}"></td>`).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td>${P.map(p => `<td>${totalOf(p)}</td>`).join('')}</tr></tfoot>` : '';
+    $('table').querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+      const p = inp.dataset.p, r = inp.dataset.r, v = inp.value.replace(/[^0-9]/g, '');
+      game.scores[p] = game.scores[p] || {}; if (v === '') delete game.scores[p][r]; else game.scores[p][r] = +v; saveGame();
+    }));
+    $('table').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      const p = game.players[+b.dataset.del];
+      if (b.dataset.sure) { game.players.splice(+b.dataset.del, 1); delete game.scores[p]; saveGame(); }
+      else { b.dataset.sure = 1; b.textContent = 'remove?'; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '×'; } }, 3000); }
+    }));
+    $('sendWho').innerHTML = P.length ? P.map(p => `<option>${esc(p)}</option>`).join('') : '<option value="">(add players first)</option>';
+    $('sendRound').innerHTML = ROUNDS.map(r => `<option value="${r}" ${r === cur ? 'selected' : ''}>${r}|${r}</option>`).join('');
+  }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function addPlayer() {
+    const name = $('newName').value.trim(); if (!name) return;
+    if (game.players.includes(name)) { $('msg-score').textContent = `${name} is already playing.`; return; }
+    game.players.push(name); game.scores[name] = game.scores[name] || {}; $('newName').value = ''; $('msg-score').textContent = ''; saveGame();
+  }
+  $('addP').addEventListener('click', addPlayer);
+  $('newName').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
+  function twoTap(btn, label, action) {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.sure) { delete btn.dataset.sure; btn.textContent = label; action(); return; }
+      btn.dataset.sure = 1; btn.textContent = 'Tap again to confirm'; btn.classList.add('red');
+      setTimeout(() => { delete btn.dataset.sure; btn.textContent = label; btn.classList.remove('red'); }, 3500);
+    });
+  }
+  twoTap($('newGame'), 'New game (keep players)', () => { game.scores = {}; game.players.forEach(p => game.scores[p] = {}); saveGame(); $('msg-score').textContent = 'New game started.'; });
+  twoTap($('wipe'), 'Start over completely', () => { game = { players: [], scores: {} }; saveGame(); $('msg-score').textContent = 'Everything cleared.'; });
+  $('send').addEventListener('click', () => {
+    const p = $('sendWho').value, r = $('sendRound').value;
+    if (!p) { $('msg-send').textContent = 'Add players on the Scoreboard tab first.'; return; }
+    game.scores[p] = game.scores[p] || {}; game.scores[p][r] = points(count.hand); saveGame();
+    window.labTrack && labTrack('count', 1);
+    $('msg-send').textContent = `Added ${points(count.hand)} to ${p}, round ${r}|${r}.`;
+  });
+
+  // ================= Tabs and style =================
+  document.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-v]').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
+    store.set('tab', b.dataset.v);
+  }));
+  const startTab = store.get('tab', 'open'); document.querySelector(`[data-v="${startTab}"]`)?.click();
+  function setStyle(s) {
+    style = s; store.set('style', s);
+    document.querySelectorAll('[data-style]').forEach(b => b.classList.toggle('on', b.dataset.style === s));
+    open.draw(); count.draw(); if (!$('result').hidden) runSolve();
+  }
+  document.querySelectorAll('[data-style]').forEach(b => b.addEventListener('click', () => setStyle(b.dataset.style)));
+  setStyle(style); drawBoard();
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { open.draw(); count.draw(); }, 200); });
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
