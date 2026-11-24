@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Picture Shuffle · AugieLab</title>
+<meta name="description" content="A picture is cut into squares and shuffled. Swap the pieces back into place against the clock. Use your own photo or a fresh picture made just for you.">
+<meta property="og:title" content="Picture Shuffle">
+<meta property="og:description" content="Cut a picture into pieces, shuffle it, and swap it back together against the clock. Use your own photo.">
+<meta property="og:url" content="https://augielab.dev/puzzle/">
+<meta name="theme-color" content="#14524A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=IBM+Plex+Mono:wght@600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14524A; --bg2: #0E3D37; --card: #FFF8EC; --ink: #1F2A28; --dim: #56635F;
+    --gold: #F2B84B; --pink: #E8577E; --mint: #7FE0C2; --glow: #FFE28A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 20px; background: var(--bg2); -webkit-text-size-adjust: 100%; }
+  body { min-height: 100vh; color: #fff; font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 14px 12px 110px;
+    background: radial-gradient(ellipse 90% 600px at 50% 0%, #1F6E63, var(--bg) 45%, var(--bg2)) no-repeat, var(--bg2); }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .top a { color: #CFEDE6; text-decoration: none; font-weight: 600; }
+  h1 { font: 800 clamp(2rem, 8vw, 3rem)/1 "Fraunces", Georgia, serif; text-align: center; margin: 10px 0 4px; }
+  h1 span { color: var(--gold); }
+  .sub { text-align: center; color: #CFEDE6; font-size: 1rem; }
+
+  /* setup */
+  .setup { background: var(--card); color: var(--ink); border-radius: 20px; padding: 18px; margin-top: 16px; box-shadow: 0 18px 40px -18px rgba(0,0,0,.6); }
+  .setup h2 { font: 700 1.15rem "IBM Plex Sans", sans-serif; margin-bottom: 10px; }
+  .setup h2 + * { margin-bottom: 18px; }
+  .pics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .pic { position: relative; border: 3px solid transparent; border-radius: 14px; overflow: hidden; cursor: pointer; background: #ddd; aspect-ratio: 3 / 4; padding: 0; }
+  .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pic span { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; font: 700 .9rem "IBM Plex Sans", sans-serif; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.7)); text-align: left; }
+  .pic.on { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(232,87,126,.3); }
+  .pic.mine { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: #F1E6D2; color: var(--ink); font: 700 1rem "IBM Plex Sans", sans-serif; }
+  .pic.mine b { font-size: 2.4rem; line-height: 1; }
+  #morePics { grid-column: 1 / -1; aspect-ratio: auto; flex-direction: row; padding: 12px; }
+  #morePics b { font-size: 1.6rem; }
+  .pic.mine small { font-weight: 500; color: var(--dim); font-size: .8rem; padding: 0 8px; text-align: center; }
+  .sizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .size { padding: 12px 6px; border-radius: 14px; border: 2px solid #D9CCB4; background: #fff; color: var(--ink); cursor: pointer; font: 700 1.05rem "IBM Plex Sans", sans-serif; }
+  .size small { display: block; font-weight: 500; color: var(--dim); font-size: .8rem; }
+  .size.on { border-color: var(--pink); background: #FDE6EC; }
+  .go { display: block; width: 100%; margin-top: 4px; padding: 16px; border-radius: 16px; border: 0; cursor: pointer; font: 800 1.35rem "IBM Plex Sans", sans-serif; color: #fff; background: linear-gradient(180deg, #F06C90, var(--pink)); box-shadow: 0 6px 0 #B23A5C; }
+  .go:active { transform: translateY(3px); box-shadow: 0 3px 0 #B23A5C; }
+  .best { margin-top: 12px; text-align: center; color: var(--dim); font-size: .95rem; }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  /* game */
+  .hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 14px 0 10px; }
+  .hud .stat { font: 600 1.35rem "IBM Plex Mono", monospace; }
+  .hud .stat small { display: block; font: 600 .7rem "IBM Plex Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #CFEDE6; }
+  .hud .right { text-align: right; }
+  .peek { width: 64px; height: 64px; border-radius: 16px; border: 3px solid var(--gold); background: #1F6E63; color: #fff; font-size: 1.8rem; cursor: pointer; }
+  .peek small { display: block; font: 700 .6rem "IBM Plex Sans", sans-serif; letter-spacing: .06em; text-transform: uppercase; margin-top: -2px; }
+  .boardwrap { position: relative; margin: 0 auto; }
+  .board { position: relative; border-radius: 10px; background: #0A2A26; box-shadow: 0 0 0 6px var(--gold), 0 20px 40px -14px rgba(0,0,0,.7); touch-action: none; user-select: none; -webkit-user-select: none; }
+  .piece { position: absolute; top: 0; left: 0; border-radius: 4px; background-repeat: no-repeat; cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 1px 3px rgba(0,0,0,.35); transition: transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
+  .piece.sel { box-shadow: inset 0 0 0 4px var(--pink), 0 0 0 3px rgba(255,255,255,.9), 0 6px 16px rgba(0,0,0,.5); z-index: 3; }
+  .piece.ok { cursor: default; box-shadow: none; }
+  .piece.flash { animation: flash .7s ease-out; }
+  @keyframes flash { 0% { filter: brightness(1.7) saturate(1.3); } 100% { filter: none; } }
+  .piece.drag { transition: none; z-index: 5; box-shadow: 0 0 0 3px #fff, 0 14px 28px rgba(0,0,0,.55); }
+  .overlay { position: absolute; inset: 0; border-radius: 10px; background-size: cover; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 6; }
+  .overlay.on { opacity: 1; }
+  .row { display: flex; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .btn { font: 700 1rem "IBM Plex Sans", sans-serif; padding: 11px 18px; border-radius: 12px; border: 2px solid #CFEDE6; background: transparent; color: #fff; cursor: pointer; }
+  .hint { text-align: center; color: #CFEDE6; margin-top: 12px; font-size: .95rem; }
+
+  /* win */
+  .win { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(5,25,22,.75); opacity: 0; pointer-events: none; transition: opacity .35s; }
+  .win.on { opacity: 1; pointer-events: auto; }
+  .winbox { width: min(440px, 100%); background: var(--card); color: var(--ink); border-radius: 22px; padding: 24px 20px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+  .winbox h2 { font: 800 2.2rem/1.1 "Fraunces", serif; color: var(--pink); }
+  .winbox .big { display: flex; justify-content: center; gap: 26px; margin: 16px 0 6px; }
+  .winbox .big div { font: 600 1.8rem "IBM Plex Mono", monospace; }
+  .winbox .big small { display: block; font: 700 .72rem "IBM Plex Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  .winbox p { color: var(--dim); margin-top: 6px; }
+  .winbox .newbest { color: #C0392B; font-weight: 700; }
+  .winbox .go { margin-top: 18px; }
+  .winbox .btn { color: var(--ink); border-color: #D9CCB4; margin-top: 10px; }
+  canvas.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 31; width: 100%; height: 100%; }
+  .source { margin-top: 26px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .9rem; color: #CFEDE6; text-align: center; }
+  .source i { width: 10px; height: 10px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">← AugieLab</a><span></span></div>
+  <h1>Picture <span>Shuffle</span></h1>
+  <p class="sub">The picture is cut up and mixed. Swap the pieces back.</p>
+
+  <!-- ============ SETUP ============ -->
+  <section class="setup" id="setup">
+    <h2>1. Pick a picture</h2>
+    <div class="pics" id="pics">
+      <button class="pic mine" id="mine"><b>📷</b>Use my photo<small>Stays on your phone</small></button>
+    </div>
+    <input type="file" id="file" accept="image/*" hidden>
+    <h2>2. How many pieces?</h2>
+    <div class="sizes">
+      <button class="size" data-size="3x4">Easy<small>12 pieces</small></button>
+      <button class="size on" data-size="4x5">Medium<small>20 pieces</small></button>
+      <button class="size" data-size="5x6">Hard<small>30 pieces</small></button>
+    </div>
+    <button class="go" id="start">Shuffle &amp; play</button>
+    <p class="best" id="bestLine"></p>
+  </section>
+
+  <!-- ============ GAME ============ -->
+  <section class="hide" id="game">
+    <div class="hud">
+      <div class="stat"><small>Time</small><span id="time">0:00</span></div>
+      <button class="peek" id="peek" aria-label="Peek at the finished picture">🔍<small>Peek</small></button>
+      <div class="stat right"><small>Moves</small><span id="moves">0</span></div>
+    </div>
+    <div class="boardwrap"><div class="board" id="board"><div class="overlay" id="overlay"></div></div></div>
+    <p class="hint" id="hint">Tap two pieces to swap them, or drag one onto another. Pieces in the right spot lock in place.</p>
+    <div class="row">
+      <button class="btn" id="again">Shuffle again</button>
+      <button class="btn" id="back">Change picture</button>
+    </div>
+  </section>
+
+  <div class="source" id="source"><i></i><span id="sourceText">Shuffle: demo mode, from your browser's generator.</span></div>
+</div>
+
+<div class="win" id="win" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+  <div class="winbox">
+    <h2 id="winTitle">You did it!</h2>
+    <div class="big"><div><small>Time</small><span id="wTime"></span></div><div><small>Moves</small><span id="wMoves"></span></div></div>
+    <p id="wBest"></p>
+    <button class="go" id="wAgain">Play again</button>
+    <button class="btn" id="wNew">New picture</button>
+  </div>
+</div>
+
+<template id="explain">
+  <h2>How to play</h2>
+  <h3>The idea</h3>
+  <p>A picture is cut into a grid of pieces and shuffled. Put it back together by swapping pieces: tap one, then tap the piece it should trade places with. Or drag one piece onto another. When a piece lands in its right spot, it glows and locks in place. The clock starts on your first move.</p>
+  <h3>Peek</h3>
+  <p>Press and hold the 🔍 button to see the finished picture. Let go to keep playing. Peeking is free, but the clock keeps running.</p>
+  <h3>Your own photos</h3>
+  <p>Tap <strong>Use my photo</strong> and pick any picture on your phone: grandkids, a pet, a trip. The photo is cut up right on your phone and never sent anywhere. Pictures with lots of different colors and shapes are easiest. Big patches of plain sky are hardest.</p>
+  <h3>The built-in pictures</h3>
+  <p>The sunset, stained glass and swirl pictures are painted fresh each time, so you'll never get the same one twice. Tap <strong>New pictures</strong> for another set.</p>
+  <h3>The quantum part</h3>
+  <p>Every shuffle, and every built-in picture, is decided by random numbers. Soon those come from this lab's <strong>quantum random number generator</strong> from Crypta Labs, so each puzzle is mixed by a real quantum measurement. When it's connected, the dot at the bottom turns green. Your best times are saved on this phone only.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('puz-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('puz-' + k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false;
+  function setSource(q, fellBack) {
+    quantum = q; $('source').classList.toggle('quantum', q);
+    $('sourceText').textContent = q ? `Shuffle: quantum, from the ${SOURCE.NAME}.`
+      : fellBack ? 'The quantum generator is offline, so shuffles come from your browser (demo mode).' : "Shuffle: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 2048) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=1024', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; pool.push(...j.values); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 3000); refill();
+  const u32 = new Uint32Array(1);
+  function rand32() {
+    if (quantum && pool.length >= 4) { const b = pool.splice(0, 4); return (((b[0] << 24) >>> 0) + (b[1] << 16) + (b[2] << 8) + b[3]) >>> 0; }
+    return crypto.getRandomValues(u32)[0];
+  }
+  const randInt = n => Math.floor(rand32() / 4294967296 * n);
+  function sfc32(seed) {                       // fast repeatable generator for painting a picture from one quantum seed
+    let a = 0x9E3779B9, b = 0x243F6A88, c = 0xB7E15162, d = seed >>> 0;
+    const next = () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+    for (let i = 0; i < 16; i++) next(); return next;
+  }
+
+  // ================= Built-in pictures (painted fresh each time) =================
+  const PW = 900, PH = 1200;
+  function canvas(w = PW, h = PH) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  function ridge(g, n, rough) {               // midpoint displacement line, n = 2^k + 1 points
+    const y = new Float32Array(n); y[0] = g(); y[n - 1] = g();
+    for (let step = n - 1, amp = 1; step > 1; step >>= 1, amp *= rough)
+      for (let i = step >> 1; i < n; i += step) y[i] = (y[i - (step >> 1)] + y[i + (step >> 1)]) / 2 + (g() - .5) * amp;
+    return y;
+  }
+  const SKIES = [['#1B1F4A', '#7A3E8F', '#F06A6A', '#FFC15E'], ['#0F2C4C', '#2F6E9E', '#F29E5C', '#FFE0A3'], ['#2A1240', '#B23A6B', '#FF8C42', '#FFD166'], ['#08263A', '#1F7A8C', '#BFDBF7', '#FFF1C1']];
+  function paintSunset(seed) {
+    const g = sfc32(seed), c = canvas(), x = c.getContext('2d'), sky = SKIES[Math.floor(g() * SKIES.length)], horizon = PH * (.52 + g() * .08);
+    let gr = x.createLinearGradient(0, 0, 0, horizon); sky.forEach((col, i) => gr.addColorStop(i / (sky.length - 1), col)); x.fillStyle = gr; x.fillRect(0, 0, PW, horizon);
+    const sx = PW * (.25 + g() * .5), sy = horizon - PH * (.3 + g() * .12), sr = 60 + g() * 40;
+    gr = x.createRadialGradient(sx, sy, sr * .2, sx, sy, sr * 3.2); gr.addColorStop(0, 'rgba(255,240,200,.95)'); gr.addColorStop(.3, 'rgba(255,200,120,.45)'); gr.addColorStop(1, 'rgba(255,160,90,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, PW, horizon); x.fillStyle = '#FFF4D6'; x.beginPath(); x.arc(sx, sy, sr, 0, 7); x.fill();
+    for (let k = 0; k < 5; k++) {              // clouds
+      const cx = g() * PW, cy = horizon * (.1 + g() * .45), w = 120 + g() * 220; x.fillStyle = `rgba(255,${200 + g() * 40 | 0},${170 + g() * 60 | 0},${.18 + g() * .2})`;
+      for (let i = 0; i < 6; i++) { x.beginPath(); x.ellipse(cx + (g() - .5) * w, cy + (g() - .5) * 18, w * (.25 + g() * .2), 14 + g() * 12, 0, 0, 7); x.fill(); }
+    }
+    const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const mix = (a, b, f) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * f)).join(',')})`; };
+    const layers = 4, tone = [mix(sky[2], '#3A2A5A', .35), mix(sky[1], '#2A1D45', .3), mix(sky[1], '#1A1238', .6), '#120C24'];
+    const ridges = [];
+    for (let L = 0; L < layers; L++) {
+      const r = ridge(g, 129, .55), base = horizon - PH * (.2 - L * .045), amp = PH * (.12 - L * .02);
+      ridges.push([r, base, amp, tone[L]]);
+      x.fillStyle = tone[L]; x.beginPath(); x.moveTo(0, horizon);
+      for (let i = 0; i < 129; i++) x.lineTo(i / 128 * PW, base - (r[i] + .5) * amp);
+      x.lineTo(PW, horizon); x.closePath(); x.fill();
+    }
+    // lake with reflection
+    x.save(); x.translate(0, horizon * 2); x.scale(1, -1); x.globalAlpha = .9; x.drawImage(c, 0, 0, PW, horizon, 0, 0, PW, horizon); x.restore();
+    gr = x.createLinearGradient(0, horizon, 0, PH); gr.addColorStop(0, 'rgba(40,40,90,.12)'); gr.addColorStop(1, 'rgba(10,10,40,.5)'); x.fillStyle = gr; x.fillRect(0, horizon, PW, PH - horizon);
+    x.strokeStyle = 'rgba(255,230,180,.35)'; x.lineWidth = 3;
+    for (let i = 0; i < 70; i++) { const yy = horizon + 8 + Math.pow(g(), 1.6) * (PH - horizon), ww = 30 + g() * 120, xx = sx + (g() - .5) * (80 + (yy - horizon) * 1.2); x.beginPath(); x.moveTo(xx - ww / 2, yy); x.lineTo(xx + ww / 2, yy); x.stroke(); }
+    // shore and a little cabin
+    x.fillStyle = '#0B0818'; x.beginPath(); x.moveTo(0, PH); const sh = ridge(g, 33, .5);
+    for (let i = 0; i < 33; i++) x.lineTo(i / 32 * PW, PH - 40 - (sh[i] + .5) * 50); x.lineTo(PW, PH); x.fill();
+    for (let i = 0; i < 7; i++) { const tx = g() * PW, th = 70 + g() * 110; x.beginPath(); x.moveTo(tx, PH - 60 - th); x.lineTo(tx - th * .22, PH - 50); x.lineTo(tx + th * .22, PH - 50); x.fill(); }
+    x.strokeStyle = '#140E26'; x.lineWidth = 2.5;
+    for (let i = 0; i < 4; i++) { const bx = PW * (.15 + g() * .7), by = horizon * (.25 + g() * .3), s = 10 + g() * 8; x.beginPath(); x.moveTo(bx - s, by); x.quadraticCurveTo(bx - s / 2, by - s * .6, bx, by); x.quadraticCurveTo(bx + s / 2, by - s * .6, bx + s, by); x.stroke(); }
+    return c;
+  }
+  const GLASS = [['#C0392B', '#E67E22', '#F1C40F', '#27AE60', '#2980B9', '#8E44AD', '#16A085', '#D35400'], ['#1ABC9C', '#3498DB', '#9B59B6', '#34495E', '#F39C12', '#E74C3C', '#ECF0F1', '#2ECC71'], ['#7B2D26', '#C9A227', '#2E5E4E', '#1D3557', '#E9C46A', '#A8DADC', '#E76F51', '#6D597A']];
+  function paintGlass(seed) {
+    const g = sfc32(seed), w = 300, h = 400, small = canvas(w, h), sx = small.getContext('2d'), img = sx.createImageData(w, h), pal = GLASS[Math.floor(g() * GLASS.length)];
+    const n = 46 + Math.floor(g() * 20), pts = [];
+    // a big central flower of cells plus scattered cells
+    const cx = w * (.4 + g() * .2), cy = h * (.4 + g() * .2);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; pts.push([cx + Math.cos(a) * 46, cy + Math.sin(a) * 46]); }
+    for (let i = 0; i < 6; i++) { const a = i / 6 * 2 * Math.PI + .3; pts.push([cx + Math.cos(a) * 20, cy + Math.sin(a) * 20]); }
+    while (pts.length < n) pts.push([g() * w, g() * h]);
+    const cols = pts.map((_, i) => { const hex = pal[Math.floor(g() * pal.length)]; return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)]; });
+    for (let i = 12; i < 18; i++) cols[i] = [250, 220, 90];
+    const own = new Int16Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let b = 0, bd = 1e9; for (let i = 0; i < pts.length; i++) { const dx = x - pts[i][0], dy = y - pts[i][1], d = dx * dx + dy * dy; if (d < bd) { bd = d; b = i; } }
+      own[y * w + x] = b;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, o = own[i], edge = (x && own[i - 1] !== o) || (y && own[i - w] !== o), j = i * 4;
+      if (edge) { img.data[j] = 28; img.data[j + 1] = 24; img.data[j + 2] = 22; }
+      else { const p = pts[o], shade = .78 + .22 * Math.cos((x - p[0]) * .05) * Math.cos((y - p[1]) * .05); img.data[j] = cols[o][0] * shade; img.data[j + 1] = cols[o][1] * shade; img.data[j + 2] = cols[o][2] * shade; }
+      img.data[j + 3] = 255;
+    }
+    sx.putImageData(img, 0, 0);
+    const c = canvas(), x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.drawImage(small, 0, 0, PW, PH);
+    const gr = x.createRadialGradient(PW * .3, PH * .2, 50, PW * .5, PH * .5, PH * .8); gr.addColorStop(0, 'rgba(255,255,230,.28)'); gr.addColorStop(1, 'rgba(0,0,0,.25)');
+    x.fillStyle = gr; x.fillRect(0, 0, PW, PH);
+    x.strokeStyle = '#2A2420'; x.lineWidth = 22; x.strokeRect(11, 11, PW - 22, PH - 22);
+    return c;
+  }
+  function paintSwirl(seed) {
+    const g = sfc32(seed), w = 300, h = 400, small = canvas(w, h), sx = small.getContext('2d'), img = sx.createImageData(w, h);
+    const cx = w * (.35 + g() * .3), cy = h * (.35 + g() * .3), twist = 4 + g() * 6, arms = 2 + Math.floor(g() * 4), hue0 = g() * 360, rings = 10 + g() * 14;
+    const hsl = (H, S, L) => { H = ((H % 360) + 360) % 360 / 60; const C = (1 - Math.abs(2 * L - 1)) * S, X = C * (1 - Math.abs(H % 2 - 1)), m = L - C / 2; const [r, gg, b] = H < 1 ? [C, X, 0] : H < 2 ? [X, C, 0] : H < 3 ? [0, C, X] : H < 4 ? [0, X, C] : H < 5 ? [X, 0, C] : [C, 0, X]; return [(r + m) * 255, (gg + m) * 255, (b + m) * 255]; };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = (x - cx) / w, dy = (y - cy) / w, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+      const t = a * arms + r * twist * 6.28, band = Math.sin(t), ring = Math.sin(r * rings * 6.28);
+      const [R, G, B] = hsl(hue0 + a / Math.PI * 180 + r * 200, .75, .45 + .18 * band + .07 * ring);
+      const j = (y * w + x) * 4; img.data[j] = R; img.data[j + 1] = G; img.data[j + 2] = B; img.data[j + 3] = 255;
+    }
+    sx.putImageData(img, 0, 0);
+    const c = canvas(), x = c.getContext('2d'); x.drawImage(small, 0, 0, PW, PH);
+    for (let i = 0; i < 60; i++) { x.fillStyle = `rgba(255,255,255,${.3 + g() * .6})`; x.beginPath(); x.arc(g() * PW, g() * PH, 2 + g() * 6, 0, 7); x.fill(); }
+    return c;
+  }
+  const PAINTERS = [['Sunset lake', paintSunset], ['Stained glass', paintGlass], ['Color swirl', paintSwirl]];
+
+  // ================= Setup screen =================
+  let choice = null, size = store.get('size', '4x5'), built = [];
+  function makePics() {
+    $('pics').querySelectorAll('.pic.gen').forEach(n => n.remove());
+    built = PAINTERS.map(([name, fn]) => ({ name, canvas: fn(rand32()) }));
+    built.forEach((b, i) => {
+      const btn = document.createElement('button'); btn.className = 'pic gen'; btn.dataset.i = i;
+      btn.innerHTML = `<img alt="" src="${b.canvas.toDataURL('image/jpeg', .7)}"><span>${b.name}</span>`;
+      btn.addEventListener('click', () => select(btn, b.canvas, b.name));
+      $('pics').appendChild(btn);
+    });
+    if (!$('morePics')) {
+      const m = document.createElement('button'); m.id = 'morePics'; m.className = 'pic mine'; m.innerHTML = '<b>🎨</b>New pictures<small>Paint a fresh set</small>';
+      m.addEventListener('click', () => { makePics(); select($('pics').querySelector('.pic.gen'), built[0].canvas, built[0].name); });
+      $('pics').appendChild(m);
+    } else $('pics').appendChild($('morePics'));
+  }
+  function select(btn, cv, name) { choice = { canvas: cv, name }; $('pics').querySelectorAll('.pic').forEach(p => p.classList.toggle('on', p === btn)); }
+  $('mine').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', () => {
+    const f = $('file').files[0]; if (!f) return;
+    const url = URL.createObjectURL(f), im = new Image();
+    im.onload = () => {
+      const c = canvas(), x = c.getContext('2d'), s = Math.max(PW / im.naturalWidth, PH / im.naturalHeight);   // fill 3:4, cropping the middle
+      const w = im.naturalWidth * s, h = im.naturalHeight * s; x.drawImage(im, (PW - w) / 2, (PH - h) / 2, w, h); URL.revokeObjectURL(url);
+      const mine = $('mine'); mine.classList.remove('mine'); mine.innerHTML = `<img alt="" src="${c.toDataURL('image/jpeg', .7)}"><span>Your photo · tap to change</span>`;
+      select(mine, c, 'Your photo');
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); alertBox('That picture couldn\'t be opened. Try a different one.'); };
+    im.src = url; $('file').value = '';
+  });
+  function alertBox(t) { $('bestLine').textContent = t; }
+  document.querySelectorAll('[data-size]').forEach(b => b.addEventListener('click', () => { size = b.dataset.size; store.set('size', size); document.querySelectorAll('[data-size]').forEach(x => x.classList.toggle('on', x === b)); showBest(); }));
+  document.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('on', b.dataset.size === size));
+  const fmtT = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const LABEL = { '3x4': 'Easy', '4x5': 'Medium', '5x6': 'Hard' };
+  function showBest() { const b = store.get('best-' + size, null); $('bestLine').textContent = b ? `Your best on ${LABEL[size]}: ${fmtT(b.t)} in ${b.m} moves` : `No ${LABEL[size]} record yet. Set one!`; }
+
+  // ================= Game =================
+  let cols, rows, N, board, imgURL, pw, ph, BW, BH, sel = -1, moves = 0, t0 = 0, elapsed = 0, timer = null, done = false, pieces = [];
+  function start() {
+    if (!choice) { const first = $('pics').querySelector('.pic.gen'); select(first, built[0].canvas, built[0].name); }
+    [cols, rows] = size.split('x').map(Number); N = cols * rows;
+    imgURL = choice.canvas.toDataURL('image/jpeg', .9);
+    $('setup').classList.add('hide'); $('game').classList.remove('hide');
+    layout(); shuffle();
+    window.labTrack && labTrack('puzzle', 1);
+    scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function layout() {
+    const maxW = Math.min($('game').getBoundingClientRect().width || innerWidth - 24, 560), maxH = innerHeight - 260;
+    BW = Math.floor(Math.min(maxW, maxH * .75)); BH = Math.floor(BW * 4 / 3);
+    const b = $('board'); b.style.width = BW + 'px'; b.style.height = BH + 'px'; b.parentElement.style.width = BW + 'px';
+    pw = BW / cols; ph = BH / rows;
+    $('overlay').style.backgroundImage = `url(${imgURL})`;
+    b.querySelectorAll('.piece').forEach(p => p.remove()); pieces = [];
+    for (let id = 0; id < N; id++) {
+      const p = document.createElement('div'); p.className = 'piece'; p.dataset.id = id;
+      p.style.width = (pw - 2) + 'px'; p.style.height = (ph - 2) + 'px';
+      p.style.backgroundImage = `url(${imgURL})`; p.style.backgroundSize = `${BW}px ${BH}px`;
+      p.style.backgroundPosition = `${-(id % cols) * pw - 1}px ${-Math.floor(id / cols) * ph - 1}px`;
+      b.appendChild(p); pieces.push(p);
+    }
+  }
+  const posXY = pos => [(pos % cols) * pw + 1, Math.floor(pos / cols) * ph + 1];
+  function place(id, pos) { const [x, y] = posXY(pos); pieces[id].style.transform = `translate(${x}px, ${y}px)`; }
+  function shuffle() {
+    board = Array.from({ length: N }, (_, i) => i);
+    for (let i = N - 1; i > 0; i--) { const j = randInt(i + 1); [board[i], board[j]] = [board[j], board[i]]; }
+    // no piece starts in its own spot
+    for (let k = 0; k < N; k++) if (board[k] === k) { const j = (k + 1 + randInt(N - 1)) % N; [board[k], board[j]] = [board[j], board[k]]; k = -1; }
+    moves = 0; elapsed = 0; t0 = 0; done = false; sel = -1; clearInterval(timer); timer = null;
+    $('moves').textContent = '0'; $('time').textContent = '0:00';
+    board.forEach((id, pos) => { pieces[id].classList.remove('ok', 'sel'); place(id, pos); });
+  }
+  const isOk = pos => board[pos] === pos;
+  function tickStart() { if (timer) return; t0 = performance.now() - elapsed * 1000; timer = setInterval(() => { elapsed = (performance.now() - t0) / 1000; $('time').textContent = fmtT(elapsed); }, 250); }
+  function swap(a, b) {
+    if (a === b || isOk(a) || isOk(b)) return;
+    tickStart();
+    [board[a], board[b]] = [board[b], board[a]]; place(board[a], a); place(board[b], b);
+    moves++; $('moves').textContent = moves;
+    for (const pos of [a, b]) if (isOk(pos)) { const p = pieces[board[pos]]; setTimeout(() => { p.classList.add('ok', 'flash'); setTimeout(() => p.classList.remove('flash'), 750); }, 260); }
+    if (board.every((id, pos) => id === pos)) setTimeout(win, 650);
+  }
+  function posAt(clientX, clientY) {
+    const r = $('board').getBoundingClientRect(), x = clientX - r.left, y = clientY - r.top;
+    if (x < 0 || y < 0 || x >= BW || y >= BH) return -1;
+    return Math.floor(y / ph) * cols + Math.floor(x / pw);
+  }
+  // tap-to-swap and drag-to-swap
+  let drag = null;
+  $('board').addEventListener('pointerdown', e => {
+    if (done) return; const pos = posAt(e.clientX, e.clientY); if (pos < 0 || isOk(pos)) return;
+    drag = { pos, id: board[pos], x0: e.clientX, y0: e.clientY, moved: false }; $('board').setPointerCapture(e.pointerId);
+  });
+  $('board').addEventListener('pointermove', e => {
+    if (!drag) return; const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.moved && Math.hypot(dx, dy) > 10) { drag.moved = true; pieces[drag.id].classList.add('drag'); if (sel >= 0) { pieces[board[sel]].classList.remove('sel'); sel = -1; } }
+    if (drag.moved) { const [x, y] = posXY(drag.pos); pieces[drag.id].style.transform = `translate(${x + dx}px, ${y + dy}px) scale(1.06)`; }
+  });
+  function endDrag(e) {
+    if (!drag) return; const d = drag; drag = null;
+    if (d.moved) {
+      pieces[d.id].classList.remove('drag'); const to = posAt(e.clientX, e.clientY);
+      place(d.id, d.pos); if (to >= 0 && to !== d.pos && !isOk(to)) swap(d.pos, to);
+      return;
+    }
+    // a tap
+    if (sel < 0) { sel = d.pos; pieces[d.id].classList.add('sel'); }
+    else if (sel === d.pos) { pieces[d.id].classList.remove('sel'); sel = -1; }
+    else { pieces[board[sel]].classList.remove('sel'); const a = sel; sel = -1; swap(a, d.pos); }
+  }
+  $('board').addEventListener('pointerup', endDrag);
+  $('board').addEventListener('pointercancel', e => { if (drag) { pieces[drag.id].classList.remove('drag'); place(drag.id, drag.pos); drag = null; } });
+
+  // peek: hold to see the finished picture
+  const peekOn = e => { e.preventDefault(); $('overlay').classList.add('on'); }, peekOff = () => $('overlay').classList.remove('on');
+  $('peek').addEventListener('pointerdown', peekOn); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('peek').addEventListener(ev, peekOff));
+  $('peek').addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') peekOn(e); }); $('peek').addEventListener('keyup', peekOff);
+  $('peek').addEventListener('contextmenu', e => e.preventDefault());
+
+  // ================= Win =================
+  function win() {
+    done = true; clearInterval(timer); timer = null; elapsed = (performance.now() - t0) / 1000;
+    $('wTime').textContent = fmtT(elapsed); $('wMoves').textContent = moves;
+    const key = 'best-' + size, b = store.get(key, null);
+    if (!b || elapsed < b.t) { store.set(key, { t: elapsed, m: moves }); $('wBest').innerHTML = b ? `<span class="newbest">New best time on ${LABEL[size]}!</span> (old best ${fmtT(b.t)})` : `<span class="newbest">Your first ${LABEL[size]} record!</span>`; }
+    else $('wBest').textContent = `Your best on ${LABEL[size]}: ${fmtT(b.t)}`;
+    $('win').classList.add('on'); confetti(); window.labTrack && labTrack('solved', 1);
+  }
+  function confetti() {
+    const c = document.createElement('canvas'); c.className = 'confetti'; document.body.appendChild(c);
+    const dpr = devicePixelRatio || 1; c.width = innerWidth * dpr; c.height = innerHeight * dpr; const x = c.getContext('2d'); x.scale(dpr, dpr);
+    const colors = ['#E8577E', '#F2B84B', '#7FE0C2', '#7FB8FF', '#FFFFFF'];
+    const bits = Array.from({ length: 140 }, () => ({ x: innerWidth / 2, y: innerHeight * .35, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * 6, c: colors[Math.random() * 5 | 0], a: Math.random() * 6 }));
+    let n = 0; (function f() { x.clearRect(0, 0, innerWidth, innerHeight); for (const b of bits) { b.vy += .35; b.x += b.vx; b.y += b.vy; b.a += .2; x.save(); x.translate(b.x, b.y); x.rotate(b.a); x.fillStyle = b.c; x.fillRect(-4, -2, 8, 4 + b.r); x.restore(); } if (++n < 150) requestAnimationFrame(f); else c.remove(); })();
+  }
+  $('wAgain').addEventListener('click', () => { $('win').classList.remove('on'); shuffle(); });
+  $('wNew').addEventListener('click', () => { $('win').classList.remove('on'); backToSetup(); });
+  $('again').addEventListener('click', shuffle);
+  function backToSetup() { clearInterval(timer); timer = null; $('game').classList.add('hide'); $('setup').classList.remove('hide'); showBest(); }
+  $('back').addEventListener('click', backToSetup);
+  $('start').addEventListener('click', start);
+  document.addEventListener('visibilitychange', () => { if (document.hidden && timer) { clearInterval(timer); timer = null; } else if (!document.hidden && !done && moves > 0 && !$('game').classList.contains('hide')) tickStart(); });
+  let rt, lastW = innerWidth; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; if (!$('game').classList.contains('hide')) { layout(); board.forEach((id, pos) => { place(id, pos); if (isOk(pos)) pieces[id].classList.add('ok'); }); } }, 200); });
+
+  makePics(); select($('pics').querySelector('.pic.gen'), built[0].canvas, built[0].name); showBest();
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
