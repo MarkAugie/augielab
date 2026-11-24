@@ -154,7 +154,7 @@
   <h3>The idea</h3>
   <p>A picture is cut into a grid of pieces and shuffled. Put it back together by swapping pieces: tap one, then tap the piece it should trade places with. Or drag one piece onto another. When a piece lands in its right spot, it glows and locks in place with a ✓. The clock starts on your first move.</p>
   <h3>Joined groups</h3>
-  <p>When two pieces that belong side by side end up next to each other the right way round, they join: the line between them disappears. Drag any piece of a group and the whole group moves together, and whatever was in the way slides into the space it left. A single piece can't break a group apart. If something is in the way, move the group instead.</p>
+  <p>When two pieces that belong side by side end up next to each other the right way round, they join: the line between them disappears. Drag any piece of a group and the whole group moves together, and whatever was in the way slides into the space it left. If you drag or tap a single piece onto a piece in a group, they swap and that piece pops out of its group. That's on purpose: on a small board, groups can otherwise get wedged with nowhere to go. The piece rejoins as soon as it sits next to the right neighbors again.</p>
   <h3>Peek</h3>
   <p>Press and hold the 🔍 button to see the finished picture. Let go to keep playing. Peeking is free, but the clock keeps running.</p>
   <h3>Your own photos</h3>
@@ -403,11 +403,10 @@
       if (isOk(p)) { toast('✓ Pieces there are already in place'); return; }
       let x = p, k = 0; while (inT.has(x)) { x -= shift; k++; } dest[p] = x; steps[p] = k;   // slides back into the gap
     }
-    // a joined group in the way may be pushed aside, but only whole and in one piece
-    for (const p of displaced) {
-      const H = groupOf[p]; if (H.length < 2) continue;
-      if (!H.every(q => inD.has(q) && steps[q] === steps[p])) { toast(G.length > 1 ? 'Another joined group is in the way. Move it first.' : 'That piece is joined to others. Drag the group instead.'); return; }
-    }
+    // pieces in the way slide into the gap; a group in the way stays whole when it can, and splits when it must
+    // (it rejoins as soon as its pieces sit together the right way again). This means you can never get stuck.
+    const splits = displaced.some(p => { const H = groupOf[p]; return H.length > 1 && !H.every(q => inD.has(q) && steps[q] === steps[p]); });
+    if (splits) setTimeout(() => toast('Split a group to make room'), 300);
     tickStart();
     const nb = board.slice();
     G.forEach((pos, i) => { nb[target[i]] = board[pos]; });
@@ -451,12 +450,11 @@
       moveGroup(d.pos, to); return;
     }
     // a tap
-    if (d.group.length > 1) { toast('This piece is joined to others. Drag to move the whole group.'); return; }
+    if (d.group.length > 1 && sel < 0) { toast('Drag to move the whole group, or tap a single piece first to swap it in.'); return; }
     if (sel < 0) { sel = d.pos; pieces[board[d.pos]].classList.add('sel'); }
     else if (sel === d.pos) { pieces[board[d.pos]].classList.remove('sel'); sel = -1; }
     else {
       pieces[board[sel]].classList.remove('sel'); const a = sel; sel = -1;
-      if (groupOf[a].length > 1) return;
       moveGroup(a, d.pos);
     }
   }
