@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Randomness Showdown · AugieLab</title>
+<meta name="description" content="A Geiger counter, a quantum random number generator, a browser's generator and a broken one, all put through the same randomness tests, live, side by side.">
+<meta property="og:title" content="Randomness Showdown">
+<meta property="og:description" content="Radioactive decay vs a quantum light sensor vs math. Same tests, side by side. Can the tests catch the cheater?">
+<meta property="og:url" content="https://augielab.dev/showdown/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0F14; --card: #121922; --line: #263342;
+    --text: #EEF3F7; --dim: #B4C0CC; --soft: #8796A5;
+    --geiger: #B7F34A; --cicada: #4FE3B5; --browser: #7FB8FF; --bad: #FF7A6B;
+    --pass: #3BE37A; --warn: #F6C343; --fail: #FF5E5E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--bg); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 85% 600px at 50% 0%, #1A2633, var(--bg) 75%) no-repeat, var(--bg); }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  header { margin: 4px 0 18px; }
+  h1 { font: 800 clamp(2.4rem, 7vw, 4.3rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; color: var(--geiger); }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 64ch; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; margin-bottom: 16px; padding: 12px 16px; border-radius: 14px; background: rgba(18,25,34,.9); border: 1px solid var(--line); }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .btn { font: 600 .95rem "IBM Plex Sans", sans-serif; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--text); background: #18222E; border: 1px solid #36485B; }
+  .btn:hover { border-color: var(--text); }
+  .btn.on { background: var(--geiger); color: #182400; border-color: var(--geiger); }
+  button:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+
+  .ring { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; border-top: 5px solid var(--c); display: flex; flex-direction: column; }
+  .card h2 { font: 700 1.25rem/1.2 "IBM Plex Sans", sans-serif; }
+  .kind { display: inline-block; margin-top: 4px; font: 700 .72rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+  .src { font-size: .82rem; color: var(--soft); margin-top: 2px; min-height: 2.4em; }
+  .src i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #E0A423; margin-right: 5px; vertical-align: 0; }
+  .src.live i { background: var(--pass); box-shadow: 0 0 6px var(--pass); }
+  .wall { margin-top: 10px; border-radius: 6px; overflow: hidden; background: #000; }
+  .wall canvas { display: block; width: 100%; height: 96px; image-rendering: pixelated; }
+  .num { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
+  .num b { font: 600 1.35rem "IBM Plex Mono", monospace; }
+  .num span { font-size: .82rem; color: var(--soft); }
+  .tests { list-style: none; margin-top: 10px; border-top: 1px solid var(--line); }
+  .tests li { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .tests li small { display: block; color: var(--soft); font: 500 .78rem "IBM Plex Mono", monospace; }
+  .st { font: 700 .78rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; align-self: center; white-space: nowrap; }
+  .st.pass { background: rgba(59,227,122,.15); color: var(--pass); }
+  .st.warn { background: rgba(246,195,67,.15); color: var(--warn); }
+  .st.fail { background: rgba(255,94,94,.18); color: var(--fail); }
+  .st.wait { background: rgba(135,150,165,.15); color: var(--soft); }
+  .score { margin-top: 10px; font: 700 1rem "IBM Plex Sans", sans-serif; text-align: center; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.04); }
+  .geigerbox { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .led { width: 16px; height: 16px; border-radius: 50%; background: #2A3A14; transition: background .05s; flex: none; }
+  .led.on { background: var(--geiger); box-shadow: 0 0 12px var(--geiger); }
+  .geigerbox span { font: 600 .9rem "IBM Plex Mono", monospace; color: var(--dim); }
+
+  .verdict { margin-top: 18px; padding: 14px 18px; border-radius: 12px; font-size: 1.08rem; background: rgba(183,243,74,.06); border: 1px solid rgba(183,243,74,.28); }
+  .verdict b { color: var(--warn); }
+
+  @media (max-width: 1100px) { .ring { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { html { font-size: 18px; } body { padding: 14px 10px 110px; } .ring { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>Randomness <em>showdown</em></h1>
+    <p class="sub">Four sources of random bits enter the ring. Two are quantum: a Geiger counter timing radioactive decay, and a quantum chip reading light. One is the math formula your browser uses. One is a broken formula, cheating. Every bit goes through the same tests, live. Can the tests catch the cheater?</p>
+  </header>
+
+  <div class="bar">
+    <div><span class="lbl">Geiger counter speed</span>
+      <div class="seg" role="group" aria-label="Geiger speed">
+        <button class="btn on" data-g="1">Real time</button>
+        <button class="btn" data-g="100">100× faster</button>
+        <button class="btn" data-g="10000">10,000× faster</button>
+      </div>
+    </div>
+    <div><span class="lbl">Click sound</span>
+      <div class="seg"><button class="btn" id="sound" aria-pressed="false">Off</button></div>
+    </div>
+    <div><span class="lbl">&nbsp;</span>
+      <div class="seg"><button class="btn" id="pause">Pause</button><button class="btn" id="reset">Start over</button></div>
+    </div>
+  </div>
+
+  <main class="ring" id="ring"></main>
+  <div class="verdict" id="verdict" aria-live="polite">Collecting bits…</div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The four contestants</h3>
+  <p><strong>Geiger counter.</strong> Radioactive atoms in the air, the ground and the building decay at random moments, and the Geiger tube clicks when a particle passes through it. Nobody, not even in principle, can predict when the next atom will go. That's quantum mechanics. <strong>Quantum chip.</strong> The Crypta Labs Cicada reads tiny quantum fluctuations of light. <strong>Your browser</strong> uses a carefully designed formula, seeded by your computer. It isn't quantum, but it's very good. <strong>The broken formula</strong> is a classic, old-school generator (a "linear congruential generator") used the wrong way. It's here to cheat.</p>
+  <h3>Turning clicks into bits</h3>
+  <p>The time between two clicks is random. Take two gaps in a row: if the first is shorter, write 0; if it's longer, write 1; if they're exactly equal, skip it. Both outcomes are equally likely, so the bits come out fair even if the radiation level drifts up or down. This is how the famous HotBits service made random numbers. It's slow: from normal background radiation, only tens of bits a minute. Use the speed buttons to fast-forward the demo.</p>
+  <h3>The tests</h3>
+  <p><strong>Half ones?</strong> About half of all bits should be 1s. <strong>Streaks:</strong> the number of runs (stretches of the same bit) should match what coin flips give. <strong>Next-bit link:</strong> each bit shouldn't predict the next one. <strong>All bytes equal?</strong> Grouped into bytes (0–255), every value should come up about equally often (a chi-squared test; needs about 1,300 bytes first). <strong>Pi from darts:</strong> use the bytes as dart throws at a square with a circle in it; the share landing inside should give pi.</p>
+  <h3>Pass, suspicious, fail</h3>
+  <p>A truly random source still wobbles, so each test asks how far off the result is, counted in "standard deviations" (the expected size of a random wobble). Under 3 is a pass; real randomness lands there 99.7% of the time. 3 to 4 is suspicious. Over 4 is a fail. Even a perfect source flashes "suspicious" now and then. That's normal: watch which ones stay there.</p>
+  <h3>The cheater's trick</h3>
+  <p>The broken formula's last bit simply goes 0, 1, 0, 1… forever. Its half-ones score is perfect, so it sails through the first test. The streak and next-bit tests catch it instantly. That's the lesson: <strong>no single test can prove randomness</strong>. Each test only catches one kind of failure, which is why real labs run whole batteries of them, like NIST's test suite.</p>
+  <h3>Demo mode</h3>
+  <p>Right now the Geiger clicks are simulated at a typical background rate, and the Cicada's bits come from your browser. When Mark's MightyOhm Geiger counter and the Cicada are hooked up to a Raspberry Pi, both cards switch to the real thing and their dots turn green. The real Cicada is far faster than shown here; the page takes a slice of its output so your computer can keep up.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Live sources (switch on when the Pi is online) =================
+  // GEIGER: GET ENDPOINT?after=SEQ -> {"ok":true,"seq":LAST,"gaps_us":[...]}  (microseconds between clicks, from the pulse header)
+  // CICADA: GET ENDPOINT?n=COUNT   -> {"ok":true,"values":[0..255,...]}         (refined, Cicada -p 0)
+  const GEIGER = { ENDPOINT: '' }, CICADA = { ENDPOINT: '' };
+
+  const u32 = new Uint32Array(1), cbuf = new Uint8Array(4096); let cpos = cbuf.length;
+  const cryptoByte = () => { if (cpos >= cbuf.length) { crypto.getRandomValues(cbuf); cpos = 0; } return cbuf[cpos++]; };
+  const cryptoUnit = () => (crypto.getRandomValues(u32)[0] + .5) / 4294967296;
+
+  // ================= Statistics for one stream of bits =================
+  class Stats {
+    constructor() { this.n = 0; this.ones = 0; this.runs = 0; this.last = -1; this.same = 0; this.byte = 0; this.bc = 0; this.hist = new Uint32Array(256); this.bytes = 0; this.pb = []; this.pin = 0; this.pn = 0; this.recent = new Uint8Array(1536); this.ri = 0; }
+    add(b) {
+      this.n++; this.ones += b;
+      if (b !== this.last) this.runs++; else this.same++;
+      this.last = b; this.recent[this.ri++ % this.recent.length] = b;
+      this.byte = (this.byte << 1) | b; if (++this.bc === 8) { this.addByte(this.byte & 255); this.byte = 0; this.bc = 0; }
+    }
+    addByte(v) {
+      this.hist[v]++; this.bytes++; this.pb.push(v);
+      if (this.pb.length === 4) { const x = (this.pb[0] * 256 + this.pb[1]) / 65535, y = (this.pb[2] * 256 + this.pb[3]) / 65535; this.pn++; if (x * x + y * y <= 1) this.pin++; this.pb = []; }
+    }
+    tests() {
+      const n = this.n, T = [];
+      const z1 = n ? (this.ones - n / 2) / (Math.sqrt(n) / 2) : 0;
+      T.push({ name: 'Half ones?', detail: n ? `${(this.ones / n * 100).toFixed(2)}% ones` : '–', z: n >= 100 ? z1 : null });
+      const er = 1 + (n - 1) / 2, zr = n > 1 ? (this.runs - er) / (Math.sqrt(n - 1) / 2) : 0;
+      T.push({ name: 'Streaks', detail: n > 1 ? `${this.runs.toLocaleString('en-US')} runs, expect ${Math.round(er).toLocaleString('en-US')}` : '–', z: n >= 100 ? zr : null });
+      const pairs = n - 1, zs = pairs > 0 ? (this.same - pairs / 2) / (Math.sqrt(pairs) / 2) : 0;
+      T.push({ name: 'Next-bit link', detail: pairs > 0 ? `same as last: ${(this.same / pairs * 100).toFixed(1)}%` : '–', z: n >= 100 ? zs : null });
+      let chi = 0; const e = this.bytes / 256; if (this.bytes) for (let i = 0; i < 256; i++) chi += (this.hist[i] - e) ** 2 / e;
+      T.push({ name: 'All bytes equal?', detail: this.bytes >= 1280 ? `chi² ${chi.toFixed(0)}, expect ~255` : `${this.bytes.toLocaleString('en-US')} of 1,280 bytes`, z: this.bytes >= 1280 ? (chi - 255) / Math.sqrt(510) : null });
+      const p = this.pn ? this.pin / this.pn : 0, pi = 4 * p, sd = this.pn ? 4 * Math.sqrt((Math.PI / 4) * (1 - Math.PI / 4) / this.pn) : 1;
+      T.push({ name: 'Pi from darts', detail: this.pn ? `π ≈ ${pi.toFixed(4)} (${this.pn.toLocaleString('en-US')} darts)` : '–', z: this.pn >= 200 ? (pi - Math.PI) / sd : null });
+      return T;
+    }
+  }
+
+  // ================= The contestants =================
+  const C = [
+    { id: 'geiger', name: 'Geiger counter', kind: 'Quantum · radioactive decay', color: 'var(--geiger)' },
+    { id: 'cicada', name: 'Cicada quantum chip', kind: 'Quantum · light', color: 'var(--cicada)' },
+    { id: 'browser', name: 'Your browser', kind: 'Math formula · well made', color: 'var(--browser)' },
+    { id: 'bad', name: 'Broken formula', kind: 'Math formula · cheating', color: 'var(--bad)' },
+  ];
+  $('ring').innerHTML = C.map(c => `
+    <section class="card" style="--c:${c.color}" aria-label="${c.name}">
+      <h2>${c.name}</h2><span class="kind">${c.kind}</span>
+      <div class="src" id="src-${c.id}"></div>
+      ${c.id === 'geiger' ? '<div class="geigerbox"><span class="led" id="led"></span><span id="cpm">– clicks/min</span></div>' : ''}
+      <div class="wall"><canvas id="wall-${c.id}" width="96" height="16" aria-label="Recent bits as black and white squares"></canvas></div>
+      <div class="num"><b id="n-${c.id}">0</b><span id="rate-${c.id}">bits</span></div>
+      <ul class="tests" id="t-${c.id}"></ul>
+      <div class="score" id="s-${c.id}">–</div>
+    </section>`).join('');
+
+  let S = {}, running = true, gSpeed = 1, sound = false;
+  function resetAll() { C.forEach(c => S[c.id] = new Stats()); lcg = 12345; gPrev = null; gAcc = 0; gClicks = []; firstClick = null; }
+
+  // ---- Geiger: clicks at a background rate, two gaps -> one bit ----
+  const CPM = 24;                              // a typical background rate for a small tube (demo)
+  let gPrev = null, gAcc = 0, gClicks = [], firstClick = null, gSeq = 0, gLive = false;
+  function gapBit(gap) {
+    if (gPrev === null) { gPrev = gap; return; }
+    if (gap !== gPrev) S.geiger.add(gPrev < gap ? 0 : 1);
+    gPrev = null;
+  }
+  function simGeiger(dt) {                     // dt in real seconds; Poisson clicks
+    let t = dt * gSpeed, rate = CPM / 60;
+    while (true) {
+      const wait = gAcc > 0 ? gAcc : -Math.log(cryptoUnit()) / rate;
+      if (wait > t) { gAcc = wait - t; break; }
+      t -= wait; gAcc = 0; click(Math.round(wait * 1e6));
+    }
+  }
+  function click(gapUs) {
+    gapBit(gapUs); gClicks.push(performance.now());
+    if (gSpeed <= 100) { const l = $('led'); l.classList.add('on'); setTimeout(() => l.classList.remove('on'), 60); if (sound && gSpeed === 1) tick(); }
+  }
+  async function pollGeiger() {
+    if (!GEIGER.ENDPOINT) return;
+    try { const r = await fetch(`${GEIGER.ENDPOINT}?after=${gSeq}`, { cache: 'no-store' }); const j = await r.json(); if (!j.ok) throw 0;
+      if (!gLive) { gLive = true; resetAll(); } gSeq = j.seq; for (const g of j.gaps_us) click(g); }
+    catch (e) { gLive = false; }
+  }
+  setInterval(pollGeiger, 1000);
+
+  // ---- Cicada ----
+  let cPool = [], cLive = false;
+  async function pollCicada() {
+    if (!CICADA.ENDPOINT || cPool.length > 8192) return;
+    try { const r = await fetch(`${CICADA.ENDPOINT}?n=4096`, { cache: 'no-store' }); const j = await r.json(); if (!j.ok) throw 0;
+      if (!cLive) { cLive = true; S.cicada = new Stats(); } cPool.push(...j.values); }
+    catch (e) { cLive = false; }
+  }
+  setInterval(pollCicada, 1000); pollCicada();
+  const BYTES_PER_SEC = 1500;                  // a slice, so every computer can keep up
+  function feedBytes(id, nBytes, src) { const s = S[id]; for (let i = 0; i < nBytes; i++) { const v = src(); for (let k = 7; k >= 0; k--) s.add((v >> k) & 1); } }
+
+  // ---- The cheater: an LCG, using its lowest bit ----
+  let lcg = 12345;
+  const badByte = () => { let v = 0; for (let k = 0; k < 8; k++) { lcg = (Math.imul(lcg, 1103515245) + 12345) >>> 0 & 0x7fffffff; v = (v << 1) | (lcg & 1); } return v; };
+
+  // ---- sound ----
+  let actx = null;
+  function tick() {
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const b = actx.createBuffer(1, 400, actx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / 40);
+      const s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(); } catch (e) {}
+  }
+
+  // ================= Drawing =================
+  const fmt = n => n.toLocaleString('en-US');
+  function status(z) {
+    if (z === null) return ['wait', 'Need more'];
+    const a = Math.abs(z); return a < 3 ? ['pass', 'Pass'] : a < 4 ? ['warn', 'Suspicious'] : ['fail', 'Fail'];
+  }
+  function drawCard(c) {
+    const s = S[c.id], T = s.tests();
+    $('n-' + c.id).textContent = fmt(s.n);
+    $('t-' + c.id).innerHTML = T.map(t => { const [k, w] = status(t.z); return `<li><div>${t.name}<small>${t.detail}${t.z !== null ? ` · ${Math.abs(t.z).toFixed(1)} sd` : ''}</small></div><span class="st ${k}">${w}</span></li>`; }).join('');
+    const done = T.filter(t => t.z !== null), fails = done.filter(t => Math.abs(t.z) >= 4).length, passes = done.filter(t => Math.abs(t.z) < 3).length;
+    $('s-' + c.id).innerHTML = !done.length ? 'Warming up…' : fails ? `<span style="color:var(--fail)">Caught! Fails ${fails} of ${done.length} tests</span>` : `<span style="color:var(--pass)">Passing ${passes} of ${done.length} tests</span>`;
+    // recent bits as a 96×16 wall
+    const cv = $('wall-' + c.id), g = cv.getContext('2d'), img = g.createImageData(96, 16), m = Math.min(s.n, 1536), start = s.ri - m;
+    const col = { geiger: [183, 243, 74], cicada: [79, 227, 181], browser: [127, 184, 255], bad: [255, 122, 107] }[c.id];
+    for (let i = 0; i < 1536; i++) {
+      const j = i * 4, has = i < m, b = has ? s.recent[(start + i + 1536 * 4) % 1536] : 0;
+      img.data[j] = has && b ? col[0] : 10; img.data[j + 1] = has && b ? col[1] : 12; img.data[j + 2] = has && b ? col[2] : 16; img.data[j + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  function drawSources() {
+    const live = (ok, demo, real) => `<i></i>${ok ? real : demo}`;
+    $('src-geiger').innerHTML = live(gLive, gSpeed === 1 ? 'Demo: simulated clicks at a typical background rate.' : `Demo: simulated clicks, ${fmt(gSpeed)}× faster than real.`, 'Live: Mark\'s MightyOhm Geiger counter.');
+    $('src-geiger').classList.toggle('live', gLive);
+    $('src-cicada').innerHTML = live(cLive, 'Demo: stand-in bits from your browser until the chip is online.', 'Live: Crypta Labs Cicada (a slice of its output).');
+    $('src-cicada').classList.toggle('live', cLive);
+    $('src-browser').innerHTML = '<i style="background:var(--browser)"></i>crypto.getRandomValues, built into every browser.';
+    $('src-bad').innerHTML = '<i style="background:var(--bad)"></i>An old-style formula, using its weakest bit.';
+    const now = performance.now(); gClicks = gClicks.filter(t => now - t < 60000);
+    const span = firstClick === null ? 0 : Math.min(60, (now - firstClick) / 1000);
+    $('cpm').textContent = gSpeed === 1 && span > 5 ? `${Math.round(gClicks.length / span * 60)} clicks/min` : gSpeed === 1 ? 'listening…' : `${fmt(CPM * gSpeed)} clicks/min (sped up)`;
+    $('rate-geiger').textContent = 'bits · about 1 per 2 clicks';
+    ['cicada', 'browser', 'bad'].forEach(id => $('rate-' + id).textContent = `bits · ${fmt(BYTES_PER_SEC * 8)}/sec shown`);
+  }
+  function verdict() {
+    const g = S.geiger.n, b = S.bad.tests().filter(t => t.z !== null && Math.abs(t.z) >= 4).length;
+    let t = '';
+    if (b) t += `The <b>broken formula</b> has been caught: its bits look half ones and half zeros, but they simply alternate 0, 1, 0, 1. `;
+    t += g < 100 ? `The Geiger counter has only <b>${g}</b> bits so far, because radioactive decay is slow. Its tests need at least 100. Try <b>100× faster</b>.` : `The Geiger counter has <b>${fmt(g)}</b> bits and is holding its own next to sources that are thousands of times faster.`;
+    $('verdict').innerHTML = t;
+  }
+
+  // ================= Loop =================
+  let last = performance.now(), acc = 0, frameN = 0, sinceTrack = 0;
+  function frame(now) {
+    const dt = Math.min(.25, (now - last) / 1000); last = now; frameN++;
+    if (running) {
+      if (!gLive) { if (firstClick === null) firstClick = now; simGeiger(dt); }
+      acc += dt * BYTES_PER_SEC; const nb = Math.floor(acc); acc -= nb;
+      feedBytes('cicada', nb, () => cLive && cPool.length ? cPool.shift() : cryptoByte());
+      feedBytes('browser', nb, cryptoByte);
+      feedBytes('bad', nb, badByte);
+      sinceTrack += nb * 8; if (sinceTrack >= 1e5) { window.labTrack && labTrack('kbits', Math.floor(sinceTrack / 1000)); sinceTrack %= 1000; }
+    }
+    if (frameN % 15 === 0) { C.forEach(drawCard); drawSources(); verdict(); }
+    requestAnimationFrame(frame);
+  }
+
+  // ================= Controls =================
+  document.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => {
+    gSpeed = +b.dataset.g; document.querySelectorAll('[data-g]').forEach(x => x.classList.toggle('on', x === b)); gClicks = []; firstClick = performance.now();
+  }));
+  $('sound').addEventListener('click', () => { sound = !sound; $('sound').textContent = sound ? 'On' : 'Off'; $('sound').classList.toggle('on', sound); $('sound').setAttribute('aria-pressed', sound); if (sound) tick(); });
+  $('pause').addEventListener('click', () => { running = !running; $('pause').textContent = running ? 'Pause' : 'Run'; });
+  $('reset').addEventListener('click', () => { resetAll(); firstClick = performance.now(); });
+
+  resetAll(); requestAnimationFrame(frame);
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
