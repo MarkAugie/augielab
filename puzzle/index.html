@@ -398,15 +398,20 @@
       target.push(r * cols + c);
     }
     const inG = new Set(G), inT = new Set(target), shift = dr * cols + dc;
-    const displaced = target.filter(p => !inG.has(p));
+    const displaced = target.filter(p => !inG.has(p)), inD = new Set(displaced), dest = {}, steps = {};
     for (const p of displaced) {
       if (isOk(p)) { toast('✓ Pieces there are already in place'); return; }
-      if (groupOf[p].length > 1) { toast(G.length > 1 ? 'Another joined group is in the way. Move it first.' : 'That piece is joined to others. Drag the group instead.'); return; }
+      let x = p, k = 0; while (inT.has(x)) { x -= shift; k++; } dest[p] = x; steps[p] = k;   // slides back into the gap
+    }
+    // a joined group in the way may be pushed aside, but only whole and in one piece
+    for (const p of displaced) {
+      const H = groupOf[p]; if (H.length < 2) continue;
+      if (!H.every(q => inD.has(q) && steps[q] === steps[p])) { toast(G.length > 1 ? 'Another joined group is in the way. Move it first.' : 'That piece is joined to others. Drag the group instead.'); return; }
     }
     tickStart();
     const nb = board.slice();
     G.forEach((pos, i) => { nb[target[i]] = board[pos]; });
-    for (const p of displaced) { let x = p; while (inT.has(x)) x -= shift; nb[x] = board[p]; }   // slide back into the gap
+    for (const p of displaced) nb[dest[p]] = board[p];
     board = nb; board.forEach((id, pos) => place(id, pos));
     moves++; $('moves').textContent = moves; settle();
   }
