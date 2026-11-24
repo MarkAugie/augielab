@@ -63,7 +63,8 @@
   .piece { position: absolute; top: 0; left: 0; border-radius: 4px; background-repeat: no-repeat; cursor: pointer;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 1px 3px rgba(0,0,0,.35); transition: transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
   .piece.sel { box-shadow: inset 0 0 0 4px var(--pink), 0 0 0 3px rgba(255,255,255,.9), 0 6px 16px rgba(0,0,0,.5); z-index: 3; }
-  .piece.ok { cursor: default; box-shadow: none; }
+  .piece.ok, .piece.grp { box-shadow: none; border-radius: 0; }
+  .piece.ok { cursor: default; }
   .piece.ok::after { content: "✓"; position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(30,127,79,.92); color: #fff; font: 700 14px/22px sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
   .placed { text-align: center; margin-top: 12px; font: 700 1.05rem "IBM Plex Sans", sans-serif; color: var(--glow); }
   .toast { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7; padding: 10px 16px; border-radius: 12px; background: rgba(10,30,26,.92); color: #fff; font: 600 1rem "IBM Plex Sans", sans-serif; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; max-width: 85%; }
@@ -128,7 +129,7 @@
     </div>
     <div class="boardwrap"><div class="board" id="board"><div class="overlay" id="overlay"></div><div class="toast" id="toast"></div></div></div>
     <p class="placed" id="placed"></p>
-    <p class="hint" id="hint">Tap two pieces to swap them, or drag one onto another. Pieces in the right spot lock in place with a ✓.</p>
+    <p class="hint" id="hint">Tap two pieces to swap, or drag. Pieces that fit together join up and move as a group. Pieces in the right spot lock with a ✓.</p>
     <div class="row">
       <button class="btn" id="again">Shuffle again</button>
       <button class="btn" id="back">Change picture</button>
@@ -151,7 +152,9 @@
 <template id="explain">
   <h2>How to play</h2>
   <h3>The idea</h3>
-  <p>A picture is cut into a grid of pieces and shuffled. Put it back together by swapping pieces: tap one, then tap the piece it should trade places with. Or drag one piece onto another. When a piece lands in its right spot, it glows and locks in place. The clock starts on your first move.</p>
+  <p>A picture is cut into a grid of pieces and shuffled. Put it back together by swapping pieces: tap one, then tap the piece it should trade places with. Or drag one piece onto another. When a piece lands in its right spot, it glows and locks in place with a ✓. The clock starts on your first move.</p>
+  <h3>Joined groups</h3>
+  <p>When two pieces that belong side by side end up next to each other the right way round, they join: the line between them disappears. Drag any piece of a group and the whole group moves together, and whatever was in the way slides into the space it left. A single piece can't break a group apart. If something is in the way, move the group instead.</p>
   <h3>Peek</h3>
   <p>Press and hold the 🔍 button to see the finished picture. Let go to keep playing. Peeking is free, but the clock keeps running.</p>
   <h3>Your own photos</h3>
@@ -350,13 +353,13 @@
     b.querySelectorAll('.piece').forEach(p => p.remove()); pieces = [];
     for (let id = 0; id < N; id++) {
       const p = document.createElement('div'); p.className = 'piece'; p.dataset.id = id;
-      p.style.width = (pw - 2) + 'px'; p.style.height = (ph - 2) + 'px';
+      p.style.width = Math.ceil(pw) + 'px'; p.style.height = Math.ceil(ph) + 'px';
       p.style.backgroundImage = `url(${imgURL})`; p.style.backgroundSize = `${BW}px ${BH}px`;
-      p.style.backgroundPosition = `${-(id % cols) * pw - 1}px ${-Math.floor(id / cols) * ph - 1}px`;
+      p.style.backgroundPosition = `${-(id % cols) * pw}px ${-Math.floor(id / cols) * ph}px`;
       b.appendChild(p); pieces.push(p);
     }
   }
-  const posXY = pos => [(pos % cols) * pw + 1, Math.floor(pos / cols) * ph + 1];
+  const posXY = pos => [(pos % cols) * pw, Math.floor(pos / cols) * ph];
   function place(id, pos) { const [x, y] = posXY(pos); pieces[id].style.transform = `translate(${x}px, ${y}px)`; }
   function shuffle() {
     board = Array.from({ length: N }, (_, i) => i);
@@ -365,18 +368,51 @@
     for (let k = 0; k < N; k++) if (board[k] === k) { const j = (k + 1 + randInt(N - 1)) % N; [board[k], board[j]] = [board[j], board[k]]; k = -1; }
     moves = 0; elapsed = 0; t0 = 0; done = false; sel = -1; clearInterval(timer); timer = null;
     $('moves').textContent = '0'; $('time').textContent = '0:00';
-    board.forEach((id, pos) => { pieces[id].classList.remove('ok', 'sel'); place(id, pos); }); showPlaced();
+    board.forEach((id, pos) => { pieces[id].classList.remove('ok', 'sel', 'grp'); place(id, pos); }); findGroups(); showPlaced();
   }
   const isOk = pos => board[pos] === pos;
   function showPlaced() { const k = board.filter((id, pos) => id === pos).length; $('placed').textContent = `${k} of ${N} pieces in place`; }
   let toastT; function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1600); }
   function tickStart() { if (timer) return; t0 = performance.now() - elapsed * 1000; timer = setInterval(() => { elapsed = (performance.now() - t0) / 1000; $('time').textContent = fmtT(elapsed); }, 250); }
-  function swap(a, b) {
-    if (a === b || isOk(a) || isOk(b)) return;
+  // ===== Groups: neighbours that sit together the right way round join up =====
+  let groupOf = [];                            // groupOf[pos] = list of positions in that piece's group
+  function findGroups() {
+    const par = Array.from({ length: N }, (_, i) => i), f = i => par[i] === i ? i : (par[i] = f(par[i]));
+    for (let pos = 0; pos < N; pos++) {
+      const id = board[pos];
+      if (pos % cols < cols - 1 && id % cols < cols - 1 && board[pos + 1] === id + 1) par[f(pos)] = f(pos + 1);
+      if (pos + cols < N && board[pos + cols] === id + cols) par[f(pos)] = f(pos + cols);
+    }
+    const sets = {}; for (let pos = 0; pos < N; pos++) (sets[f(pos)] = sets[f(pos)] || []).push(pos);
+    groupOf = []; for (const g of Object.values(sets)) for (const pos of g) groupOf[pos] = g;
+    board.forEach((id, pos) => { pieces[id].classList.toggle('grp', groupOf[pos].length > 1 && !isOk(pos)); });
+  }
+  // Move the group at `from` so that piece lands on `to`; whatever is in the way slides into the space left behind.
+  function moveGroup(from, to) {
+    const G = groupOf[from], dr = Math.floor(to / cols) - Math.floor(from / cols), dc = to % cols - from % cols;
+    if (!dr && !dc) return;
+    const target = [];
+    for (const pos of G) {
+      const r = Math.floor(pos / cols) + dr, c = pos % cols + dc;
+      if (r < 0 || r >= rows || c < 0 || c >= cols) { toast('That group doesn\'t fit there'); return; }
+      target.push(r * cols + c);
+    }
+    const inG = new Set(G), inT = new Set(target), shift = dr * cols + dc;
+    const displaced = target.filter(p => !inG.has(p));
+    for (const p of displaced) {
+      if (isOk(p)) { toast('✓ Pieces there are already in place'); return; }
+      if (groupOf[p].length > 1) { toast(G.length > 1 ? 'Another joined group is in the way. Move it first.' : 'That piece is joined to others. Drag the group instead.'); return; }
+    }
     tickStart();
-    [board[a], board[b]] = [board[b], board[a]]; place(board[a], a); place(board[b], b);
-    moves++; $('moves').textContent = moves; showPlaced();
-    for (const pos of [a, b]) if (isOk(pos)) { const p = pieces[board[pos]]; setTimeout(() => { p.classList.add('ok', 'flash'); setTimeout(() => p.classList.remove('flash'), 750); }, 260); }
+    const nb = board.slice();
+    G.forEach((pos, i) => { nb[target[i]] = board[pos]; });
+    for (const p of displaced) { let x = p; while (inT.has(x)) x -= shift; nb[x] = board[p]; }   // slide back into the gap
+    board = nb; board.forEach((id, pos) => place(id, pos));
+    moves++; $('moves').textContent = moves; settle();
+  }
+  function settle() {
+    findGroups(); showPlaced();
+    board.forEach((id, pos) => { const p = pieces[id]; if (isOk(pos) && !p.classList.contains('ok')) setTimeout(() => { p.classList.add('ok', 'flash'); setTimeout(() => p.classList.remove('flash'), 750); }, 260); });
     if (board.every((id, pos) => id === pos)) setTimeout(win, 650);
   }
   function posAt(clientX, clientY) {
@@ -384,32 +420,43 @@
     if (x < 0 || y < 0 || x >= BW || y >= BH) return -1;
     return Math.floor(y / ph) * cols + Math.floor(x / pw);
   }
-  // tap-to-swap and drag-to-swap
+  // tap-to-swap (single pieces) and drag (pieces or whole groups)
   let drag = null;
   $('board').addEventListener('pointerdown', e => {
     if (done) return; const pos = posAt(e.clientX, e.clientY); if (pos < 0) return;
     if (isOk(pos)) { toast('✓ That one is already in the right spot'); return; }
-    drag = { pos, id: board[pos], x0: e.clientX, y0: e.clientY, moved: false }; $('board').setPointerCapture(e.pointerId);
+    drag = { pos, group: groupOf[pos].slice(), x0: e.clientX, y0: e.clientY, moved: false }; $('board').setPointerCapture(e.pointerId);
   });
   $('board').addEventListener('pointermove', e => {
     if (!drag) return; const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
-    if (!drag.moved && Math.hypot(dx, dy) > 10) { drag.moved = true; pieces[drag.id].classList.add('drag'); if (sel >= 0) { pieces[board[sel]].classList.remove('sel'); sel = -1; } }
-    if (drag.moved) { const [x, y] = posXY(drag.pos); pieces[drag.id].style.transform = `translate(${x + dx}px, ${y + dy}px) scale(1.06)`; }
+    if (!drag.moved && Math.hypot(dx, dy) > 10) { drag.moved = true; drag.group.forEach(q => pieces[board[q]].classList.add('drag')); if (sel >= 0) { pieces[board[sel]].classList.remove('sel'); sel = -1; } }
+    if (drag.moved) drag.group.forEach(q => { const [x, y] = posXY(q); pieces[board[q]].style.transform = `translate(${x + dx}px, ${y + dy}px)`; });
   });
   function endDrag(e) {
     if (!drag) return; const d = drag; drag = null;
     if (d.moved) {
-      pieces[d.id].classList.remove('drag'); const to = posAt(e.clientX, e.clientY);
-      place(d.id, d.pos); if (to >= 0 && to !== d.pos) { if (isOk(to)) toast('✓ That spot is already done'); else swap(d.pos, to); }
-      return;
+      d.group.forEach(q => { pieces[board[q]].classList.remove('drag'); place(board[q], q); });
+      // where did the grabbed piece end up? (use the drag distance, so grabbing near an edge works)
+      const r = $('board').getBoundingClientRect(), [x0, y0] = posXY(d.pos);
+      const cx = x0 + pw / 2 + (e.clientX - d.x0), cy = y0 + ph / 2 + (e.clientY - d.y0);
+      const c = Math.round((cx - pw / 2) / pw), rr = Math.round((cy - ph / 2) / ph);
+      if (c < 0 || rr < 0 || c >= cols || rr >= rows) { if (d.group.length > 1) toast('That group doesn\'t fit there'); return; }
+      const to = rr * cols + c; if (to === d.pos) return;
+      if (d.group.length === 1 && isOk(to)) { toast('✓ That spot is already done'); return; }
+      moveGroup(d.pos, to); return;
     }
     // a tap
-    if (sel < 0) { sel = d.pos; pieces[d.id].classList.add('sel'); }
-    else if (sel === d.pos) { pieces[d.id].classList.remove('sel'); sel = -1; }
-    else { pieces[board[sel]].classList.remove('sel'); const a = sel; sel = -1; swap(a, d.pos); }
+    if (d.group.length > 1) { toast('This piece is joined to others. Drag to move the whole group.'); return; }
+    if (sel < 0) { sel = d.pos; pieces[board[d.pos]].classList.add('sel'); }
+    else if (sel === d.pos) { pieces[board[d.pos]].classList.remove('sel'); sel = -1; }
+    else {
+      pieces[board[sel]].classList.remove('sel'); const a = sel; sel = -1;
+      if (groupOf[a].length > 1) return;
+      moveGroup(a, d.pos);
+    }
   }
   $('board').addEventListener('pointerup', endDrag);
-  $('board').addEventListener('pointercancel', e => { if (drag) { pieces[drag.id].classList.remove('drag'); place(drag.id, drag.pos); drag = null; } });
+  $('board').addEventListener('pointercancel', () => { if (drag) { drag.group.forEach(q => { pieces[board[q]].classList.remove('drag'); place(board[q], q); }); drag = null; } });
 
   // peek: hold to see the finished picture
   const peekOn = e => { e.preventDefault(); $('overlay').classList.add('on'); }, peekOff = () => $('overlay').classList.remove('on');
@@ -440,7 +487,7 @@
   $('back').addEventListener('click', backToSetup);
   $('start').addEventListener('click', start);
   document.addEventListener('visibilitychange', () => { if (document.hidden && timer) { clearInterval(timer); timer = null; } else if (!document.hidden && !done && moves > 0 && !$('game').classList.contains('hide')) tickStart(); });
-  let rt, lastW = innerWidth; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; if (!$('game').classList.contains('hide')) { layout(); board.forEach((id, pos) => { place(id, pos); if (isOk(pos)) pieces[id].classList.add('ok'); }); showPlaced(); } }, 200); });
+  let rt, lastW = innerWidth; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; if (!$('game').classList.contains('hide')) { layout(); board.forEach((id, pos) => { place(id, pos); if (isOk(pos)) pieces[id].classList.add('ok'); }); findGroups(); showPlaced(); } }, 200); });
 
   makePics(); select($('pics').querySelector('.pic.gen'), built[0].canvas, built[0].name); showBest();
 })();
