@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Chaos Game · Quantum Fractals · AugieLab</title>
+<meta name="description" content="Roll random dice a million times and a perfect fractal appears. Watch the chaos game draw a Sierpinski triangle and a fern, see what bad dice do, then grow fractal flames designed by quantum random numbers.">
+<meta property="og:title" content="The Chaos Game">
+<meta property="og:description" content="Random dice draw perfect fractals. Loaded dice smudge them, broken dice can't draw them at all. Then: quantum-designed fractal flames nobody has ever seen.">
+<meta property="og:url" content="https://augielab.dev/chaos/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #07060C; --panel: #13111E; --line: #2D2842;
+    --text: #F2EFFA; --dim: #C0B9D6; --soft: #918AAA;
+    --a: #FF5C8A; --b: #FFC14D; --c: #4DD8FF; --fern: #7CF29A; --bad: #FF6B4A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--void); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 80% 640px at 50% 0%, #241A3C, var(--void) 75%) no-repeat, var(--void); }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  header { margin: 4px 0 18px; }
+  h1 { font: 800 clamp(2.4rem, 7vw, 4.3rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; background: linear-gradient(90deg, var(--a), var(--b) 50%, var(--c)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 62ch; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .tab { font: 600 1.05rem "IBM Plex Sans", sans-serif; padding: 10px 18px; border-radius: 999px; cursor: pointer; color: var(--text); background: #1A1729; border: 1px solid #3A3456; }
+  .tab:hover { border-color: var(--text); }
+  .tab.on { background: var(--text); color: #120F1E; border-color: var(--text); }
+
+  .lab { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .stage { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+  .stage canvas { display: block; width: 100%; height: 640px; }
+  .badge { position: absolute; top: 14px; left: 14px; padding: 6px 12px; border-radius: 999px; font: 700 .8rem "IBM Plex Sans Condensed", sans-serif;
+    letter-spacing: .08em; text-transform: uppercase; background: rgba(0,0,0,.55); color: var(--text); border: 1px solid rgba(255,255,255,.3); }
+  .count { position: absolute; bottom: 12px; right: 14px; font: 600 .9rem "IBM Plex Mono", monospace; color: rgba(242,239,250,.75); background: rgba(0,0,0,.5); padding: 4px 10px; border-radius: 8px; }
+
+  .panel { background: rgba(19,17,30,.9); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .panel + .panel { margin-top: 16px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .ctl + .ctl { margin-top: 14px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .btn { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 9px 13px; border-radius: 8px; cursor: pointer; color: var(--text); background: #1D1930; border: 1px solid #423A62; }
+  .btn:hover { border-color: var(--text); }
+  .btn.on { background: var(--b); color: #2A1E00; border-color: var(--b); }
+  .btn.bad.on { background: var(--bad); color: #2A0A00; border-color: var(--bad); }
+  .btn.primary { background: linear-gradient(90deg, var(--a), var(--b)); color: #1E0A12; border: 0; padding: 11px 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--c); outline-offset: 2px; }
+  .hide { display: none !important; }
+  .note { margin-top: 12px; color: var(--dim); font-size: .95rem; }
+  .note b { color: var(--text); }
+
+  .tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .tally div { padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.3); }
+  .tally .v { font: 600 1.3rem/1.2 "IBM Plex Mono", monospace; }
+  .tally small { display: block; color: var(--dim); font-size: .8rem; }
+
+  .code { font: 600 1.7rem/1.2 "IBM Plex Mono", monospace; letter-spacing: .06em; color: var(--b); margin-top: 4px; }
+  .codein { display: flex; gap: 6px; margin-top: 10px; }
+  .codein input { flex: 1; min-width: 0; font: 600 1.05rem "IBM Plex Mono", monospace; padding: 9px 12px; border-radius: 8px; border: 1px solid #423A62; background: #0D0B16; color: var(--text); text-transform: uppercase; }
+  .gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .gallery button { padding: 0; border-radius: 8px; overflow: hidden; border: 2px solid #2D2842; background: #000; cursor: pointer; aspect-ratio: 3 / 2; }
+  .gallery button:hover, .gallery button.on { border-color: var(--b); }
+  .gallery img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .gallery .empty { border-style: dashed; cursor: default; }
+
+  .verdict { margin-top: 18px; padding: 14px 18px; border-radius: 12px; font-size: 1.08rem; background: rgba(77,216,255,.06); border: 1px solid rgba(77,216,255,.25); min-height: 3.6em; }
+  .verdict.bad { background: rgba(255,107,74,.08); border-color: rgba(255,107,74,.35); }
+  .verdict b { color: var(--b); }
+
+  .source { margin-top: 28px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 900px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; }
+    .lab { grid-template-columns: 1fr; gap: 16px; }
+    .stage canvas { height: 470px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>The <em>Chaos Game</em></h1>
+    <p class="sub">Roll a die, jump halfway to a corner, make a dot. Do it a million times. Pure randomness draws a perfect fractal, as long as the dice are honest. Then switch to <b>Flames</b>, where quantum random numbers design glowing fractals nobody has ever seen.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Experiment">
+    <button class="tab on" role="tab" aria-selected="true" data-t="shape">Triangle</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="fern">Fern</button>
+    <button class="tab" role="tab" aria-selected="false" data-t="flame">Flames</button>
+  </div>
+
+  <main class="lab">
+    <div>
+      <div class="stage">
+        <canvas id="cv" aria-label="Fractal being drawn one random dot at a time"></canvas>
+        <div class="badge" id="badge">Chaos game · triangle</div>
+        <div class="count" id="count">0 dots</div>
+      </div>
+      <div class="verdict" id="verdict" aria-live="polite"></div>
+    </div>
+
+    <div>
+      <!-- Triangle and fern controls -->
+      <section class="panel" id="gamePanel">
+        <div class="ctl" id="shapeCtl"><span class="lbl">Shape</span>
+          <div class="seg" role="group" aria-label="Shape">
+            <button class="btn on" data-shape="3">Triangle</button>
+            <button class="btn" data-shape="5">Pentagon</button>
+            <button class="btn" data-shape="6">Hexagon</button>
+          </div>
+        </div>
+        <div class="ctl"><span class="lbl">The dice</span>
+          <div class="seg" role="group" aria-label="Dice">
+            <button class="btn on" data-dice="fair">Fair</button>
+            <button class="btn bad" data-dice="loaded">Loaded</button>
+            <button class="btn bad" data-dice="broken">Broken</button>
+          </div>
+        </div>
+        <div class="ctl"><span class="lbl">Speed</span>
+          <div class="seg" role="group" aria-label="Speed">
+            <button class="btn on" data-speed="step">Step by step</button>
+            <button class="btn" data-speed="fast">Fast</button>
+            <button class="btn" data-speed="max">Full speed</button>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="run">Pause</button>
+          <button class="btn" id="reset">Start over</button>
+        </div>
+        <p class="note" id="diceNote"></p>
+      </section>
+
+      <section class="panel" id="tallyPanel">
+        <span class="lbl" id="tallyLbl">How often each corner came up</span>
+        <div class="tally" id="tally"></div>
+      </section>
+
+      <!-- Flame controls -->
+      <section class="panel hide" id="flamePanel">
+        <span class="lbl">This flame's code</span>
+        <div class="code" id="code">–</div>
+        <p class="note" id="flameNote">One of 4,294,967,296 possible designs.</p>
+        <div class="row">
+          <button class="btn primary" id="newFlame">✦ New quantum flame</button>
+          <button class="btn" id="save">Save as picture</button>
+        </div>
+        <div class="codein">
+          <input id="codeIn" maxlength="9" placeholder="ENTER A CODE" aria-label="Flame code" autocomplete="off" spellcheck="false">
+          <button class="btn" id="go">Show</button>
+        </div>
+      </section>
+      <section class="panel hide" id="galleryPanel">
+        <span class="lbl">Your gallery (this browser)</span>
+        <div class="gallery" id="gallery"></div>
+        <p class="note">Tap one to grow it again. Same code, same flame, on any computer.</p>
+      </section>
+    </div>
+  </main>
+
+  <div class="source" id="source"><i></i><span id="sourceText">Dice: demo mode, from your browser's generator.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The chaos game</h3>
+  <p>Put three dots on a page, the corners of a triangle. Start anywhere. Roll a die to pick a corner, jump halfway toward it, and make a dot. Repeat. You'd expect a random smear. Instead, a perfect Sierpinski triangle appears: triangles inside triangles, forever. Mathematician Michael Barnsley made this famous in his 1988 book <em>Fractals Everywhere</em>.</p>
+  <h3>Why randomness makes order</h3>
+  <p>Each jump halves the distance to a corner, so every jump squeezes the whole picture into one of three half-size copies of itself. After a few jumps, the dot is trapped on the fractal and can never leave. The rules decide the <strong>shape</strong>. The dice only decide the <strong>order</strong> the dot visits it in. Pentagons (jump 61.8% of the way) and hexagons (jump two-thirds) make their own snowflakes.</p>
+  <h3>The fern</h3>
+  <p>Barnsley also found four simple stretch-and-turn rules that draw a fern. The dice pick one: 85% of the time "make the next leaflet up", 7% "left leaflet", 7% "right leaflet", 1% "stem". Real ferns grow by repeating themselves in a similar way.</p>
+  <h3>Bad dice</h3>
+  <p><strong>Loaded</strong> dice favor one choice. The shape doesn't change, because the rules set the shape, but the dots pile up unevenly, so one part glows and another fades. <strong>Broken</strong> dice repeat the same short pattern of rolls over and over. Then the dot just cycles through a few spots and the fractal never appears. Some old computer random number generators really did repeat or have hidden patterns like this. That's why the quality of random numbers matters, and why this lab uses a quantum generator.</p>
+  <h3>Fractal flames</h3>
+  <p>Flames are the chaos game with fancier rules. Instead of jumping toward corners, each rule stretches, twists, folds or wraps the dot (swirls, spheres, waves, spirals), and each rule carries a color. Scott Draves invented fractal flames in 1992. They power the Electric Sheep screensaver and programs like Apophysis. Brightness comes from how many times each pixel gets hit, shown on a log scale, which is what gives flames their silky, glowing look.</p>
+  <h3>The quantum part</h3>
+  <p>Each flame's design (its rules, their twists and its colors) comes from an 8-character code, and "New quantum flame" draws that code from the random source. That's 4.3 billion possible designs, so the one you're looking at has almost certainly never been seen before. Type in a code and you get exactly the same flame on any computer. A flame needs tens of millions of dots, far more than can travel over the internet from a generator, so those rolls come from a fast generator started by the quantum code. On the triangle and fern, the dice come from the quantum generator for as long as its supply lasts. The line at the bottom shows how much.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Right now it's your browser's random number maker. Soon this lab plugs in a <strong>quantum random number generator</strong> from Crypta Labs, and the dot at the bottom turns green.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false, qUsed = 0, bUsed = 0;
+  function setSource(q, fellBack) {
+    quantum = q; $('source').classList.toggle('quantum', q); showSource(fellBack);
+  }
+  function showSource(fellBack) {
+    const total = qUsed + bUsed;
+    $('sourceText').textContent = quantum
+      ? `Dice: quantum, from the ${SOURCE.NAME}` + (total ? ` (${Math.round(qUsed / total * 100)}% of rolls so far; the rest from your browser when it can't keep up).` : '.')
+      : fellBack ? 'The quantum generator is offline, so the dice come from your browser (demo mode).' : "Dice: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 16384) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=8192', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; pool.push(...j.values); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 1000); refill();
+  setInterval(() => showSource(false), 1000);
+
+  const cbuf = new Uint32Array(8192); let cpos = cbuf.length;
+  function rand32() {                          // one 32-bit roll: quantum pool first, browser after
+    if (quantum && pool.length >= 4) { qUsed++; const b = pool.splice(0, 4); return (((b[0] << 24) >>> 0) + (b[1] << 16) + (b[2] << 8) + b[3]) >>> 0; }
+    bUsed++; if (cpos >= cbuf.length) { crypto.getRandomValues(cbuf); cpos = 0; } return cbuf[cpos++];
+  }
+  const uniform = () => (rand32() + .5) / 4294967296;
+
+  // A small, fast generator for flames (tens of millions of rolls), started from a quantum code.
+  function sfc32(seed) {
+    let a = 0x9E3779B9, b = 0x243F6A88, c = 0xB7E15162, d = seed >>> 0;
+    const next = () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+    for (let i = 0; i < 16; i++) next();
+    return next;
+  }
+
+  // ================= Film (density buffer) =================
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  let FW = 0, FH = 0, dens, cr, cg, cb, img, maxD = 0;
+  function size() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    let w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    const cap = 1500 / Math.max(w, h); if (cap < 1) { w = Math.round(w * cap); h = Math.round(h * cap); }
+    FW = cv.width = w; FH = cv.height = h;
+    dens = new Float32Array(w * h); cr = new Float32Array(w * h); cg = new Float32Array(w * h); cb = new Float32Array(w * h);
+    img = ctx.createImageData(w, h); maxD = 0;
+  }
+  function clearFilm() { dens.fill(0); cr.fill(0); cg.fill(0); cb.fill(0); maxD = 0; }
+  let cam = { x: 0, y: 0, s: 1 };              // world → film: px = FW/2 + (x - cam.x)*s
+  function fit(x0, x1, y0, y1, pad) {
+    cam.x = (x0 + x1) / 2; cam.y = (y0 + y1) / 2;
+    cam.s = Math.min(FW / (x1 - x0), FH / (y1 - y0)) * (pad || .92);
+  }
+  function plot(x, y, r, g, b) {
+    const px = (FW / 2 + (x - cam.x) * cam.s) | 0, py = (FH / 2 - (y - cam.y) * cam.s) | 0;
+    if (px < 0 || py < 0 || px >= FW || py >= FH) return;
+    const i = py * FW + px, d = ++dens[i]; cr[i] += r; cg[i] += g; cb[i] += b; if (d > maxD) maxD = d;
+  }
+  function developLinear(pw) {                  // brightness ∝ how often a pixel was hit, so uneven dice show
+    const px = img.data; let samp = [];
+    for (let i = 0; i < dens.length; i += 7) if (dens[i]) samp.push(dens[i]);
+    samp.sort((a, b) => a - b); const ref = samp.length ? samp[Math.floor(samp.length * .97)] : 1;
+    for (let i = 0, j = 0; i < dens.length; i++, j += 4) {
+      const d = dens[i];
+      if (!d) { px[j] = px[j + 1] = px[j + 2] = 0; px[j + 3] = 255; continue; }
+      const a = Math.min(1.6, Math.pow(d / ref, pw)) / d;
+      px[j] = Math.min(255, cr[i] * a); px[j + 1] = Math.min(255, cg[i] * a); px[j + 2] = Math.min(255, cb[i] * a); px[j + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  function develop(gamma, bright) {             // log-density tone mapping
+    const px = img.data, L = Math.log1p(maxD) || 1, ig = 1 / gamma;
+    for (let i = 0, j = 0; i < dens.length; i++, j += 4) {
+      const d = dens[i];
+      if (!d) { px[j] = px[j + 1] = px[j + 2] = 0; px[j + 3] = 255; continue; }
+      const a = Math.pow(Math.log1p(d) / L, ig) * bright / d;
+      px[j] = Math.min(255, cr[i] * a); px[j + 1] = Math.min(255, cg[i] * a); px[j + 2] = Math.min(255, cb[i] * a); px[j + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // ================= Chaos game: shapes and fern =================
+  const COLORS = [[255, 92, 138], [255, 193, 77], [77, 216, 255], [178, 120, 255], [124, 242, 154], [255, 140, 70]];
+  let tab = 'shape', nSides = 3, dice = 'fair', speed = 'step', running = true;
+  let cycle = [], corners = [], ratio = .5, P = [0, 0], dots = 0, tally = [], brokenSeq = [], brokenPos = 0, lastPick = -1, lastFrom = null, sinceTrack = 0;
+
+  function setupShape() {
+    ratio = { 3: .5, 5: .618034, 6: 2 / 3 }[nSides];
+    corners = Array.from({ length: nSides }, (_, i) => { const a = Math.PI / 2 + 2 * Math.PI * i / nSides; return [Math.cos(a), Math.sin(a)]; });
+    const ys = corners.map(c => c[1]); fit(-1.05, 1.05, Math.min(...ys) - .05, Math.max(...ys) + .05, .9);
+  }
+  // Barnsley fern: [a, b, c, d, e, f, probability]
+  const FERN = [[0, 0, 0, .16, 0, 0, .01], [.85, .04, -.04, .85, 0, 1.6, .85], [.2, -.26, .23, .22, 0, 1.6, .07], [-.15, .28, .26, .24, 0, .44, .07]];
+  const FERN_NAMES = ['Stem', 'Next leaflet', 'Left leaflet', 'Right leaflet'];
+  const FERN_COL = [[160, 120, 70], [124, 242, 154], [77, 216, 255], [255, 193, 77]];
+
+  function nChoices() { return tab === 'fern' ? 4 : nSides; }
+  // One roll of the dice: returns the index of the corner (or fern rule) picked.
+  function roll() {
+    const n = nChoices();
+    if (dice === 'broken') { const v = brokenSeq[brokenPos]; brokenPos = (brokenPos + 1) % brokenSeq.length; return v; }
+    if (tab === 'fern') {
+      const p = dice === 'loaded' ? [.01, .85, .02, .12] : FERN.map(f => f[6]);
+      let u = uniform(), k = 0; while (k < 3 && u >= p[k]) { u -= p[k]; k++; } return k;
+    }
+    if (dice === 'loaded') { const u = uniform(); return u < .5 ? 0 : 1 + Math.floor((u - .5) / .5 * (n - 1)); }
+    return rand32() % n;
+  }
+  function step() {
+    const k = roll(); tally[k]++; lastPick = k; lastFrom = P.slice();
+    if (tab === 'fern') {
+      const [a, b, c, d, e, f] = FERN[k], x = P[0], y = P[1];
+      P = [a * x + b * y + e, c * x + d * y + f];
+      const col = FERN_COL[k]; if (dots > 20) plot(P[0], P[1], col[0], col[1], col[2]);
+    } else {
+      const v = corners[k]; P = [P[0] + (v[0] - P[0]) * ratio, P[1] + (v[1] - P[1]) * ratio];
+      const col = COLORS[k]; if (dots > 20) plot(P[0], P[1], col[0], col[1], col[2]);
+    }
+    dots++; sinceTrack++;
+    if (dice === 'broken' && dots > 200 && cycle.length < brokenSeq.length) cycle.push(P.slice());
+  }
+  function resetGame() {
+    clearFilm(); cycle = []; dots = 0; brokenPos = 0; lastPick = -1; lastFrom = null; stepT = 0;
+    tally = new Array(nChoices()).fill(0);
+    // "Broken" dice: a fixed pattern of 12 rolls, repeated forever.
+    brokenSeq = tab === 'fern' ? [1, 1, 2, 1, 1, 3, 1, 1, 1, 2, 1, 0] : Array.from({ length: 12 }, (_, i) => [0, 1, 0, 2, 1, 1, 0, 2, 2, 1, 0, 1][i] % nSides);
+    if (tab === 'fern') { fit(-2.4, 2.9, -.2, 10.2, .94); P = [0, 0]; }
+    else { setupShape(); P = [uniform() * 1.6 - .8, uniform() * 1.6 - .8]; }
+    // with "step by step" the first dots are drawn slowly
+    if (speed !== 'step') for (let i = 0; i < 21; i++) step();
+    renderTally(); notes();
+  }
+
+  function renderTally() {
+    const n = nChoices(), total = Math.max(1, tally.reduce((a, b) => a + b, 0));
+    $('tallyLbl').textContent = tab === 'fern' ? 'How often each rule came up' : 'How often each corner came up';
+    const names = tab === 'fern' ? FERN_NAMES : Array.from({ length: n }, (_, i) => 'Corner ' + 'ABCDEF'[i]);
+    const col = i => tab === 'fern' ? FERN_COL[i] : COLORS[i];
+    $('tally').innerHTML = names.map((nm, i) => `<div><small style="color:rgb(${col(i)})">${nm}</small><span class="v">${(tally[i] / total * 100).toFixed(1)}%</span></div>`).join('');
+  }
+  function notes() {
+    const fair = tab === 'fern' ? 'Fair dice: 85% next leaflet, 7% left, 7% right, 1% stem.' : `Fair dice: each corner 1 in ${nSides}.`;
+    $('diceNote').innerHTML = dice === 'fair' ? fair
+      : dice === 'loaded' ? (tab === 'fern' ? '<b>Loaded:</b> the right leaflet comes up 12% instead of 7%, the left only 2%.' : '<b>Loaded:</b> corner A comes up half the time.')
+      : '<b>Broken:</b> the dice repeat the same 12 rolls forever.';
+  }
+
+  // ================= Flames =================
+  const PALETTES = [
+    [[0, '#120018'], [.25, '#6A0D83'], [.5, '#CE4993'], [.75, '#EE5D6C'], [1, '#FFE29A']],
+    [[0, '#001B2E'], [.3, '#0B6E8C'], [.6, '#38D6C4'], [.85, '#C9FFF1'], [1, '#FFFFFF']],
+    [[0, '#1A0500'], [.3, '#B3260E'], [.6, '#FF8C1A'], [.85, '#FFD45E'], [1, '#FFF8E0']],
+    [[0, '#04130A'], [.3, '#1F7A4D'], [.55, '#7CF29A'], [.8, '#4DD8FF'], [1, '#E9E3FF']],
+    [[0, '#0D0221'], [.3, '#2E5BFF'], [.55, '#B278FF'], [.8, '#FF5C8A'], [1, '#FFC14D']],
+    [[0, '#14110F'], [.35, '#8C5E3C'], [.6, '#E2B548'], [.85, '#F6E7C1'], [1, '#FFFFFF']],
+    [[0, '#00141F'], [.25, '#FF5C8A'], [.5, '#FFC14D'], [.75, '#4DD8FF'], [1, '#B278FF']],
+  ];
+  function paletteLUT(stops, flip) {
+    const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const lut = new Float32Array(256 * 3);
+    for (let i = 0; i < 256; i++) {
+      let t = i / 255; if (flip) t = 1 - t;
+      let k = 0; while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+      const [t0, c0] = stops[k], [t1, c1] = stops[k + 1], f = Math.min(1, Math.max(0, (t - t0) / (t1 - t0))), A = hex(c0), B = hex(c1);
+      for (let ch = 0; ch < 3; ch++) lut[i * 3 + ch] = A[ch] + (B[ch] - A[ch]) * f;
+    }
+    return lut;
+  }
+  const VARS = ['linear', 'sinusoidal', 'spherical', 'swirl', 'horseshoe', 'polar', 'handkerchief', 'heart', 'disc', 'spiral', 'hyperbolic', 'diamond', 'julia', 'bubble', 'fisheye'];
+  function vary(name, x, y, out, rnd) {
+    const r2 = x * x + y * y + 1e-12, r = Math.sqrt(r2), th = Math.atan2(x, y);
+    switch (name) {
+      case 'linear': out[0] += x; out[1] += y; return;
+      case 'sinusoidal': out[0] += Math.sin(x); out[1] += Math.sin(y); return;
+      case 'spherical': out[0] += x / r2; out[1] += y / r2; return;
+      case 'swirl': { const s = Math.sin(r2), c = Math.cos(r2); out[0] += x * s - y * c; out[1] += x * c + y * s; return; }
+      case 'horseshoe': out[0] += (x - y) * (x + y) / r; out[1] += 2 * x * y / r; return;
+      case 'polar': out[0] += th / Math.PI; out[1] += r - 1; return;
+      case 'handkerchief': out[0] += r * Math.sin(th + r); out[1] += r * Math.cos(th - r); return;
+      case 'heart': out[0] += r * Math.sin(th * r); out[1] -= r * Math.cos(th * r); return;
+      case 'disc': { const k = th / Math.PI; out[0] += k * Math.sin(Math.PI * r); out[1] += k * Math.cos(Math.PI * r); return; }
+      case 'spiral': out[0] += (Math.cos(th) + Math.sin(r)) / r; out[1] += (Math.sin(th) - Math.cos(r)) / r; return;
+      case 'hyperbolic': out[0] += Math.sin(th) / r; out[1] += r * Math.cos(th); return;
+      case 'diamond': out[0] += Math.sin(th) * Math.cos(r); out[1] += Math.cos(th) * Math.sin(r); return;
+      case 'julia': { const s = Math.sqrt(r), a = th / 2 + (rnd() < .5 ? 0 : Math.PI); out[0] += s * Math.cos(a); out[1] += s * Math.sin(a); return; }
+      case 'bubble': { const k = 4 / (r2 + 4); out[0] += k * x; out[1] += k * y; return; }
+      case 'fisheye': { const k = 2 / (r + 1); out[0] += k * y; out[1] += k * x; return; }
+    }
+  }
+  function makeGenome(seed) {
+    const g = sfc32(seed), pick = a => a[Math.floor(g() * a.length)];
+    const n = 2 + Math.floor(g() * 3), xf = [];
+    for (let i = 0; i < n; i++) {
+      const ang = g() * 2 * Math.PI, sc = .35 + g() * .6, sk = (g() - .5) * .6;
+      const a = sc * Math.cos(ang), b = -sc * Math.sin(ang) + sk, c = sc * Math.sin(ang), d = sc * Math.cos(ang) * (g() < .5 ? 1 : -1) * (.6 + g() * .5);
+      const vs = [], nv = g() < .55 ? 1 : 2;
+      for (let k = 0; k < nv; k++) vs.push([pick(VARS), .3 + g() * .7]);
+      const tot = vs.reduce((s, v) => s + v[1], 0); vs.forEach(v => v[1] /= tot);
+      xf.push({ a, b, c, d, e: (g() - .5) * 1.6, f: (g() - .5) * 1.6, w: .3 + g(), col: Math.min(1, Math.max(0, i / (n - 1) + (g() - .5) * .25)), vs });
+    }
+    const sym = g() < .55 ? 2 + Math.floor(g() * 5) : 1;
+    if (sym > 1) { const w = xf.reduce((s, x) => s + x.w, 0); for (let k = 1; k < sym; k++) { const a = 2 * Math.PI * k / sym; xf.push({ sym: true, cs: Math.cos(a), sn: Math.sin(a), w: w / (sym - 1) * .9 }); } }
+    const total = xf.reduce((s, x) => s + x.w, 0); let acc = 0; xf.forEach(x => { acc += x.w / total; x.cum = acc; });
+    return { xf, sym, lut: paletteLUT(PALETTES[Math.floor(g() * PALETTES.length)], g() < .5), n };
+  }
+  const tmp = [0, 0];
+  function flameStep(G, p, rnd) {               // p = [x, y, color]
+    const u = rnd(); let x = G.xf[G.xf.length - 1]; for (const t of G.xf) if (u < t.cum) { x = t; break; }
+    if (x.sym) { const nx = p[0] * x.cs - p[1] * x.sn, ny = p[0] * x.sn + p[1] * x.cs; p[0] = nx; p[1] = ny; return; }
+    const ax = x.a * p[0] + x.b * p[1] + x.e, ay = x.c * p[0] + x.d * p[1] + x.f;
+    tmp[0] = 0; tmp[1] = 0;
+    for (const [nm, w] of x.vs) { const ox = tmp[0], oy = tmp[1]; tmp[0] = 0; tmp[1] = 0; vary(nm, ax, ay, tmp, rnd); tmp[0] = ox + w * tmp[0]; tmp[1] = oy + w * tmp[1]; }
+    p[0] = tmp[0]; p[1] = tmp[1]; p[2] = (p[2] + x.col) / 2;
+  }
+  // Try designs from this code until one makes a good picture; the same code always lands on the same design.
+  function buildFlame(code) {
+    let seed = code >>> 0;
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const G = makeGenome(seed), rnd = sfc32(seed ^ 0x5bd1e995), p = [rnd() * 2 - 1, rnd() * 2 - 1, rnd()];
+      const xs = [], ys = []; let bad = 0;
+      for (let i = 0; i < 24000; i++) {
+        flameStep(G, p, rnd);
+        if (!isFinite(p[0]) || !isFinite(p[1]) || Math.abs(p[0]) > 1e6 || Math.abs(p[1]) > 1e6) { bad++; p[0] = rnd() * 2 - 1; p[1] = rnd() * 2 - 1; continue; }
+        if (i > 30) { xs.push(p[0]); ys.push(p[1]); }
+      }
+      if (bad < 600 && xs.length > 20000) {
+        const sx = xs.slice().sort((a, b) => a - b), sy = ys.slice().sort((a, b) => a - b), q = (s, f) => s[Math.floor(f * (s.length - 1))];
+        const x0 = q(sx, .015), x1 = q(sx, .985), y0 = q(sy, .015), y1 = q(sy, .985);
+        if (x1 - x0 > 1e-3 && y1 - y0 > 1e-3) {
+          const cells = new Set(); for (let i = 0; i < xs.length; i++) { const cx = Math.floor((xs[i] - x0) / (x1 - x0) * 48), cy = Math.floor((ys[i] - y0) / (y1 - y0) * 48); if (cx >= 0 && cy >= 0 && cx < 48 && cy < 48) cells.add(cx * 64 + cy); }
+          if (cells.size > 260) return { G, rnd, p, box: [x0, x1, y0, y1] };
+        }
+      }
+      seed = (Math.imul(seed ^ (seed >>> 15), 0x2c1b3c6d) + 0x6d2b79f5) >>> 0;
+    }
+    return null;
+  }
+  const hexCode = n => { const h = (n >>> 0).toString(16).toUpperCase().padStart(8, '0'); return h.slice(0, 4) + '-' + h.slice(4); };
+  let flame = null, flameCode = 0, flameDots = 0, flameDone = false;
+  const FLAME_TARGET = 90e6;
+  function startFlame(code) {
+    flameCode = code >>> 0; $('code').textContent = hexCode(flameCode); clearFilm(); flameDots = 0; flameDone = false;
+    flame = buildFlame(flameCode);
+    if (!flame) { $('flameNote').textContent = 'That code makes an empty picture. Try another.'; return; }
+    const [x0, x1, y0, y1] = flame.box, w = x1 - x0, h = y1 - y0; fit(x0 - w * .06, x1 + w * .06, y0 - h * .06, y1 + h * .06, .96);
+    const n = flame.G.n, s = flame.G.sym;
+    $('flameNote').innerHTML = `${n} twisting rules${s > 1 ? `, ${s}-fold symmetry` : ''}. One of 4,294,967,296 possible designs.`;
+    document.querySelectorAll('#gallery button[data-code]').forEach(b => b.classList.toggle('on', +b.dataset.code === flameCode));
+  }
+  function newQuantumFlame() { startFlame(rand32()); window.labTrack && labTrack('flame', 1); }
+
+  // Gallery: last 8 flames, kept in this browser only.
+  let gal = []; try { gal = JSON.parse(localStorage.getItem('chaos-gallery') || '[]'); } catch (e) {}
+  function snapshot() {
+    if (!flame || flameDots < 2e6) return;
+    const t = document.createElement('canvas'); t.width = 240; t.height = 160;
+    const tc = t.getContext('2d'), s = Math.max(240 / FW, 160 / FH);
+    tc.drawImage(cv, (240 - FW * s) / 2, (160 - FH * s) / 2, FW * s, FH * s);
+    gal = [{ code: flameCode, img: t.toDataURL('image/jpeg', .8) }, ...gal.filter(g => g.code !== flameCode)].slice(0, 8);
+    try { localStorage.setItem('chaos-gallery', JSON.stringify(gal)); } catch (e) {}
+    renderGallery();
+  }
+  function renderGallery() {
+    const cells = gal.map(g => `<button data-code="${g.code}" class="${g.code === flameCode ? 'on' : ''}" aria-label="Flame ${hexCode(g.code)}"><img src="${g.img}" alt=""></button>`);
+    while (cells.length < 8) cells.push('<button class="empty" disabled aria-hidden="true"></button>');
+    $('gallery').innerHTML = cells.join('');
+    $('gallery').querySelectorAll('button[data-code]').forEach(b => b.addEventListener('click', () => { snapshot(); startFlame(+b.dataset.code); }));
+  }
+
+  // ================= Drawing and loop =================
+  function overlay() {                         // corners, the jump being made, and the broken-dice loop
+    if (tab !== 'shape') { if (dice === 'broken' && dots > 40) { const toPx = v => [FW / 2 + (v[0] - cam.x) * cam.s, FH / 2 - (v[1] - cam.y) * cam.s], sc = FW / cv.getBoundingClientRect().width;
+      ctx.strokeStyle = '#FF6B4A'; ctx.lineWidth = 2 * sc; ctx.fillStyle = 'rgba(255,107,74,.35)';
+      for (const q of cycle) { const [x, y] = toPx(q); ctx.beginPath(); ctx.arc(x, y, 9 * sc, 0, 7); ctx.fill(); ctx.stroke(); } } return; }
+    const toPx = v => [FW / 2 + (v[0] - cam.x) * cam.s, FH / 2 - (v[1] - cam.y) * cam.s], sc = FW / cv.getBoundingClientRect().width;
+    ctx.font = `700 ${Math.round(17 * sc)}px "IBM Plex Sans Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    corners.forEach((v, i) => {
+      const [x, y] = toPx(v), dx = v[0] * 24 * sc, dy = -v[1] * 24 * sc;
+      ctx.fillStyle = `rgb(${COLORS[i]})`; ctx.beginPath(); ctx.arc(x, y, 6 * sc, 0, 7); ctx.fill();
+      ctx.fillText('ABCDEF'[i], x + dx, y + dy);
+    });
+    if (dice === 'broken' && dots > 40) {
+      ctx.strokeStyle = '#FF6B4A'; ctx.lineWidth = 2 * sc; ctx.fillStyle = 'rgba(255,107,74,.35)';
+      for (const q of cycle) { const [x, y] = toPx(q); ctx.beginPath(); ctx.arc(x, y, 9 * sc, 0, 7); ctx.fill(); ctx.stroke(); }
+    }
+    if (speed === 'step' && lastFrom && dots < 400) {
+      const [x0, y0] = toPx(lastFrom), [x1, y1] = toPx(corners[lastPick]), [x2, y2] = toPx(P);
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.setLineDash([6 * sc, 6 * sc]); ctx.lineWidth = 1.5 * sc; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x2, y2, 5 * sc, 0, 7); ctx.fill();
+      ctx.font = `600 ${Math.round(16 * sc)}px "IBM Plex Mono", monospace`; ctx.textAlign = 'left';
+      ctx.fillText(`Roll: ${'ABCDEF'[lastPick]} → jump ${Math.round(ratio * 100)}% of the way`, 16 * sc, FH - 22 * sc);
+    }
+  }
+
+  let stepT = 0, frameN = 0, lastT = performance.now(), dirty = true;
+  function frame(now) {
+    const dt = Math.min(.1, (now - lastT) / 1000); lastT = now; frameN++;
+    if (tab === 'flame') {
+      if (running && flame && !flameDone) {
+        const G = flame.G, p = flame.p, rnd = flame.rnd, lut = G.lut, n = 160000;
+        for (let i = 0; i < n; i++) {
+          flameStep(G, p, rnd);
+          if (!isFinite(p[0]) || !isFinite(p[1])) { p[0] = rnd() * 2 - 1; p[1] = rnd() * 2 - 1; continue; }
+          const ci = Math.min(255, Math.max(0, (p[2] * 255) | 0)) * 3;
+          plot(p[0], p[1], lut[ci], lut[ci + 1], lut[ci + 2]);
+        }
+        flameDots += n;
+        if (flameDots >= FLAME_TARGET) { flameDone = true; snapshot(); }
+        dirty = true;
+      }
+      if (dirty && (frameN % 3 === 0 || flameDone)) { develop(2.2, 1.35); dirty = false; }
+    } else {
+      if (running) {
+        if (speed === 'step') {
+          stepT += dt; const every = dots < 30 ? .5 : dots < 120 ? .08 : .01;
+          while (stepT >= every) { stepT -= every; step(); }
+          if (dots > 3000) { setSpeed('fast'); }
+        } else { const n = speed === 'fast' ? 3000 : 60000; for (let i = 0; i < n; i++) step(); }
+        if (sinceTrack >= 1000) { window.labTrack && labTrack('kdots', Math.floor(sinceTrack / 1000)); sinceTrack %= 1000; }
+      }
+      if (frameN % 2 === 0 || speed === 'step') { developLinear(tab === 'fern' ? .45 : .6); overlay(); }
+      if (frameN % 15 === 0) { renderTally(); }
+    }
+    if (frameN % 10 === 0) updateText();
+    requestAnimationFrame(frame);
+  }
+
+  function fmt(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + ' million' : Math.round(n).toLocaleString('en-US'); }
+  function updateText() {
+    const v = $('verdict');
+    if (tab === 'flame') {
+      $('count').textContent = `${fmt(flameDots)} dots${flameDone ? ' · finished' : ''}`;
+      v.className = 'verdict';
+      v.innerHTML = !flame ? 'Press <b>New quantum flame</b>.' : flameDone
+        ? `Finished: <b>${fmt(flameDots)}</b> dots. Flame <b>${hexCode(flameCode)}</b> is in your gallery. Save it as a picture, or roll a new one.`
+        : `Growing flame <b>${hexCode(flameCode)}</b>. The bright parts are where millions of dots landed again and again. It sharpens as the dots pile up.`;
+      return;
+    }
+    $('count').textContent = `${fmt(dots)} dots`;
+    const shapeName = tab === 'fern' ? 'fern' : { 3: 'Sierpinski triangle', 5: 'pentaflake', 6: 'hexaflake' }[nSides];
+    v.className = 'verdict' + (dice === 'fair' ? '' : ' bad');
+    if (dice === 'broken') v.innerHTML = `The dice repeat the same 12 rolls, so after a few jumps the dot just loops through <b>the same 12 spots</b>, forever. ${fmt(dots)} rolls and no ${shapeName}. A random generator with a short cycle literally cannot draw this picture.`;
+    else if (dice === 'loaded') v.innerHTML = tab === 'fern'
+      ? `Same fern shape, because the rules set the shape. But the right side is hit <b>6 times</b> as often as the left, so the left leaflets fade while the right ones glow. Loaded dice don't change <em>where</em> the dots can land, only <em>how often</em>.`
+      : `Same ${shapeName}, because the rules set the shape. But corner A gets half the rolls, so its part of the picture glows and the rest fades. Loaded dice change <em>how often</em>, not <em>where</em>.`;
+    else if (dots < 30) v.innerHTML = 'Watch the first jumps. Each roll picks a corner, and the dot jumps part of the way there. It looks like nonsense…';
+    else if (dots < 3000) v.innerHTML = `${fmt(dots)} random jumps so far. A pattern is starting to show. Nobody told the dots where to go.`;
+    else v.innerHTML = `<b>${fmt(dots)}</b> completely random rolls, and out comes a perfect <b>${shapeName}</b>. Try the <b>Loaded</b> and <b>Broken</b> dice.`;
+  }
+
+  // ================= Controls =================
+  function setSpeed(s) { speed = s; document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x.dataset.speed === s)); }
+  function setTab(t) {
+    if (tab === 'flame') snapshot();
+    tab = t;
+    document.querySelectorAll('[data-t]').forEach(b => { b.classList.toggle('on', b.dataset.t === t); b.setAttribute('aria-selected', b.dataset.t === t); });
+    const fl = t === 'flame';
+    $('gamePanel').classList.toggle('hide', fl); $('tallyPanel').classList.toggle('hide', fl);
+    $('flamePanel').classList.toggle('hide', !fl); $('galleryPanel').classList.toggle('hide', !fl);
+    $('shapeCtl').classList.toggle('hide', t !== 'shape');
+    $('badge').textContent = fl ? 'Fractal flame · quantum design' : t === 'fern' ? 'Chaos game · Barnsley fern' : 'Chaos game · ' + { 3: 'triangle', 5: 'pentagon', 6: 'hexagon' }[nSides];
+    if (fl) { renderGallery(); if (!flame) newQuantumFlame(); else { startFlame(flameCode); } }
+    else { setSpeed(t === 'fern' ? 'fast' : 'step'); resetGame(); }
+    updateText();
+  }
+  document.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => setTab(b.dataset.t)));
+  document.querySelectorAll('[data-shape]').forEach(b => b.addEventListener('click', () => {
+    nSides = +b.dataset.shape; document.querySelectorAll('[data-shape]').forEach(x => x.classList.toggle('on', x === b));
+    $('badge').textContent = 'Chaos game · ' + { 3: 'triangle', 5: 'pentagon', 6: 'hexagon' }[nSides]; resetGame();
+  }));
+  document.querySelectorAll('[data-dice]').forEach(b => b.addEventListener('click', () => {
+    dice = b.dataset.dice; document.querySelectorAll('[data-dice]').forEach(x => x.classList.toggle('on', x === b)); resetGame();
+  }));
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { const was = speed; setSpeed(b.dataset.speed); if (was === 'step' || speed === 'step') resetGame(); }));
+  $('run').addEventListener('click', () => { running = !running; $('run').textContent = running ? 'Pause' : 'Run'; });
+  $('reset').addEventListener('click', () => { if (tab === 'shape') setSpeed('step'); resetGame(); });
+  $('newFlame').addEventListener('click', () => { snapshot(); newQuantumFlame(); });
+  $('save').addEventListener('click', () => { develop(2.2, 1.35); cv.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `quantum-flame-${hexCode(flameCode)}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }); });
+  function goCode() {
+    const s = $('codeIn').value.replace(/[^0-9a-f]/gi, '');
+    if (s.length !== 8) { $('flameNote').textContent = 'A code is 8 characters, 0–9 and A–F, like 7F3A-9C21.'; return; }
+    snapshot(); startFlame(parseInt(s, 16)); $('codeIn').value = '';
+  }
+  $('go').addEventListener('click', goCode);
+  $('codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') goCode(); });
+  addEventListener('pagehide', snapshot);
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { size(); if (tab === 'flame' && flame) startFlame(flameCode); else resetGame(); }, 200); });
+
+  size(); resetGame(); updateText(); requestAnimationFrame(frame);
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
