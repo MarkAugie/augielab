@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quantum Lightning & Frost · AugieLab</title>
+<meta name="description" content="Particles wander at random until they touch and stick. They grow into coral, frost on a window, or a lightning bolt. Diffusion-limited aggregation, driven by random numbers.">
+<meta property="og:title" content="Quantum Lightning & Frost">
+<meta property="og:description" content="Random wanderers stick together and grow coral, frost and lightning. Every growth is one of a kind.">
+<meta property="og:url" content="https://augielab.dev/lightning/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #05060F; --panel: #0F1224; --line: #262C52;
+    --text: #F0F2FF; --dim: #BCC1E4; --soft: #8B91BD;
+    --bolt: #C9B6FF; --coral: #FF8A6B; --frost: #A8E6FF; --hot: #FFFFFF; --amber: #FFC857;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--night); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 85% 640px at 50% 0%, #1E1F4A, var(--night) 75%) no-repeat, var(--night); }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  header { margin: 4px 0 18px; }
+  h1 { font: 800 clamp(2.4rem, 7vw, 4.3rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; color: var(--bolt); text-shadow: 0 0 24px rgba(201,182,255,.6); }
+  .sub { margin-top: 12px; font-size: 1.15rem; color: var(--dim); max-width: 62ch; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .tab { font: 600 1.05rem "IBM Plex Sans", sans-serif; padding: 10px 18px; border-radius: 999px; cursor: pointer; color: var(--text); background: #151935; border: 1px solid #343B6E; }
+  .tab:hover { border-color: var(--text); }
+  .tab.on { background: var(--text); color: #0C0E22; border-color: var(--text); }
+
+  .lab { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .stage { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #03040B; }
+  .stage canvas { display: block; width: 100%; height: 640px; }
+  .badge { position: absolute; top: 14px; left: 14px; padding: 6px 12px; border-radius: 999px; font: 700 .8rem "IBM Plex Sans Condensed", sans-serif;
+    letter-spacing: .08em; text-transform: uppercase; background: rgba(0,0,0,.55); color: var(--text); border: 1px solid rgba(255,255,255,.3); }
+
+  .panel { background: rgba(15,18,36,.92); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .panel + .panel { margin-top: 16px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .ctl + .ctl { margin-top: 14px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .btn { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 9px 13px; border-radius: 8px; cursor: pointer; color: var(--text); background: #181C3A; border: 1px solid #3D4580; }
+  .btn:hover { border-color: var(--text); }
+  .btn.on { background: var(--bolt); color: #14093A; border-color: var(--bolt); }
+  .btn.primary { background: var(--amber); color: #2A1C00; border-color: var(--amber); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .note { margin-top: 12px; color: var(--dim); font-size: .95rem; }
+  .note b { color: var(--text); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .big { font: 600 clamp(1.5rem, 3.2vw, 2rem)/1.15 "IBM Plex Mono", monospace; }
+  .big.d { color: var(--amber); }
+  .cell small { display: block; color: var(--dim); font-size: .85rem; }
+
+  .verdict { margin-top: 18px; padding: 14px 18px; border-radius: 12px; font-size: 1.08rem; background: rgba(201,182,255,.07); border: 1px solid rgba(201,182,255,.28); min-height: 3.6em; }
+  .verdict b { color: var(--amber); }
+
+  .source { margin-top: 28px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 900px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; }
+    .lab { grid-template-columns: 1fr; gap: 16px; }
+    .stage canvas { height: 480px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>Quantum <em>lightning</em> &amp; frost</h1>
+    <p class="sub">One particle at a time wanders in at random, staggering left, right, up and down, until it bumps into the growth and sticks. Nobody plans the shape. Thousands of random walks later you get coral, frost on a window, or a lightning bolt, and no two are ever alike.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="What to grow">
+    <button class="tab on" role="tab" aria-selected="true" data-m="lightning">⚡ Lightning</button>
+    <button class="tab" role="tab" aria-selected="false" data-m="coral">🪸 Coral</button>
+    <button class="tab" role="tab" aria-selected="false" data-m="frost">❄ Frost</button>
+  </div>
+
+  <main class="lab">
+    <div>
+      <div class="stage">
+        <canvas id="cv" aria-label="A branching shape growing as random particles stick to it"></canvas>
+        <div class="badge" id="badge">Lightning</div>
+      </div>
+      <div class="verdict" id="verdict" aria-live="polite"></div>
+    </div>
+
+    <div>
+      <section class="panel">
+        <div class="ctl"><span class="lbl">Stickiness</span>
+          <div class="seg" role="group" aria-label="Stickiness">
+            <button class="btn on" data-s="1">Sticks on touch</button>
+            <button class="btn" data-s="0.25">Slippery</button>
+          </div>
+          <p class="note" id="stickNote"></p>
+        </div>
+        <div class="ctl"><span class="lbl">Speed</span>
+          <div class="seg" role="group" aria-label="Speed">
+            <button class="btn" data-v="watch">Watch one walk</button>
+            <button class="btn on" data-v="fast">Fast</button>
+            <button class="btn" data-v="max">Full speed</button>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="again">✦ Grow a new one</button>
+          <button class="btn" id="run">Pause</button>
+          <button class="btn" id="save">Save picture</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">This growth</span>
+        <div class="grid2">
+          <div class="cell"><small>Particles stuck</small><div class="big" id="nStuck">0</div></div>
+          <div class="cell"><small>Random steps taken</small><div class="big" id="nSteps">0</div></div>
+          <div class="cell"><small>Fractal dimension</small><div class="big d" id="dim">–</div></div>
+          <div class="cell"><small>Steps per particle</small><div class="big" id="perP">–</div></div>
+        </div>
+        <p class="note" id="dimNote">A straight line is 1, a filled-in area is 2. This kind of growth usually measures about 1.7.</p>
+      </section>
+    </div>
+  </main>
+
+  <div class="source" id="source"><i></i><span id="sourceText">Random steps: demo mode, from your browser's generator.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>Random walkers that stick</h3>
+  <p>A particle appears somewhere away from the growth and takes a random step: left, right, up or down, decided by the random source. Then another, and another, like someone lost in fog. Most wander for hundreds of steps. The moment one touches the growth, it sticks, and the next particle sets off. That's the whole rule. Physicists Thomas Witten and Leonard Sander described it in 1981 and called it <strong>diffusion-limited aggregation</strong> (DLA).</p>
+  <h3>Why it branches</h3>
+  <p>A wanderer coming in from outside almost always bumps into a tip first. It rarely makes it deep into a gap between branches without touching something on the way. So tips grow, tips split, and the fjords between them stay empty. Make the particles <strong>slippery</strong> (they only stick sometimes), and they get further in before sticking, so the growth comes out thicker and denser.</p>
+  <h3>Where you see this</h3>
+  <p>Frost and ice ferns on a cold window. Copper "trees" grown by electroplating. Black, fern-like mineral dendrites on rocks, often mistaken for fossils. Colonies of bacteria on a dish. And electric discharges: Lichtenberg figures burned into wood or acrylic, and lightning, where the leader feels its way down in branching steps. Lightning is really driven by electric fields, not wandering particles, but the math of the two is closely related, which is why they look alike.</p>
+  <h3>The lightning strike</h3>
+  <p>In lightning mode, the growth starts at the cloud and feels its way down. The moment a branch touches the ground, the page traces the one path from cloud to ground through the branches and lights it up. That's the main channel, like the return stroke in a real strike, where nearly all the current flows.</p>
+  <h3>The fractal dimension</h3>
+  <p>As the coral grows, the page counts how many particles fit within each distance from the center. A solid disk would grow like distance squared (dimension 2), a straight line like distance (dimension 1). DLA lands in between: about <strong>1.7</strong>, almost no matter how you run it. Frost and lightning grow against an edge, so their number is only a rough guide.</p>
+  <h3>The quantum part</h3>
+  <p>Every single step of every walker is a random choice, often a million or more per growth. When the quantum generator is connected, steps come from it for as long as its supply keeps up, then from your browser. The line at the bottom shows the share. Right now it's your browser's random number maker. Soon it will be a <strong>quantum random number generator</strong> from Crypta Labs, and the dot turns green.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false, qUsed = 0, bUsed = 0;
+  function setSource(q, fellBack) { quantum = q; $('source').classList.toggle('quantum', q); showSource(fellBack); }
+  function showSource(fellBack) {
+    const t = qUsed + bUsed;
+    $('sourceText').textContent = quantum
+      ? `Random steps: quantum, from the ${SOURCE.NAME}` + (t ? ` (${(qUsed / t * 100).toFixed(1)}% of steps so far; the rest from your browser when it can't keep up).` : '.')
+      : fellBack ? 'The quantum generator is offline, so random steps come from your browser (demo mode).' : "Random steps: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 32768) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=16384', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; for (const v of j.values) pool.push(v); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 1000); refill();
+  setInterval(() => quantum && showSource(false), 1000);
+
+  // One random byte: quantum pool first, then the browser (buffered, because a growth needs millions).
+  const cb = new Uint8Array(65536); let cp = cb.length, qp = 0;
+  function byte() {
+    if (quantum && qp < pool.length) { qUsed++; const v = pool[qp++]; if (qp > 8192) { pool.splice(0, qp); qp = 0; } return v; }
+    bUsed++; if (cp >= cb.length) { crypto.getRandomValues(cb); cp = 0; } return cb[cp++];
+  }
+  // Walk directions: 4 per byte (2 bits each)
+  let dirByte = 0, dirLeft = 0;
+  function dir() { if (!dirLeft) { dirByte = byte(); dirLeft = 4; } const d = dirByte & 3; dirByte >>= 2; dirLeft--; return d; }
+  const unit = () => (byte() * 256 + byte() + .5) / 65536;
+
+  // ================= Grid =================
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const art = document.createElement('canvas'), actx = art.getContext('2d');
+  let W = 0, H = 0, dpr = 1, CELL = 3, GW = 0, GH = 0, grid, parent, order, xs, ys, n = 0;
+  let lastW = 0, mode = 'lightning', stick = 1, speed = 'fast', running = true, steps = 0, finished = false, strike = null, rmax = 0, maxY = 0, minY = 0;
+  let wx = 0, wy = 0, alive = false, trail = [], sinceTrack = 0, massR = [];
+  const DX = [1, -1, 0, 0], DY = [0, 0, 1, -1];
+
+  function size() {
+    const r = cv.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
+    cv.width = art.width = Math.round(r.width * dpr); cv.height = art.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = r.width; H = r.height; CELL = Math.max(2, Math.round(Math.max(W, H) / 330)); GW = Math.floor(W / CELL); GH = Math.floor(H / CELL);
+  }
+  const at = (x, y) => y * GW + x;
+
+  function colorFor(k) {                       // colour by age
+    const t = Math.min(1, k / 9000);
+    if (mode === 'lightning') return `hsl(${265 - 30 * t}, 100%, ${80 - 22 * t}%)`;
+    if (mode === 'coral') return `hsl(${10 + 35 * (1 - t)}, ${95 - 20 * t}%, ${68 - 18 * t}%)`;
+    return `hsl(${195 + 20 * t}, 90%, ${90 - 25 * t}%)`;
+  }
+  function addParticle(x, y, par) {
+    grid[at(x, y)] = n + 1; parent[n] = par; xs[n] = x; ys[n] = y;
+    const col = colorFor(n);
+    actx.globalAlpha = .12; actx.fillStyle = col; actx.beginPath(); actx.arc((x + .5) * CELL, (y + .5) * CELL, CELL * 2.2, 0, 7); actx.fill();
+    actx.globalAlpha = 1; actx.fillRect(x * CELL, y * CELL, CELL, CELL);
+    n++;
+  }
+
+  function reset() {
+    size(); lastW = W;
+    grid = new Int32Array(GW * GH); parent = new Int32Array(GW * GH); xs = new Int16Array(GW * GH); ys = new Int16Array(GW * GH);
+    n = 0; steps = 0; finished = false; strike = null; alive = false; trail = []; massR = []; qUsed = bUsed = 0;
+    actx.clearRect(0, 0, W, H);
+    if (mode === 'frost') {                    // a cold windowsill along the bottom
+      for (let x = 0; x < GW; x++) addParticle(x, GH - 1, -1);
+      maxY = GH - 1; minY = GH - 1;
+    } else if (mode === 'lightning') {
+      const cx = Math.floor(GW / 2); addParticle(cx, 4, -1); maxY = 4; minY = 4;
+    } else {
+      const cx = Math.floor(GW / 2), cy = Math.floor(GH / 2); addParticle(cx, cy, -1); rmax = 1;
+    }
+    window.labTrack && labTrack('growth', 1);
+    notes(); updateText();
+  }
+
+  // ================= One walker =================
+  function launch() {
+    if (mode === 'coral') {
+      const a = unit() * 2 * Math.PI, r = rmax + 5;
+      wx = Math.round(GW / 2 + r * Math.cos(a)); wy = Math.round(GH / 2 + r * Math.sin(a));
+    } else if (mode === 'frost') { wx = Math.floor(unit() * GW); wy = Math.max(1, minY - 6); }
+    else { wx = Math.floor(unit() * GW); wy = Math.min(GH - 2, maxY + 6); }
+    alive = true; trail = [];
+  }
+  function lost() {                            // wandered too far: start a new walker
+    if (wx < 1 || wy < 1 || wx >= GW - 1 || wy >= GH - 1) return true;
+    if (mode === 'coral') { const dx = wx - GW / 2, dy = wy - GH / 2; return dx * dx + dy * dy > (rmax + 30) * (rmax + 30); }
+    if (mode === 'frost') return wy < minY - 30;
+    return wy > maxY + 30;
+  }
+  function touching() {
+    for (let k = 0; k < 4; k++) { const v = grid[at(wx + DX[k], wy + DY[k])]; if (v) return v - 1; }
+    return -1;
+  }
+  // Take one step; returns true if the walker stuck.
+  function walk() {
+    if (!alive) launch();
+    let d;
+    if (mode === 'lightning') { const b = byte(); d = b < 64 ? 0 : b < 128 ? 1 : b < 198 ? 3 : 2; }   // a slight pull upward toward the cloud
+    else d = dir();
+    wx += DX[d]; wy += DY[d]; steps++;
+    if (speed === 'watch') { trail.push([wx, wy]); if (trail.length > 400) trail.shift(); }
+    if (wx < 1 || wy < 1 || wx >= GW - 1 || wy >= GH - 1 || lost()) { alive = false; return false; }
+    if (grid[at(wx, wy)]) { alive = false; return false; }
+    const t = touching();
+    if (t >= 0 && (stick >= 1 || unit() < stick)) {
+      addParticle(wx, wy, t); alive = false; sinceTrack++;
+      if (mode === 'coral') {
+        const r = Math.hypot(wx - GW / 2, wy - GH / 2); if (r > rmax) rmax = r;
+        if (n % 50 === 0) massR.push([rmax, n]);
+        if (rmax > Math.min(GW, GH) / 2 - 8) finished = true;
+      } else if (mode === 'frost') { if (wy < minY) minY = wy; if (minY < 8) finished = true; }
+      else {
+        if (wy > maxY) maxY = wy;
+        if (wy >= GH - 3) { finished = true; startStrike(n - 1); }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // ================= Strike: trace the main channel =================
+  function startStrike(k) {
+    const path = []; while (k >= 0) { path.push(k); k = parent[k]; }
+    strike = { path, t: 0 };
+  }
+
+  // ================= Fractal dimension =================
+  function fractalDim() {
+    if (mode === 'coral') {
+      const pts = massR.filter(([r]) => r > 8); if (pts.length < 6) return null;
+      const lx = pts.map(p => Math.log(p[0])), ly = pts.map(p => Math.log(p[1])), m = lx.length;
+      const mx = lx.reduce((a, b) => a + b) / m, my = ly.reduce((a, b) => a + b) / m;
+      let sxy = 0, sxx = 0; for (let i = 0; i < m; i++) { sxy += (lx[i] - mx) * (ly[i] - my); sxx += (lx[i] - mx) ** 2; }
+      return sxy / sxx;
+    }
+    // box counting for frost and lightning
+    const base = mode === 'frost' ? GW : 0, cnt = s => { const set = new Set(); for (let i = 0; i < n; i++) { if (mode === 'frost' && i < base) continue; set.add((xs[i] / s | 0) * 100000 + (ys[i] / s | 0)); } return set.size; };
+    if (n - base < 400) return null;
+    const S = [2, 4, 8, 16], lx = [], ly = [];
+    for (const s of S) { lx.push(Math.log(1 / s)); ly.push(Math.log(cnt(s))); }
+    const m = 4, mx = lx.reduce((a, b) => a + b) / m, my = ly.reduce((a, b) => a + b) / m;
+    let sxy = 0, sxx = 0; for (let i = 0; i < m; i++) { sxy += (lx[i] - mx) * (ly[i] - my); sxx += (lx[i] - mx) ** 2; }
+    return sxy / sxx;
+  }
+
+  // ================= Draw =================
+  function draw(dt) {
+    ctx.fillStyle = mode === 'frost' ? '#06101C' : mode === 'coral' ? '#04121A' : '#05060F'; ctx.fillRect(0, 0, W, H);
+    if (mode === 'lightning') {                 // cloud and ground
+      const g = ctx.createLinearGradient(0, 0, 0, 60); g.addColorStop(0, 'rgba(120,110,170,.45)'); g.addColorStop(1, 'rgba(120,110,170,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, 60);
+      ctx.fillStyle = '#0D1020'; ctx.fillRect(0, (GH - 2) * CELL, W, H - (GH - 2) * CELL);
+      ctx.fillStyle = 'rgba(255,200,87,.35)'; ctx.fillRect(0, (GH - 2) * CELL, W, 2);
+    }
+    if (mode === 'frost') { ctx.fillStyle = 'rgba(168,230,255,.05)'; ctx.fillRect(0, 0, W, H); }
+    ctx.drawImage(art, 0, 0, W, H);
+
+    if (alive && speed === 'watch') {
+      ctx.strokeStyle = 'rgba(255,200,87,.45)'; ctx.lineWidth = 1; ctx.beginPath();
+      trail.forEach(([x, y], i) => { const X = (x + .5) * CELL, Y = (y + .5) * CELL; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke();
+      ctx.fillStyle = '#FFC857'; ctx.beginPath(); ctx.arc((wx + .5) * CELL, (wy + .5) * CELL, CELL * 1.6 + 2, 0, 7); ctx.fill();
+    }
+
+    if (strike) {
+      strike.t += dt;
+      const p = strike.path, flash = Math.max(0, 1 - strike.t / 1.2), shown = Math.min(p.length, Math.floor(p.length * Math.min(1, strike.t / .35)));
+      if (flash > 0) { ctx.fillStyle = `rgba(220,210,255,${flash * .25})`; ctx.fillRect(0, 0, W, H); }
+      ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (const [w, a] of [[CELL * 5, .18], [CELL * 2.4, .45], [CELL * 1.1, 1]]) {
+        ctx.strokeStyle = a === 1 ? '#FFFFFF' : `rgba(201,182,255,${a})`; ctx.lineWidth = w; ctx.beginPath();
+        for (let i = p.length - 1; i >= p.length - shown; i--) { const k = p[i], X = (xs[k] + .5) * CELL, Y = (ys[k] + .5) * CELL; i === p.length - 1 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ================= Loop =================
+  let last = performance.now(), frameN = 0;
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now; frameN++;
+    if (running && !finished) {
+      if (speed === 'watch') {
+        for (let i = 0; i < 6; i++) if (walk()) break;   // slow enough to follow one walker
+      } else {
+        const budget = speed === 'fast' ? 60000 : 900000, t0 = performance.now();
+        for (let i = 0; i < budget && !finished; i++) { walk(); if ((i & 4095) === 0 && performance.now() - t0 > 14) break; }
+      }
+      if (sinceTrack >= 1000) { window.labTrack && labTrack('kparticles', 1); sinceTrack -= 1000; }
+    }
+    draw(dt);
+    if (frameN % 12 === 0) updateText();
+    requestAnimationFrame(frame);
+  }
+
+  // ================= Text =================
+  const fmt = v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.round(v).toLocaleString('en-US');
+  function stuckCount() { return mode === 'frost' ? n - GW : n - 1; }
+  function updateText() {
+    const s = stuckCount();
+    $('nStuck').textContent = fmt(s); $('nSteps').textContent = fmt(steps); $('perP').textContent = s ? fmt(steps / s) : '–';
+    const d = fractalDim(); $('dim').textContent = d ? d.toFixed(2) : '–';
+    const v = $('verdict');
+    if (speed === 'watch' && !finished) { v.innerHTML = `Follow the yellow dot. It staggers at random, with no idea where the growth is, until it happens to touch it and sticks. On average each particle took <b>${s ? fmt(steps / s) : '…'}</b> steps.`; return; }
+    if (mode === 'lightning') v.innerHTML = finished
+      ? `<b>Strike!</b> ${fmt(s)} particles and ${fmt(steps)} random steps grew a branching leader from the cloud. The bright line is the one path from cloud to ground. That's where a real bolt carries its current.`
+      : `The leader is feeling its way down from the cloud, ${fmt(s)} particles so far. Each one wandered up from below until it touched a branch tip. When a branch reaches the ground…`;
+    else if (mode === 'coral') v.innerHTML = finished
+      ? `Finished: <b>${fmt(s)}</b> particles, each one a random walk. Fractal dimension <b>${d ? d.toFixed(2) : '?'}</b>: between a line (1) and a solid area (2). Grow another and it will never look the same.`
+      : `Growing from a single seed: ${fmt(s)} particles so far. Notice how the tips grab the wanderers and the gaps between branches stay empty.`;
+    else v.innerHTML = finished
+      ? `Frost: <b>${fmt(s)}</b> particles grew up from the cold windowsill into a forest of ice ferns. The tallest branches won the race, and they shade the ones below.`
+      : `Ice is growing up from the windowsill, ${fmt(s)} particles so far. Tall branches catch the wanderers first, so they keep getting taller.`;
+  }
+  function notes() {
+    $('stickNote').innerHTML = stick >= 1 ? 'Particles stick the first time they touch: lacy, open branches.' : 'Particles stick only 1 time in 4: they slip deeper before sticking, so the growth is <b>thicker</b>.';
+    $('badge').textContent = { lightning: 'Lightning · from the cloud down', coral: 'Coral · from one seed', frost: 'Frost · up from the windowsill' }[mode];
+  }
+
+  // ================= Controls =================
+  document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.m; document.querySelectorAll('[data-m]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); }); reset();
+  }));
+  document.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => {
+    stick = +b.dataset.s; document.querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === b)); reset();
+  }));
+  document.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => {
+    speed = b.dataset.v; document.querySelectorAll('[data-v]').forEach(x => x.classList.toggle('on', x === b)); trail = [];
+  }));
+  $('again').addEventListener('click', reset);
+  $('run').addEventListener('click', () => { running = !running; $('run').textContent = running ? 'Pause' : 'Run'; });
+  $('save').addEventListener('click', () => { cv.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `quantum-${mode}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }); });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const w = cv.getBoundingClientRect().width; if (Math.abs(w - lastW) > 2) reset(); }, 250); });
+
+  reset(); requestAnimationFrame(frame);
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
