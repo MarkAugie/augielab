@@ -64,6 +64,10 @@
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 1px 3px rgba(0,0,0,.35); transition: transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
   .piece.sel { box-shadow: inset 0 0 0 4px var(--pink), 0 0 0 3px rgba(255,255,255,.9), 0 6px 16px rgba(0,0,0,.5); z-index: 3; }
   .piece.ok { cursor: default; box-shadow: none; }
+  .piece.ok::after { content: "✓"; position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(30,127,79,.92); color: #fff; font: 700 14px/22px sans-serif; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .placed { text-align: center; margin-top: 12px; font: 700 1.05rem "IBM Plex Sans", sans-serif; color: var(--glow); }
+  .toast { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7; padding: 10px 16px; border-radius: 12px; background: rgba(10,30,26,.92); color: #fff; font: 600 1rem "IBM Plex Sans", sans-serif; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; max-width: 85%; }
+  .toast.on { opacity: 1; }
   .piece.flash { animation: flash .7s ease-out; }
   @keyframes flash { 0% { filter: brightness(1.7) saturate(1.3); } 100% { filter: none; } }
   .piece.drag { transition: none; z-index: 5; box-shadow: 0 0 0 3px #fff, 0 14px 28px rgba(0,0,0,.55); }
@@ -122,8 +126,9 @@
       <button class="peek" id="peek" aria-label="Peek at the finished picture">🔍<small>Peek</small></button>
       <div class="stat right"><small>Moves</small><span id="moves">0</span></div>
     </div>
-    <div class="boardwrap"><div class="board" id="board"><div class="overlay" id="overlay"></div></div></div>
-    <p class="hint" id="hint">Tap two pieces to swap them, or drag one onto another. Pieces in the right spot lock in place.</p>
+    <div class="boardwrap"><div class="board" id="board"><div class="overlay" id="overlay"></div><div class="toast" id="toast"></div></div></div>
+    <p class="placed" id="placed"></p>
+    <p class="hint" id="hint">Tap two pieces to swap them, or drag one onto another. Pieces in the right spot lock in place with a ✓.</p>
     <div class="row">
       <button class="btn" id="again">Shuffle again</button>
       <button class="btn" id="back">Change picture</button>
@@ -360,15 +365,17 @@
     for (let k = 0; k < N; k++) if (board[k] === k) { const j = (k + 1 + randInt(N - 1)) % N; [board[k], board[j]] = [board[j], board[k]]; k = -1; }
     moves = 0; elapsed = 0; t0 = 0; done = false; sel = -1; clearInterval(timer); timer = null;
     $('moves').textContent = '0'; $('time').textContent = '0:00';
-    board.forEach((id, pos) => { pieces[id].classList.remove('ok', 'sel'); place(id, pos); });
+    board.forEach((id, pos) => { pieces[id].classList.remove('ok', 'sel'); place(id, pos); }); showPlaced();
   }
   const isOk = pos => board[pos] === pos;
+  function showPlaced() { const k = board.filter((id, pos) => id === pos).length; $('placed').textContent = `${k} of ${N} pieces in place`; }
+  let toastT; function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1600); }
   function tickStart() { if (timer) return; t0 = performance.now() - elapsed * 1000; timer = setInterval(() => { elapsed = (performance.now() - t0) / 1000; $('time').textContent = fmtT(elapsed); }, 250); }
   function swap(a, b) {
     if (a === b || isOk(a) || isOk(b)) return;
     tickStart();
     [board[a], board[b]] = [board[b], board[a]]; place(board[a], a); place(board[b], b);
-    moves++; $('moves').textContent = moves;
+    moves++; $('moves').textContent = moves; showPlaced();
     for (const pos of [a, b]) if (isOk(pos)) { const p = pieces[board[pos]]; setTimeout(() => { p.classList.add('ok', 'flash'); setTimeout(() => p.classList.remove('flash'), 750); }, 260); }
     if (board.every((id, pos) => id === pos)) setTimeout(win, 650);
   }
@@ -380,7 +387,8 @@
   // tap-to-swap and drag-to-swap
   let drag = null;
   $('board').addEventListener('pointerdown', e => {
-    if (done) return; const pos = posAt(e.clientX, e.clientY); if (pos < 0 || isOk(pos)) return;
+    if (done) return; const pos = posAt(e.clientX, e.clientY); if (pos < 0) return;
+    if (isOk(pos)) { toast('✓ That one is already in the right spot'); return; }
     drag = { pos, id: board[pos], x0: e.clientX, y0: e.clientY, moved: false }; $('board').setPointerCapture(e.pointerId);
   });
   $('board').addEventListener('pointermove', e => {
@@ -392,7 +400,7 @@
     if (!drag) return; const d = drag; drag = null;
     if (d.moved) {
       pieces[d.id].classList.remove('drag'); const to = posAt(e.clientX, e.clientY);
-      place(d.id, d.pos); if (to >= 0 && to !== d.pos && !isOk(to)) swap(d.pos, to);
+      place(d.id, d.pos); if (to >= 0 && to !== d.pos) { if (isOk(to)) toast('✓ That spot is already done'); else swap(d.pos, to); }
       return;
     }
     // a tap
@@ -432,7 +440,7 @@
   $('back').addEventListener('click', backToSetup);
   $('start').addEventListener('click', start);
   document.addEventListener('visibilitychange', () => { if (document.hidden && timer) { clearInterval(timer); timer = null; } else if (!document.hidden && !done && moves > 0 && !$('game').classList.contains('hide')) tickStart(); });
-  let rt, lastW = innerWidth; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; if (!$('game').classList.contains('hide')) { layout(); board.forEach((id, pos) => { place(id, pos); if (isOk(pos)) pieces[id].classList.add('ok'); }); } }, 200); });
+  let rt, lastW = innerWidth; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; if (!$('game').classList.contains('hide')) { layout(); board.forEach((id, pos) => { place(id, pos); if (isOk(pos)) pieces[id].classList.add('ok'); }); showPlaced(); } }, 200); });
 
   makePics(); select($('pics').querySelector('.pic.gen'), built[0].canvas, built[0].name); showBest();
 })();
