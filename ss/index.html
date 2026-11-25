@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Early or Late? · The Social Security bet · AugieLab</title>
+<meta name="description" content="Claim Social Security early or wait until 70? Roll 10,000 random lifetimes from the official life tables and see who comes out ahead, including survivor benefits for couples.">
+<meta property="og:title" content="Early or Late? The Social Security bet">
+<meta property="og:description" content="Claim at 66 or hold out for 70? Roll 10,000 lifetimes and see who wins.">
+<meta property="og:url" content="https://augielab.dev/ss/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0E2230; --bg2: #081621; --paper: #F4F1E4; --paper2: #E6EEDF; --ink: #1B2A26; --dim: #5A6660; --line: #C9D3C2;
+    --early: #E39B2D; --late: #2E9E6A; --tie: #8C96A0; --gold: #E9C46A; --cream: #EFE9D6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--bg2); }
+  body { min-height: 100vh; color: var(--cream); font-family: "Public Sans", system-ui, sans-serif; line-height: 1.45; padding: 16px 16px 110px;
+    background: radial-gradient(ellipse 90% 60% at 50% 0%, #1A3A4E, var(--bg) 55%, var(--bg2)) fixed; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; }
+  .top a { color: #BFD3DE; text-decoration: none; font-weight: 600; }
+  header { text-align: center; margin: 4px 0 18px; }
+  h1 { font: 400 clamp(2.4rem, 7.5vw, 4rem)/1 "DM Serif Display", Georgia, serif; color: #FFF8E6; }
+  h1 em { color: var(--gold); }
+  .sub { color: #CFDDE4; font-size: 1.05rem; margin: 8px auto 0; max-width: 40em; }
+  h2 { font: 400 1.6rem/1.15 "DM Serif Display", Georgia, serif; color: #FFF8E6; margin: 26px 0 10px; }
+
+  /* ---------- people: two "checks" ---------- */
+  .people { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .check { position: relative; color: var(--ink); border-radius: 12px; padding: 14px 16px 14px; overflow: hidden;
+    background: repeating-linear-gradient(135deg, rgba(46,110,80,.05) 0 2px, transparent 2px 7px), linear-gradient(180deg, var(--paper2), var(--paper));
+    box-shadow: 0 12px 28px -12px rgba(0,0,0,.7), inset 0 0 0 1px rgba(0,0,0,.08); }
+  .check::before { content: ""; position: absolute; inset: 6px; border: 1.5px dashed rgba(46,110,80,.35); border-radius: 8px; pointer-events: none; }
+  .check.off { opacity: .45; }
+  .check .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .check .head .tag { font: 600 .7rem "IBM Plex Mono", monospace; letter-spacing: .12em; text-transform: uppercase; color: #3D6B55; }
+  .nm { font: 400 1.35rem "DM Serif Display", serif; color: var(--ink); background: transparent; border: 0; border-bottom: 1.5px solid var(--line); width: 100%; padding: 2px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 8px; }
+  label { display: block; font-size: .74rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+  .check select, .check input[type=number] { display: block; width: 100%; margin-top: 3px; font: 600 1rem "Public Sans", sans-serif; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; }
+  .money { position: relative; display: block; }
+  .money::before { content: "$"; position: absolute; left: 10px; bottom: 9px; font-weight: 700; color: var(--dim); }
+  .money input { padding-left: 22px !important; }
+  .full { grid-column: 1 / -1; }
+  .calc { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .9rem; color: #33443E; }
+  .calc b { font: 600 1.05rem "IBM Plex Mono", monospace; color: var(--ink); }
+  .calc .pct { font: 600 .82rem "IBM Plex Mono", monospace; color: #3D6B55; }
+  .hint { font-size: .78rem; color: var(--dim); margin-top: 3px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+  .opts { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; justify-content: center; margin: 16px 0 4px; font-size: .98rem; }
+  .opts label { color: #DCE6EA; text-transform: none; letter-spacing: 0; font-size: .98rem; font-weight: 500; display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--late); }
+  .opts select, .ask select { max-width: 100%; font: 600 1rem "Public Sans", sans-serif; padding: 8px 10px; border-radius: 9px; background: #0C2A3A; color: #FFF8E6; border: 1px solid rgba(255,255,255,.35); }
+
+  /* ---------- tabs and panels ---------- */
+  .tabs { display: flex; gap: 8px; justify-content: center; margin: 22px 0 0; flex-wrap: wrap; }
+  .tab { font: 600 1.02rem "Public Sans", sans-serif; padding: 11px 18px; border-radius: 12px 12px 0 0; cursor: pointer; color: #DCE6EA; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.18); border-bottom: 0; }
+  .tab.on { background: #F4F1E4; color: var(--ink); border-color: #F4F1E4; }
+  .panel { background: var(--paper); color: var(--ink); border-radius: 16px; padding: 18px 18px 20px; box-shadow: 0 16px 34px -16px rgba(0,0,0,.8); }
+  .panel[hidden] { display: none; }
+  .ask { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 500; }
+  .ask select { background: #fff; color: var(--ink); border-color: var(--line); }
+  .run { font: 700 1.15rem "Public Sans", sans-serif; padding: 13px 26px; border-radius: 12px; border: 0; cursor: pointer; color: #fff; background: linear-gradient(180deg, #38B37A, var(--late)); box-shadow: 0 5px 0 #1D6B47; margin-left: 6px; }
+  .run:active { transform: translateY(3px); box-shadow: 0 2px 0 #1D6B47; }
+  .run:disabled { opacity: .6; cursor: default; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  .checks2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 4px; }
+  .mini { border-radius: 12px; padding: 10px 14px; border: 2px solid; }
+  .mini.e { border-color: var(--early); background: #FCF1DE; } .mini.l { border-color: var(--late); background: #E4F4EB; }
+  .mini small { display: block; font-size: .8rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+  .mini b { font: 600 1.5rem "IBM Plex Mono", monospace; }
+  .mini span { font-size: .85rem; color: var(--dim); }
+
+  .be { text-align: center; margin: 14px 0 6px; font-size: 1.1rem; }
+  .be b { font: 400 2.1rem "DM Serif Display", serif; color: var(--ink); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .big { border-radius: 14px; padding: 14px; text-align: center; background: #fff; border: 1px solid var(--line); }
+  .big .n { font: 400 2.8rem/1 "DM Serif Display", serif; }
+  .big .n.late { color: var(--late); } .big .n.early { color: #B66E0C; }
+  .big .t { font-size: .95rem; color: #33443E; margin-top: 4px; }
+  .big.dim { opacity: .45; }
+  .split { display: flex; height: 40px; border-radius: 10px; overflow: hidden; margin: 14px 0 4px; background: #E3E6DD; font: 600 .95rem "IBM Plex Mono", monospace; color: #fff; }
+  .split div { display: flex; align-items: center; justify-content: center; transition: width .25s; white-space: nowrap; overflow: hidden; }
+  .split .se { background: var(--early); } .split .st { background: var(--tie); } .split .sl { background: var(--late); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; font-size: .85rem; color: var(--dim); }
+  .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  canvas { width: 100%; height: 240px; display: block; margin-top: 12px; }
+  .notes { margin-top: 12px; font-size: .95rem; color: #33443E; }
+  .notes li { margin: 5px 0 0 1.1em; }
+  .notes b { color: var(--ink); }
+  .progress { text-align: center; font: 600 .9rem "IBM Plex Mono", monospace; color: var(--dim); margin-top: 8px; min-height: 1.3em; }
+  .today { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #FFF8E3; border: 1px solid #EBD9A6; font-size: 1rem; }
+  .today b { font-family: "IBM Plex Mono", monospace; }
+  .disclaim { text-align: center; color: #AFC2CC; font-size: .85rem; margin-top: 16px; }
+
+  .source { margin-top: 22px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .9rem; color: #C8D8E0; text-align: center; }
+  .source i { width: 10px; height: 10px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 720px) {
+    .opts label { flex-wrap: wrap; justify-content: center; }
+    html { font-size: 18px; }
+    .people, .checks2, .verdict { grid-template-columns: 1fr; }
+    .ask { flex-direction: column; } .run { margin: 6px 0 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">← AugieLab</a></div>
+  <header>
+    <h1>Early <em>or</em> Late?</h1>
+    <p class="sub">The Social Security bet. Take a smaller check sooner, or hold out for a bigger one at 70? Nobody knows how long they'll live, so let's roll 10,000 lifetimes and see who comes out ahead.</p>
+  </header>
+
+  <div class="people">
+    <div class="check" id="p0"></div>
+    <div class="check" id="p1"></div>
+  </div>
+
+  <div class="opts">
+    <label><input type="checkbox" id="two" checked> Include person 2</label>
+    <label><input type="checkbox" id="married" checked> Married to each other</label>
+    <label>Investment growth
+      <select id="growth">
+        <option value="0">None (just add up the checks)</option>
+        <option value="1">1% a year above inflation</option>
+        <option value="2">2% a year above inflation</option>
+        <option value="3">3% a year above inflation</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab on" id="tabWait" role="tab" aria-selected="true">Should they wait?</button>
+    <button class="tab" id="tabBet" role="tab" aria-selected="false">The family bet</button>
+  </div>
+
+  <section class="panel" id="panelWait">
+    <div class="ask">
+      <span>Should</span>
+      <select id="who"></select>
+      <span>claim at</span>
+      <select id="ageE"></select>
+      <span>or wait until</span>
+      <select id="ageL"></select>
+      <button class="run" id="runWait">Roll 10,000 lives</button>
+    </div>
+    <div class="checks2">
+      <div class="mini e"><small id="eLab">Claim early</small><b id="eAmt">–</b> <span>a month</span></div>
+      <div class="mini l"><small id="lLab">Wait</small><b id="lAmt">–</b> <span>a month</span></div>
+    </div>
+    <p class="be" id="beLine"></p>
+    <div class="split" id="wSplit"><div class="se" style="width:0"></div><div class="st" style="width:0"></div><div class="sl" style="width:0"></div></div>
+    <div class="legend"><span><i style="background:var(--early)"></i>Claiming early wins</span><span><i style="background:var(--tie)"></i>A tie</span><span><i style="background:var(--late)"></i>Waiting wins</span></div>
+    <div class="verdict">
+      <div class="big" id="vAlone"><div class="n late" id="vAloneN">?</div><div class="t" id="vAloneT">Press the button to roll the lives.</div></div>
+      <div class="big" id="vHouse"><div class="n late" id="vHouseN">?</div><div class="t" id="vHouseT">For the household, counting survivor benefits.</div></div>
+    </div>
+    <canvas id="hist" width="1000" height="240" aria-label="Chart of when they died in each simulated life, colored by which choice won"></canvas>
+    <div class="progress" id="wProg"></div>
+    <ul class="notes" id="wNotes"></ul>
+  </section>
+
+  <section class="panel" id="panelBet" hidden>
+    <div class="ask">
+      <span id="betQ">Who collects more over their lifetime?</span>
+      <button class="run" id="runBet">Roll 10,000 lives</button>
+    </div>
+    <div class="split" id="bSplit"><div class="se" style="width:50%"></div><div class="sl" style="width:50%"></div></div>
+    <div class="verdict">
+      <div class="big"><div class="n early" id="b0N">?</div><div class="t" id="b0T"></div></div>
+      <div class="big"><div class="n late" id="b1N">?</div><div class="t" id="b1T"></div></div>
+    </div>
+    <div class="today" id="today"></div>
+    <div class="progress" id="bProg"></div>
+    <ul class="notes" id="bNotes"></ul>
+  </section>
+
+  <p class="disclaim">A what-if toy for curious people, not financial advice. For your real numbers, sign in to my Social Security at ssa.gov.</p>
+  <div class="source" id="source"><i></i><span id="sourceText">Lifetimes: demo mode, rolled by your browser's generator.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The bet</h3>
+  <p>Social Security lets you start your check any time from 62 to 70. Start early and the check is smaller for life. Wait and it grows, by 8% for every year you wait past your <strong>full retirement age</strong> (66 for people born 1943–1954, rising to 67 for anyone born in 1960 or later). Claiming a year before full retirement age costs 6⅔%. So for someone born in 1950, the check at 70 is 132% of the full amount; for someone born in 1960, waiting from 66 to 70 makes it about 33% bigger.</p>
+  <h3>The break-even age</h3>
+  <p>The early claimer gets a head start of several years of checks. The person who waited gets bigger checks and slowly catches up. The age where the two running totals are equal is the <strong>break-even age</strong>, usually around 80 to 83. Die before it and claiming early won; live past it and waiting won.</p>
+  <h3>Rolling the lives</h3>
+  <p>Nobody knows when they'll die, so each roll picks a lifespan at random from Social Security's own life table (the 2023 period table from the 2026 Trustees Report): for each year of age, it asks "does this person die this year?", using the real odds for a man or a woman of that age. Each life starts from the person's age today, so someone who is already 76 can't die at 70. The page rolls 10,000 lives and counts which choice came out ahead. Soon the dice will come from a <strong>quantum random number generator</strong> (a Crypta Labs device): it seeds the fast generator that rolls the lives. When it's connected, the dot at the bottom turns green.</p>
+  <h3>Why the arguments never end</h3>
+  <p>The two sides are both right, about different things. <strong>"Take it early"</strong> wins more often if you die young, if you need the money now, or if you'd invest it and earn a good return (try the growth setting: it makes early checks worth more, and the break-even age moves later). <strong>"Wait"</strong> is insurance against living a long time: look at how big the win is in the lives where waiting wins, compared with how small it is when early wins. Running out of money at 92 hurts more than leaving some on the table at 75. Health matters too, which is what the health setting changes.</p>
+  <h3>The survivor twist</h3>
+  <p>For a married couple, when one dies the survivor keeps the bigger of the two checks. So if the higher earner waits until 70, that bigger check can keep paying for the rest of the spouse's life. That's why waiting by the higher earner often wins for the household, even when he doesn't live past break-even himself. The household number on this page includes that, plus the spousal benefit (up to half of the other person's full amount).</p>
+  <h3>The family bet</h3>
+  <p>The second tab answers a different question: of two people, who will collect more in total? That depends on their check sizes, their claim ages and who lives longer, so it isn't really early versus late. Each person is really betting against the choice they didn't make, which is what the first tab measures.</p>
+  <h3>What this leaves out</h3>
+  <p>All amounts are in today's dollars. Yearly cost-of-living raises add the same percentage to every check, so they don't change who wins. The page skips taxes, the earnings limit for people still working before full retirement age, Medicare premiums and the reduction for taking a survivor benefit early. A period life table also tends to underestimate how long people live today, which slightly favors claiming early. For a real decision, use your own numbers from my Social Security, and talk to someone you trust.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
+  // Each run needs hundreds of thousands of draws, so 16 quantum bytes seed a fast sfc32 generator.
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false;
+  function setSource(q, fellBack, seedHex) {
+    quantum = q; $('source').classList.toggle('quantum', q);
+    $('sourceText').textContent = q
+      ? `Lifetimes: quantum-seeded by the ${SOURCE.NAME}` + (seedHex ? ` (seed ${seedHex}).` : '.')
+      : fellBack ? 'The quantum generator is offline, so lifetimes are rolled by your browser (demo mode).' : "Lifetimes: demo mode, rolled by your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 1024) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; pool.push(...j.values); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 3000); refill();
+  function sfc32(a, b, c, d) {
+    return () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+  }
+  function newRng() {
+    let bytes;
+    if (quantum && pool.length >= 16) bytes = pool.splice(0, 16);
+    else { bytes = Array.from(crypto.getRandomValues(new Uint8Array(16))); if (quantum) setSource(false, true); }
+    const w = k => ((bytes[k] << 24) | (bytes[k + 1] << 16) | (bytes[k + 2] << 8) | bytes[k + 3]) >>> 0;
+    const r = sfc32(w(0), w(4), w(8), w(12)); for (let i = 0; i < 15; i++) r();
+    if (quantum) setSource(true, false, bytes.slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join(''));
+    return r;
+  }
+
+  // ================= Life table =================
+  // SSA 2023 period life table (2026 Trustees Report), q(x) = chance of dying within a year, ages 60-119.
+  const QM = [.011337,.012232,.013196,.014229,.015316,.016455,.017574,.018735,.019981,.021366,.022903,.024615,.026504,.028648,.031071,.033802,.037010,.041158,.045461,.050346,.055633,.061757,.068358,.075420,.083364,.092680,.103459,.115502,.129018,.143810,.159458,.176551,.195360,.216286,.238799,.262268,.286291,.310944,.332325,.349036,.366568,.384960,.404252,.424488,.445712,.467998,.491398,.515968,.541766,.568854,.597297,.627162,.658520,.691446,.726018,.762319,.800435,.840457,.882480,.926604];
+  const QF = [.006923,.007555,.008220,.008881,.009514,.010188,.010880,.011659,.012543,.013581,.014769,.016153,.017705,.019495,.021533,.023846,.026458,.029700,.033135,.036982,.041183,.045959,.051282,.057262,.064107,.071752,.080490,.090566,.102204,.115178,.129176,.144229,.160353,.177635,.196502,.216846,.238750,.261359,.283899,.306491,.329680,.353333,.377300,.401416,.425501,.451031,.478092,.506778,.537185,.568854,.597297,.627162,.658520,.691446,.726018,.762319,.800435,.840457,.882480,.926604];
+  const HEALTH = { avg: 1, good: 0.7, great: 0.5, poor: 1.5, bad: 2.2 };
+  function qx(sex, x, mult) {
+    if (x >= 120) return 1;
+    const t = sex === 'f' ? QF : QM;
+    const q = x >= 60 ? t[x - 60] : t[0] * Math.pow(0.92, 60 - x);   // below 60: extend the table's ~8%-a-year slope
+    return Math.min(1, q * mult);
+  }
+  // Age at death for someone who is alive at age a0.
+  function deathAge(p, rng) {
+    const mult = HEALTH[p.health] || 1;
+    let x = Math.floor(p.age0);
+    const first = x + 1 - p.age0;                       // part of this year still to live through
+    const q0 = 1 - Math.pow(1 - qx(p.sex, x, mult), first);
+    if (rng() < q0) return p.age0 + rng() * first;
+    for (x = x + 1; x < 120; x++) if (rng() < qx(p.sex, x, mult)) return x + rng();
+    return 120;
+  }
+  function lifeExpectancy(p) {   // average age at death, exact from the table
+    const mult = HEALTH[p.health] || 1;
+    let x = Math.floor(p.age0), first = x + 1 - p.age0, alive = 1;
+    let q = 1 - Math.pow(1 - qx(p.sex, x, mult), first), e = alive * q * (p.age0 + first / 2);
+    alive *= 1 - q;
+    for (x = x + 1; x < 120; x++) { q = qx(p.sex, x, mult); e += alive * q * (x + .5); alive *= 1 - q; }
+    return e + alive * 120;
+  }
+
+  // ================= Social Security rules =================
+  function fraMonths(by) { return by <= 1954 ? 792 : by >= 1960 ? 804 : 792 + 2 * (by - 1954); }
+  function ownFactor(by, m) {             // m = claim age in months
+    const fra = fraMonths(by);
+    if (m < fra) { const k = fra - m; return 1 - Math.min(k, 36) * 5 / 900 - Math.max(0, k - 36) * 5 / 1200; }
+    return 1 + (Math.min(m, 840) - fra) * 2 / 300;          // 8% a year, 2/3 of 1% a month, stops at 70
+  }
+  function spouseFactor(by, m) {
+    const fra = fraMonths(by); if (m >= fra) return 1;
+    const k = fra - m; return 1 - Math.min(k, 36) * 25 / 3600 - Math.max(0, k - 36) * 5 / 1200;
+  }
+  const fraText = by => { const m = fraMonths(by); return Math.floor(m / 12) + (m % 12 ? ` and ${m % 12} months` : ''); };
+
+  // ================= People =================
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const DEFAULTS = [
+    { name: 'Person 1', by: 1950, bm: 6, sex: 'm', pia: 2600, claim: 70, health: 'avg' },
+    { name: 'Person 2', by: 1953, bm: 6, sex: 'f', pia: 1500, claim: 62, health: 'avg' }
+  ];
+  let P = JSON.parse(JSON.stringify(DEFAULTS));
+  try { const s = JSON.parse(localStorage.getItem('ss-people') || 'null'); if (Array.isArray(s) && s.length === 2) P = s.map((p, i) => Object.assign({}, DEFAULTS[i], p)); } catch (e) {}
+  const now = new Date(), NOW = now.getFullYear() + (now.getMonth() + (now.getDate() - 1) / 31) / 12;
+  const age0 = p => NOW - (p.by + (p.bm - 1) / 12);
+  const money = n => '$' + Math.round(n).toLocaleString();
+  const bigMoney = n => Math.abs(n) >= 1e6 ? '$' + (n / 1e6).toFixed(2) + ' million' : money(n);
+  const opt = (v, t, sel) => `<option value="${v}"${sel ? ' selected' : ''}>${t}</option>`;
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+  function buildCard(i) {
+    const p = P[i], el = $('p' + i);
+    el.innerHTML = `
+      <div class="head"><span class="tag">Person ${i + 1}</span><span class="tag">Monthly check</span></div>
+      <input class="nm" data-k="name" value="${p.name.replace(/"/g, '&quot;')}" aria-label="Name of person ${i + 1}" maxlength="24">
+      <div class="grid">
+        <div><label>Born (year)<select data-k="by">${range(1943, 1975).map(y => opt(y, y, y === p.by)).join('')}</select></label></div>
+        <div><label>Month<select data-k="bm">${MONTHS.map((m, k) => opt(k + 1, m, k + 1 === p.bm)).join('')}</select></label></div>
+        <div><label>Sex<select data-k="sex">${opt('m', 'Man', p.sex === 'm')}${opt('f', 'Woman', p.sex === 'f')}</select></label></div>
+        <div><label>Claims at age<select data-k="claim">${range(62, 70).map(a => opt(a, a, a === p.claim)).join('')}</select></label></div>
+        <div class="full"><label>Monthly check at full retirement age<span class="money"><input type="number" data-k="pia" min="0" max="10000" step="10" value="${p.pia}" inputmode="numeric"></span></label><div class="hint">From their my Social Security statement ("full retirement age" amount), in today's dollars.</div></div>
+        <div class="full"><label>Health, compared with average<select data-k="health">${opt('great', 'Excellent (much longer-lived)', p.health === 'great')}${opt('good', 'Better than average', p.health === 'good')}${opt('avg', 'Average', p.health === 'avg')}${opt('poor', 'Worse than average', p.health === 'poor')}${opt('bad', 'Serious health problems', p.health === 'bad')}</select></label></div>
+      </div>
+      <div class="calc" id="calc${i}"></div>`;
+    el.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener(inp.tagName === 'INPUT' ? 'input' : 'change', () => {
+      const k = inp.dataset.k; let v = inp.value;
+      if (k === 'by' || k === 'bm' || k === 'claim') v = +v;
+      if (k === 'pia') v = Math.max(0, Math.min(10000, +v || 0));
+      if (k === 'name') v = v.trim() || `Person ${i + 1}`;
+      P[i][k] = v; save(); refresh();
+    }));
+  }
+  function save() { try { localStorage.setItem('ss-people', JSON.stringify(P)); } catch (e) {} }
+
+  function calcLine(i) {
+    const p = P[i], f = ownFactor(p.by, p.claim * 12), a = age0(p);
+    const e = lifeExpectancy(Object.assign({ age0: a }, p));
+    return `Full retirement age: <b>${fraText(p.by)}</b><br>Claiming at ${p.claim}: <b>${money(p.pia * f)}</b> a month <span class="pct">${Math.round(f * 1000) / 10}%</span><br>Age today ${Math.floor(a)} · average lifespan from here: <b>${e.toFixed(1)}</b>`;
+  }
+
+  // ================= Money streams =================
+  let MI = 0;                 // monthly growth rate
+  function setGrowth() { MI = Math.pow(1 + (+$('growth').value) / 100, 1 / 12) - 1; }
+  // Value in today's dollars of a check paid each month from month a to month b-1 (months from now).
+  function ann(a, b) {
+    if (b <= a) return 0;
+    if (!MI) return b - a;
+    const v = 1 / (1 + MI); return Math.pow(v, a) * (1 - Math.pow(v, b - a)) / (1 - v);
+  }
+  // Everything person i receives in one life. d = [age at death of each person], claims = [claim age of each].
+  // Times are in whole months from today.
+  function received(i, d, claims, couple) {
+    const p = P[i], a0 = age0(p);
+    const tC = Math.round((claims[i] - a0) * 12), tD = Math.round((d[i] - a0) * 12);
+    const own = p.pia * ownFactor(p.by, claims[i] * 12);
+    let v = own * ann(tC, tD);
+    if (couple) {
+      const j = 1 - i, s = P[j], s0 = age0(s);
+      const tCs = Math.round((claims[j] - s0) * 12), tDs = Math.round((d[j] - s0) * 12);
+      // spousal top-up while both are alive and both have claimed
+      const top = Math.max(0, 0.5 * s.pia - p.pia) * spouseFactor(p.by, claims[i] * 12);
+      if (top > 0) v += top * ann(Math.max(tC, tCs), Math.min(tD, tDs));
+      // survivor: after the spouse dies, keep the bigger check
+      if (tDs < tD) {
+        let surv;
+        if (claims[j] <= d[j]) surv = Math.max(s.pia * ownFactor(s.by, claims[j] * 12), 0.825 * s.pia);
+        else surv = s.pia * Math.max(1, ownFactor(s.by, Math.floor(d[j] * 12)));   // died before claiming
+        if (surv > own) v += (surv - own) * ann(Math.max(tDs, tC), tD);
+      }
+    }
+    return v;
+  }
+
+  // ================= Tab 1: should they wait? =================
+  function refreshWait() {
+    const two = $('two').checked, w = +$('who').value || 0;
+    $('who').innerHTML = [0, 1].filter(i => i === 0 || two).map(i => opt(i, P[i].name, i === w)).join('');
+    const i = +$('who').value, p = P[i];
+    const e = +$('ageE').value || 66, l = +$('ageL').value || 70;
+    $('ageE').innerHTML = range(62, 69).map(a => opt(a, a, a === e)).join('');
+    $('ageL').innerHTML = range(63, 70).map(a => opt(a, a, a === l)).join('');
+    let E = +$('ageE').value, L = +$('ageL').value;
+    if (L <= E) { L = Math.min(70, E + 1); $('ageL').value = L; }
+    const fe = ownFactor(p.by, E * 12), fl = ownFactor(p.by, L * 12);
+    $('eLab').textContent = `Claim at ${E}`; $('lLab').textContent = `Wait until ${L}`;
+    $('eAmt').textContent = money(p.pia * fe); $('lAmt').textContent = money(p.pia * fl);
+    // break-even: first age where the waiting total catches up
+    let be = null;
+    for (let m = L * 12; m <= 1440; m++) { if (p.pia * fl * ann(L * 12, m) >= p.pia * fe * ann(E * 12, m) - 1e-6 && m > L * 12) { be = m / 12; break; } }
+    $('beLine').innerHTML = be
+      ? `Break-even age: <b>${Math.floor(be)}</b> <span style="font-size:1rem">and ${Math.round((be % 1) * 12)} months</span><br><span style="font-size:.95rem;color:var(--dim)">Waiting's bigger check is ${Math.round((fl / fe - 1) * 100)}% more. Live past this age and waiting wins.</span>`
+      : `<b>No break-even</b> before age 120 with this much investment growth: claiming early always wins.`;
+    const married = two && $('married').checked;
+    $('vHouse').classList.toggle('dim', !married);
+    if (!married) { $('vHouseN').textContent = '–'; $('vHouseT').textContent = 'Household view needs person 2 and "married" ticked.'; }
+    return { i, E, L, be, married };
+  }
+  let running = false;
+  function runWait() {
+    if (running) return; const cfg = refreshWait(); running = true; $('runWait').disabled = true;
+    const rng = newRng(), N = 10000, p = P[cfg.i], j = 1 - cfg.i;
+    const me = Object.assign({ age0: age0(p) }, p), sp = cfg.married ? Object.assign({ age0: age0(P[j]) }, P[j]) : null;
+    let n = 0, eW = 0, lW = 0, tie = 0, early = 0, hE = 0, hL = 0, sumE = 0, sumL = 0, gainE = 0, gainL = 0, hBoth = 0;
+    const histE = new Array(121).fill(0), histL = new Array(121).fill(0), histT = new Array(121).fill(0);
+    const step = () => {
+      for (let k = 0; k < 500 && n < N; k++, n++) {
+        const d = [0, 0]; d[cfg.i] = deathAge(me, rng); if (sp) d[j] = deathAge(sp, rng); else d[j] = 0;
+        const cE = [0, 0], cL = [0, 0]; cE[cfg.i] = cfg.E; cL[cfg.i] = cfg.L; cE[j] = cL[j] = P[j].claim;
+        const vE = received(cfg.i, d, cE, false), vL = received(cfg.i, d, cL, false);
+        if (d[cfg.i] < cfg.E) early++;
+        sumE += vE; sumL += vL; const b = Math.min(120, Math.floor(d[cfg.i]));
+        if (Math.abs(vL - vE) < 0.5) { tie++; histT[b]++; }
+        else if (vL > vE) { lW++; gainL += vL - vE; histL[b]++; } else { eW++; gainE += vE - vL; histE[b]++; }
+        if (sp) {
+          const HE = received(cfg.i, d, cE, true) + received(j, d, cE, true), HL = received(cfg.i, d, cL, true) + received(j, d, cL, true);
+          if (Math.abs(HL - HE) < 0.5) hBoth++; else if (HL > HE) hL++; else hE++;
+        }
+      }
+      const pc = x => Math.round(x / n * 1000) / 10;
+      const segs = $('wSplit').children;
+      segs[0].style.width = pc(eW) + '%'; segs[1].style.width = pc(tie) + '%'; segs[2].style.width = pc(lW) + '%';
+      segs[0].textContent = pc(eW) >= 8 ? pc(eW) + '%' : ''; segs[1].textContent = pc(tie) >= 8 ? pc(tie) + '%' : ''; segs[2].textContent = pc(lW) >= 8 ? pc(lW) + '%' : '';
+      const lead = lW >= eW;
+      $('vAloneN').className = 'n ' + (lead ? 'late' : 'early'); $('vAloneN').textContent = pc(lead ? lW : eW) + '%';
+      $('vAloneT').textContent = `of lives, ${lead ? 'waiting until ' + cfg.L : 'claiming at ' + cfg.E} gave ${p.name} more, counting only ${p.name}'s own checks.`;
+      if (sp) {
+        const hl = hL >= hE;
+        $('vHouseN').className = 'n ' + (hl ? 'late' : 'early'); $('vHouseN').textContent = pc(hl ? hL : hE) + '%';
+        $('vHouseT').textContent = `of lives, ${hl ? 'waiting' : 'claiming early'} gave the household more, counting ${P[j].name}'s survivor benefit.`;
+      }
+      drawHist(histE, histT, histL, cfg.be, Math.floor(me.age0));
+      $('wProg').textContent = `${n.toLocaleString()} of ${N.toLocaleString()} lives rolled`;
+      if (n < N) requestAnimationFrame(step);
+      else {
+        running = false; $('runWait').disabled = false; window.labTrack && labTrack('klives', 10);
+        const notes = [];
+        notes.push(`Average lifetime total: <b>${bigMoney(sumE / n)}</b> claiming at ${cfg.E}, <b>${bigMoney(sumL / n)}</b> waiting until ${cfg.L}.`);
+        if (eW && lW) notes.push(`When claiming early won, it won by <b>${bigMoney(gainE / eW)}</b> on average. When waiting won, it won by <b>${bigMoney(gainL / lW)}</b>. That's the "insurance" side of waiting: its wins are bigger, and they come in the long lives where the money matters most.`);
+        if (early) notes.push(`In ${pc(early)}% of lives ${p.name} died before ${cfg.E}, so both choices paid nothing (a tie).`);
+        if (me.age0 > cfg.L) notes.push(`${p.name} is already past ${cfg.L}, so this is a "what if they could choose again" replay, counting only lives where ${p.name} is alive today.`);
+        $('wNotes').innerHTML = notes.map(t => `<li>${t}</li>`).join('');
+      }
+    };
+    step();
+  }
+  function drawHist(hE, hT, hL, be, startAge) {
+    const c = $('hist'), r = c.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    c.width = Math.max(300, r.width) * dpr; c.height = 240 * dpr;
+    const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = c.width / dpr, H = 240, L = 34, B = 28, T = 26;
+    g.clearRect(0, 0, W, H);
+    const a0 = Math.max(55, Math.min(startAge, 100)), a1 = 110;
+    let max = 1; for (let a = a0; a <= a1; a++) max = Math.max(max, hE[a] + hT[a] + hL[a]);
+    const bw = (W - L - 6) / (a1 - a0 + 1);
+    g.fillStyle = '#33443E'; g.font = '600 13px "Public Sans", sans-serif'; g.textAlign = 'left';
+    g.fillText('Age at death in each rolled life', L, 16);
+    for (let a = a0; a <= a1; a++) {
+      const x = L + (a - a0) * bw; let y = H - B;
+      for (const [arr, col] of [[hE, '#E39B2D'], [hT, '#8C96A0'], [hL, '#2E9E6A']]) {
+        const h = arr[a] / max * (H - B - T); if (!h) continue;
+        g.fillStyle = col; g.fillRect(x + .5, y - h, Math.max(1, bw - 1), h); y -= h;
+      }
+    }
+    g.fillStyle = '#5A6660'; g.font = '500 12px "IBM Plex Mono", monospace'; g.textAlign = 'center';
+    for (let a = Math.ceil(a0 / 5) * 5; a <= a1; a += 5) g.fillText(a, L + (a - a0 + .5) * bw, H - 9);
+    if (be && be >= a0 && be <= a1) {
+      const x = L + (be - a0) * bw; g.strokeStyle = '#1B2A26'; g.setLineDash([5, 4]); g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(x, T - 4); g.lineTo(x, H - B); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#1B2A26'; g.font = '600 12px "Public Sans", sans-serif'; g.textAlign = x > W - 120 ? 'right' : 'left';
+      g.fillText('break-even', x + (x > W - 120 ? -5 : 5), T + 8);
+    }
+  }
+
+  // ================= Tab 2: the family bet =================
+  function refreshBet() {
+    const two = $('two').checked;
+    $('runBet').disabled = !two || running;
+    $('betQ').textContent = two ? `Who collects more over their lifetime: ${P[0].name} or ${P[1].name}?` : 'Tick "Include person 2" to run the family bet.';
+    if (!two) { $('today').innerHTML = ''; return; }
+    const parts = [0, 1].map(i => {
+      const p = P[i], a = age0(p), months = Math.max(0, Math.round((a - p.claim) * 12));
+      const amt = p.pia * ownFactor(p.by, p.claim * 12);
+      return months ? `${p.name} has collected about <b>${money(amt * months)}</b> so far (${months} checks of ${money(amt)})` : `${p.name} hasn't started yet (starts at ${p.claim})`;
+    });
+    $('today').innerHTML = `<b style="font-family:inherit">Who's ahead today?</b> ${parts.join('; ')}. Not counting raises or growth.`;
+    $('b0T').textContent = `of lives, ${P[0].name} collects more`; $('b1T').textContent = `of lives, ${P[1].name} collects more`;
+  }
+  function runBet() {
+    if (running || !$('two').checked) return; running = true; $('runBet').disabled = true;
+    const rng = newRng(), N = 10000, married = $('married').checked;
+    const ppl = [0, 1].map(i => Object.assign({ age0: age0(P[i]) }, P[i])), claims = [P[0].claim, P[1].claim];
+    let n = 0, w0 = 0, w1 = 0, s0 = 0, s1 = 0, outlive0 = 0;
+    const step = () => {
+      for (let k = 0; k < 500 && n < N; k++, n++) {
+        const d = [deathAge(ppl[0], rng), deathAge(ppl[1], rng)];
+        const v0 = received(0, d, claims, married), v1 = received(1, d, claims, married);
+        s0 += v0; s1 += v1; if (v0 >= v1) w0++; else w1++;
+        if (d[0] - P[0].by > d[1] - P[1].by) outlive0++;   // compares calendar years of death
+      }
+      const pc = x => Math.round(x / n * 1000) / 10, segs = $('bSplit').children;
+      segs[0].style.width = pc(w0) + '%'; segs[1].style.width = pc(w1) + '%';
+      segs[0].textContent = pc(w0) >= 12 ? P[0].name + ' ' + pc(w0) + '%' : ''; segs[1].textContent = pc(w1) >= 12 ? P[1].name + ' ' + pc(w1) + '%' : '';
+      $('b0N').textContent = pc(w0) + '%'; $('b1N').textContent = pc(w1) + '%';
+      $('bProg').textContent = `${n.toLocaleString()} of ${N.toLocaleString()} lives rolled`;
+      if (n < N) requestAnimationFrame(step);
+      else {
+        running = false; refreshBet(); window.labTrack && labTrack('klives', 10);
+        const notes = [`Average lifetime total: <b>${P[0].name} ${bigMoney(s0 / n)}</b>, <b>${P[1].name} ${bigMoney(s1 / n)}</b>${married ? ' (including spousal and survivor benefits)' : ''}.`,
+          `${P[0].name} outlives ${P[1].name} in ${pc(outlive0)}% of the rolled lives.`,
+          `This compares two different people, so check size and lifespan matter more than claim age. To see whether each one chose well, use <b>Should they wait?</b> for each person.`];
+        $('bNotes').innerHTML = notes.map(t => `<li>${t}</li>`).join('');
+      }
+    };
+    step();
+  }
+
+  // ================= Wiring =================
+  function refresh() {
+    setGrowth();
+    const two = $('two').checked;
+    $('p1').classList.toggle('off', !two); $('married').disabled = !two;
+    [0, 1].forEach(i => $('calc' + i).innerHTML = calcLine(i));
+    refreshWait(); refreshBet();
+  }
+  [0, 1].forEach(buildCard);
+  try { const o = JSON.parse(localStorage.getItem('ss-opts') || 'null'); if (o) { $('two').checked = o.two !== false; $('married').checked = o.married !== false; $('growth').value = o.growth || '0'; } } catch (e) {}
+  function saveOpts() { try { localStorage.setItem('ss-opts', JSON.stringify({ two: $('two').checked, married: $('married').checked, growth: $('growth').value })); } catch (e) {} }
+  ['two', 'married', 'growth'].forEach(id => $(id).addEventListener('change', () => { saveOpts(); refresh(); }));
+  ['who', 'ageE', 'ageL'].forEach(id => $(id).addEventListener('change', refreshWait));
+  $('ageE').innerHTML = range(62, 69).map(a => opt(a, a, a === 66)).join('');
+  $('ageL').innerHTML = range(63, 70).map(a => opt(a, a, a === 70)).join('');
+  $('runWait').addEventListener('click', runWait);
+  $('runBet').addEventListener('click', runBet);
+  function setTab(bet) {
+    $('tabWait').classList.toggle('on', !bet); $('tabBet').classList.toggle('on', bet);
+    $('tabWait').setAttribute('aria-selected', !bet); $('tabBet').setAttribute('aria-selected', bet);
+    $('panelWait').hidden = bet; $('panelBet').hidden = !bet;
+  }
+  $('tabWait').addEventListener('click', () => setTab(false));
+  $('tabBet').addEventListener('click', () => setTab(true));
+  refresh();
+  drawHist(new Array(121).fill(0), new Array(121).fill(0), new Array(121).fill(0), null, 66);
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
