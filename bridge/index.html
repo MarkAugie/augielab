@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Quantum Dealer · Bridge · AugieLab</title>
+<meta name="description" content="Bridge deals shuffled by random numbers, soon by a quantum random number generator. Hand records with HCP, shape, losing tricks, rare-hand odds, deal filters, four-color deck, printing, PBN and BBO export.">
+<meta property="og:title" content="The Quantum Dealer">
+<meta property="og:description" content="Bridge deals shuffled by quantum randomness, with hand analysis, rare-hand odds, deal filters, printing and BBO export.">
+<meta property="og:url" content="https://augielab.dev/bridge/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --felt: #0F4A33; --felt2: #0A3624; --card: #FFFCF4; --ink: #1A1A1A; --dim: #5B5B55; --gold: #D9B45A; --cream: #F3EBD6;
+    --sp: #111111; --he: #C8102E; --di: #C8102E; --cl: #111111;
+    --vul: #C8102E; --nv: #2F7D4F;
+  }
+  body.four { --di: #E46B00; --cl: #127A3E; --sp: #111111; --he: #C8102E; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--felt2); }
+  body { min-height: 100vh; color: var(--cream); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; padding: 16px 16px 110px;
+    background: radial-gradient(ellipse 90% 70% at 50% 35%, #17694A, var(--felt) 55%, var(--felt2)) fixed; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; }
+  .top a { color: #CFE3D6; text-decoration: none; font-weight: 600; }
+  header { text-align: center; margin: 2px 0 16px; }
+  h1 { font: 700 clamp(2.3rem, 7vw, 3.8rem)/1 "Cormorant Garamond", Georgia, serif; letter-spacing: .01em; color: #FFF7E2; }
+  h1 em { color: var(--gold); }
+  .sub { color: #D6E6DA; font-size: 1.05rem; margin-top: 6px; }
+  .suitline { color: var(--gold); letter-spacing: .4em; font-size: 1.1rem; margin-top: 4px; }
+
+  /* ---------- the table ---------- */
+  .table { display: grid; grid-template-columns: 1fr minmax(190px, 230px) 1fr; grid-template-areas: ". n ." "w c e" ". s ."; gap: 14px; align-items: center; justify-items: center; }
+  .hand { background: var(--card); color: var(--ink); border-radius: 12px; padding: 10px 14px 12px; min-width: 210px; box-shadow: 0 10px 24px -10px rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.06); }
+  .hand.n { grid-area: n; } .hand.s { grid-area: s; } .hand.w { grid-area: w; justify-self: end; } .hand.e { grid-area: e; justify-self: start; }
+  .hand .who { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font: 700 .78rem "IBM Plex Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid #E4DCC8; padding-bottom: 4px; margin-bottom: 4px; }
+  .hand .who b { color: var(--ink); }
+  .hand .who .dl { color: #8A6A10; }
+  .suit { display: flex; gap: 8px; font: 600 1.32rem/1.42 "IBM Plex Sans", sans-serif; white-space: nowrap; }
+  .suit .sym { width: 1.1em; text-align: center; }
+  .suit .cards { letter-spacing: .03em; }
+  .suit .void { color: #9A9488; font-weight: 500; }
+  .s-sp { color: var(--sp); } .s-he { color: var(--he); } .s-di { color: var(--di); } .s-cl { color: var(--cl); }
+  .hand .facts { font: 500 .78rem "IBM Plex Mono", monospace; color: var(--dim); margin-top: 6px; border-top: 1px solid #E4DCC8; padding-top: 5px; }
+  .hand.hidden .suit .cards { filter: blur(9px); user-select: none; }
+  .hand.hidden { cursor: pointer; }
+
+  .compass { grid-area: c; width: 100%; aspect-ratio: 1; position: relative; border-radius: 16px; background: linear-gradient(145deg, #3A2A18, #24190E); box-shadow: inset 0 0 0 3px #5A4326, 0 12px 26px -10px rgba(0,0,0,.7); color: #F6EBCF; }
+  .compass .cell { position: absolute; display: flex; flex-direction: column; align-items: center; font: 700 1rem "IBM Plex Sans", sans-serif; }
+  .compass .cell small { font: 600 .78rem "IBM Plex Mono", monospace; color: #E9D9AE; }
+  .compass .cn { top: 6%; left: 50%; transform: translateX(-50%); } .compass .cs { bottom: 6%; left: 50%; transform: translateX(-50%); }
+  .compass .cw { left: 6%; top: 50%; transform: translateY(-50%); } .compass .ce { right: 6%; top: 50%; transform: translateY(-50%); }
+  .compass .seat { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: var(--nv); color: #fff; }
+  .compass .seat.vul { background: var(--vul); }
+  .compass .seat.dealer { box-shadow: 0 0 0 3px var(--gold); }
+  .compass .mid { position: absolute; inset: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .compass .mid b { font: 700 1.55rem/1 "Cormorant Garamond", serif; color: #FFF3D0; }
+  .compass .mid span { font-size: .72rem; color: #E9D9AE; line-height: 1.3; margin-top: 3px; }
+
+  /* ---------- controls ---------- */
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin: 22px 0 6px; }
+  .btn { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 10px 16px; border-radius: 10px; cursor: pointer; color: #FFF7E2; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.35); }
+  .btn:hover { border-color: #fff; }
+  .btn.deal { background: linear-gradient(180deg, #E6C46C, var(--gold)); color: #2A1E00; border: 0; font-size: 1.2rem; padding: 13px 30px; box-shadow: 0 5px 0 #8F7128; }
+  .btn.deal:active { transform: translateY(3px); box-shadow: 0 2px 0 #8F7128; }
+  .btn.on { background: var(--cream); color: var(--ink); border-color: var(--cream); }
+  select { font: 600 1rem "IBM Plex Sans", sans-serif; padding: 10px 12px; border-radius: 10px; background: #0B3A27; color: #FFF7E2; border: 1px solid rgba(255,255,255,.35); max-width: 100%; }
+  button:focus-visible, select:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .status { text-align: center; color: #D6E6DA; min-height: 1.5em; font-size: .95rem; }
+
+  .panels { display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px; margin-top: 18px; }
+  .panel { background: rgba(5,30,20,.55); border: 1px solid rgba(217,180,90,.35); border-radius: 14px; padding: 16px 18px; }
+  .panel h2 { font: 700 1.4rem "Cormorant Garamond", serif; color: #FFF3D0; margin-bottom: 8px; }
+  table.facts { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  table.facts th, table.facts td { padding: 6px 6px; text-align: center; border-bottom: 1px solid rgba(255,255,255,.12); }
+  table.facts th { font: 700 .72rem "IBM Plex Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #CDBF95; }
+  table.facts td:first-child, table.facts th:first-child { text-align: left; }
+  table.facts td { font-family: "IBM Plex Mono", monospace; }
+  .note { color: #CFE0D4; font-size: .9rem; margin-top: 10px; }
+  .gems { list-style: none; }
+  .gems li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .gems li b { color: #FFE3A0; }
+  .gems li:last-child { border-bottom: 0; }
+  .odds { font: 600 .95rem "IBM Plex Mono", monospace; color: var(--gold); word-break: break-word; }
+
+  .source { margin-top: 26px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .9rem; color: #CFE0D4; text-align: center; }
+  .source i { width: 10px; height: 10px; border-radius: 50%; background: #E0A423; flex: none; }
+  .source.quantum i { background: #3BE37A; box-shadow: 0 0 8px #3BE37A; }
+
+  @media (max-width: 760px) {
+    html { font-size: 18px; }
+    body { padding: 12px 8px 110px; }
+    .table { grid-template-columns: 1fr 1fr; grid-template-areas: "n n" "w e" "c c" "s s"; gap: 10px; }
+    .hand { min-width: 0; width: 100%; padding: 8px 9px 10px; }
+    .hand.w, .hand.e { justify-self: stretch; }
+    .suit { font-size: 1.08rem; gap: 5px; white-space: normal; }
+    .compass { width: 250px; }
+    .compass .mid { inset: 27%; }
+    .compass .mid b { font-size: 1.25rem; }
+    .compass .mid span { font-size: .68rem; }
+    .compass .seat { width: 30px; height: 30px; }
+    .panels { grid-template-columns: 1fr; }
+  }
+  @media print {
+    @page { margin: .5in; }
+    html, body { background: #fff !important; color: #000; font-size: 14px; }
+    .top, .bar, .status, .source, .no-print, .lab-why, .lab-info { display: none !important; }
+    h1, .sub, .suitline, .panel h2 { color: #000; }
+    .hand { box-shadow: none; border: 1px solid #999; }
+    .compass { background: #fff; color: #000; box-shadow: inset 0 0 0 2px #000; }
+    .compass .mid b, .compass .mid span, .compass .cell small { color: #000; }
+    .panel { background: #fff; border-color: #999; color: #000; }
+    table.facts th { color: #333; } .note, .gems li b, .odds { color: #000; }
+    .hand.hidden .suit .cards { filter: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>The <em>Quantum</em> Dealer</h1>
+    <p class="suitline">♠ <span style="color:#E0566B">♥</span> <span style="color:#E0566B">♦</span> ♣</p>
+    <p class="sub">Bridge deals shuffled by true randomness. Every deal comes with a hand record, the odds, and anything remarkable worth talking about.</p>
+  </header>
+
+  <main class="table" id="table">
+    <section class="hand n" id="h-N"></section>
+    <section class="hand w" id="h-W"></section>
+    <div class="compass" id="compass"></div>
+    <section class="hand e" id="h-E"></section>
+    <section class="hand s" id="h-S"></section>
+  </main>
+
+  <div class="bar">
+    <button class="btn" id="prev" aria-label="Previous board">◀</button>
+    <button class="btn deal" id="deal">Deal</button>
+    <button class="btn" id="next" aria-label="Next board">▶</button>
+    <select id="filter" aria-label="What kind of deal">
+      <option value="any">Any deal</option>
+      <option value="1nt">South opens 1NT (15–17, balanced)</option>
+      <option value="strong">South has a strong hand (20+ HCP)</option>
+      <option value="game">Game zone: N–S hold 25+ HCP</option>
+      <option value="slam">Slam zone: N–S hold 33+ HCP</option>
+      <option value="seven">Wild: someone holds a 7+ card suit</option>
+      <option value="freak">Freak: an 8+ card suit or a 7–5 hand</option>
+      <option value="void">Someone holds two voids</option>
+      <option value="yarb">A Yarborough at the table</option>
+    </select>
+  </div>
+  <div class="bar no-print">
+    <button class="btn" id="hideEW" aria-pressed="false">Hide East–West</button>
+    <button class="btn" id="four" aria-pressed="false">Four-color deck</button>
+    <button class="btn" id="print">Print hand record</button>
+    <button class="btn" id="pbn">Copy PBN</button>
+    <a class="btn" id="bbo" target="_blank" rel="noopener" style="text-decoration:none">Open in BBO ↗</a>
+  </div>
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <section class="panels">
+    <div class="panel">
+      <h2>At a glance</h2>
+      <table class="facts" id="facts"></table>
+      <p class="note" id="sides"></p>
+    </div>
+    <div class="panel">
+      <h2>Worth a mention</h2>
+      <ul class="gems" id="gems"></ul>
+    </div>
+  </section>
+
+  <div class="source" id="source"><i></i><span id="sourceText">Shuffle: demo mode, from your browser's generator.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>A true shuffle</h3>
+  <p>Each deal is a proper shuffle of all 52 cards: every card is placed by a random draw (the Fisher–Yates method), so every one of the 53,644,737,765,488,792,839,237,440,000 possible deals is equally likely. Human shuffles aren't quite that random: a few riffles leave clumps behind, which is why duplicate bridge moved to computer-dealt boards long ago. Soon this page will draw its randomness from a <strong>quantum random number generator</strong> (a Crypta Labs device), so each deal is decided by real quantum measurements. When it's connected, the dot at the bottom turns green.</p>
+  <h3>Boards, dealer and vulnerability</h3>
+  <p>Boards follow the standard 16-board cycle used at every club: board 1 is North to deal, nobody vulnerable; board 2 East, N–S vulnerable; and so on. In the compass, red seats are vulnerable and the gold ring marks the dealer.</p>
+  <h3>The numbers</h3>
+  <p><strong>HCP</strong>: high-card points (A 4, K 3, Q 2, J 1). <strong>Shape</strong>: suit lengths, longest first. <strong>LTC</strong>: losing trick count, the usual way: in each suit, look at the top three cards (or fewer, in a short suit) and count the missing A, K and Q. <strong>Controls</strong>: A = 2, K = 1. <strong>Balanced</strong> means 4-3-3-3, 4-4-3-2 or 5-3-3-2.</p>
+  <h3>The odds</h3>
+  <p>Shape and point odds are exact, worked out from the 635,013,559,600 possible 13-card hands. For instance, a 4-4-3-2 hand turns up about 21.6% of the time, a 7-card or longer suit about 1 time in 25, and a Yarborough (no card above a nine) about once in 1,828 hands.</p>
+  <h3>Deal filters</h3>
+  <p>Want to practice slam bidding, or see something wild? Pick a filter and the dealer keeps shuffling until a deal fits. Every deal it throws away is just as random, so the deal you get is a fair pick from all the deals that fit.</p>
+  <h3>Practice and export</h3>
+  <p><strong>Hide East–West</strong> lets you plan the play as declarer before peeking (tap a hidden hand to reveal it). <strong>Copy PBN</strong> gives the standard Portable Bridge Notation for other bridge software, and <strong>Open in BBO</strong> shows the deal in Bridge Base Online's hand viewer, where you can play it through.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  // ================= Randomness source =================
+  // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
+  // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
+  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], fetching = false, quantum = false, qUsed = 0, bUsed = 0;
+  function setSource(q, fellBack) { quantum = q; $('source').classList.toggle('quantum', q); showSource(fellBack); }
+  function showSource(fellBack) {
+    const t = qUsed + bUsed;
+    $('sourceText').textContent = quantum
+      ? `Shuffle: quantum, from the ${SOURCE.NAME}` + (t && qUsed < t ? ` (${Math.round(qUsed / t * 100)}% of draws; long filter searches top up from your browser).` : '.')
+      : fellBack ? 'The quantum generator is offline, so shuffles come from your browser (demo mode).' : "Shuffle: demo mode, from your browser's generator.";
+  }
+  setSource(false);
+  async function refill() {
+    if (!SOURCE.ENDPOINT || fetching || pool.length > 8192) return;
+    fetching = true;
+    try { const r = await fetch(SOURCE.ENDPOINT + '?n=4096', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0; pool.push(...j.values); if (!quantum) setSource(true); }
+    catch (e) { if (quantum || !SOURCE.tried) setSource(false, true); }
+    finally { SOURCE.tried = true; fetching = false; }
+  }
+  setInterval(refill, 2000); refill();
+  const cbuf = new Uint32Array(4096); let cpos = cbuf.length;
+  function rand32() {
+    if (quantum && pool.length >= 4) { qUsed++; const b = pool.splice(0, 4); return (((b[0] << 24) >>> 0) + (b[1] << 16) + (b[2] << 8) + b[3]) >>> 0; }
+    bUsed++; if (cpos >= cbuf.length) { crypto.getRandomValues(cbuf); cpos = 0; } return cbuf[cpos++];
+  }
+  function randInt(n) { const lim = 4294967296 - (4294967296 % n); let x; do x = rand32(); while (x >= lim); return x % n; }   // no modulo bias
+
+  // ================= Cards =================
+  const SEATS = ['N', 'E', 'S', 'W'], SEATNAME = { N: 'North', E: 'East', S: 'South', W: 'West' };
+  const SUITS = [['♠', 's-sp', 'S'], ['♥', 's-he', 'H'], ['♦', 's-di', 'D'], ['♣', 's-cl', 'C']];
+  const RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];   // card c: suit = c / 13 | 0, rank index = c % 13
+  const HCP = [4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  function deal() {
+    const d = Array.from({ length: 52 }, (_, i) => i);
+    for (let i = 51; i > 0; i--) { const j = randInt(i + 1); [d[i], d[j]] = [d[j], d[i]]; }
+    const hands = {}; SEATS.forEach((s, k) => hands[s] = d.slice(k * 13, k * 13 + 13).sort((a, b) => a - b));
+    return hands;
+  }
+  // ================= Hand evaluation =================
+  function analyse(h) {
+    const suits = [[], [], [], []]; for (const c of h) suits[c / 13 | 0].push(c % 13);
+    const len = suits.map(s => s.length), hcp = h.reduce((t, c) => t + HCP[c % 13], 0);
+    const shape = len.slice().sort((a, b) => b - a), key = shape.join('-');
+    const balanced = ['4-3-3-3', '4-4-3-2', '5-3-3-2'].includes(key);
+    let ltc = 0; suits.forEach(s => { const top = s.slice(0, Math.min(3, s.length)); for (let r = 0; r < Math.min(3, s.length); r++) if (!top.includes(r)) ltc++; });
+    const controls = h.reduce((t, c) => t + (c % 13 === 0 ? 2 : c % 13 === 1 ? 1 : 0), 0);
+    const yarb = h.every(c => c % 13 >= 4);
+    return { suits, len, hcp, shape, key, balanced, ltc, controls, yarb, voids: len.filter(l => l === 0).length, longest: shape[0] };
+  }
+
+  // ================= Exact odds =================
+  const C = (() => { const t = []; for (let n = 0; n <= 52; n++) { t[n] = [1]; for (let k = 1; k <= n; k++) t[n][k] = (t[n - 1][k - 1] || 0) + (k <= n - 1 ? t[n - 1][k] : 0); } return (n, k) => k < 0 || k > n ? 0 : t[n][k]; })();
+  const TOTAL = C(52, 13);                                            // 635,013,559,600
+  const SHAPE = {};                                                   // pattern -> probability
+  for (let a = 0; a <= 13; a++) for (let b = 0; b <= 13 - a; b++) for (let c = 0; c <= 13 - a - b; c++) {
+    const d = 13 - a - b - c, key = [a, b, c, d].sort((x, y) => y - x).join('-');
+    SHAPE[key] = (SHAPE[key] || 0) + C(13, a) * C(13, b) * C(13, c) * C(13, d) / TOTAL;
+  }
+  const LONGEST = k => Object.entries(SHAPE).filter(([s]) => +s.split('-')[0] >= k).reduce((t, [, p]) => t + p, 0);
+  const HCPDIST = (() => { const p = new Array(41).fill(0);          // exact HCP distribution
+    for (let a = 0; a <= 4; a++) for (let k = 0; k <= 4; k++) for (let q = 0; q <= 4; q++) for (let j = 0; j <= 4; j++) {
+      const rest = 13 - a - k - q - j; if (rest < 0) continue;
+      p[4 * a + 3 * k + 2 * q + j] += C(4, a) * C(4, k) * C(4, q) * C(4, j) * C(36, rest) / TOTAL;
+    } return p; })();
+  const atLeast = n => HCPDIST.slice(n).reduce((t, v) => t + v, 0);
+  const PYARB = C(32, 13) / TOTAL;
+  function oneIn(p) { const n = 1 / p; return n < 10 ? `about 1 in ${n.toFixed(1)}` : `about 1 in ${Math.round(n).toLocaleString('en-US')}`; }
+  const pct = p => p >= .1 ? (p * 100).toFixed(1) + '%' : p >= .001 ? (p * 100).toFixed(2) + '%' : (p * 100).toFixed(4) + '%';
+
+  // ================= Boards =================
+  const VUL = ['None', 'N-S', 'E-W', 'Both', 'N-S', 'E-W', 'Both', 'None', 'E-W', 'Both', 'None', 'N-S', 'Both', 'None', 'N-S', 'E-W'];
+  const dealerOf = b => SEATS[(b - 1) % 4], vulOf = b => VUL[(b - 1) % 16];
+  const isVul = (seat, v) => v === 'Both' || (v === 'N-S' && (seat === 'N' || seat === 'S')) || (v === 'E-W' && (seat === 'E' || seat === 'W'));
+
+  // ================= Filters =================
+  const FILTERS = {
+    any: () => true,
+    '1nt': D => { const s = D.S; return s.balanced && s.hcp >= 15 && s.hcp <= 17; },
+    strong: D => D.S.hcp >= 20,
+    game: D => D.N.hcp + D.S.hcp >= 25,
+    slam: D => D.N.hcp + D.S.hcp >= 33,
+    seven: D => SEATS.some(s => D[s].longest >= 7),
+    freak: D => SEATS.some(s => D[s].longest >= 8 || (D[s].shape[0] >= 7 && D[s].shape[1] >= 5)),
+    void: D => SEATS.some(s => D[s].voids >= 2),
+    yarb: D => SEATS.some(s => D[s].yarb),
+  };
+
+  // ================= State =================
+  let boards = [], at = -1, showEW = true, revealed = {};
+  function newBoard() {
+    const f = FILTERS[$('filter').value]; let hands, A, tries = 0;
+    do { hands = deal(); A = {}; SEATS.forEach(s => A[s] = analyse(hands[s])); tries++; } while (!f(A) && tries < 2000000);
+    const num = boards.length ? boards[boards.length - 1].num + 1 : 1;
+    boards.push({ num, hands, A, tries, filter: $('filter').selectedOptions[0].text });
+    at = boards.length - 1; revealed = {};
+    window.labTrack && labTrack('deal', 1);
+    render();
+  }
+
+  // ================= Drawing =================
+  function handHTML(seat, b) {
+    const A = b.A[seat], dealer = dealerOf(b.num) === seat, hidden = !showEW && (seat === 'E' || seat === 'W') && !revealed[seat];
+    const rows = SUITS.map(([sym, cls], i) => {
+      const cards = A.suits[i].map(r => RANKS[r]).join(' ');
+      return `<div class="suit"><span class="sym ${cls}">${sym}</span><span class="cards ${A.suits[i].length ? '' : 'void'}">${A.suits[i].length ? cards : '—'}</span></div>`;
+    }).join('');
+    return { hidden, html: `<div class="who"><b>${SEATNAME[seat]}</b>${dealer ? '<span class="dl">Dealer</span>' : ''}<span>${A.hcp} HCP</span></div>${rows}
+      <div class="facts">${A.key}${A.balanced ? ' · bal' : ''} · LTC ${A.ltc}</div>` };
+  }
+  function render() {
+    const b = boards[at]; if (!b) return;
+    SEATS.forEach(s => { const el = $('h-' + s), { hidden, html } = handHTML(s, b); el.innerHTML = html; el.classList.toggle('hidden', hidden); el.title = hidden ? 'Tap to reveal' : ''; });
+    const v = vulOf(b.num), dl = dealerOf(b.num);
+    $('compass').innerHTML = ['N', 'E', 'S', 'W'].map(s => `<div class="cell c${s.toLowerCase()}"><span class="seat ${isVul(s, v) ? 'vul' : ''} ${dl === s ? 'dealer' : ''}">${s}</span><small>${!showEW && (s === 'E' || s === 'W') && !revealed[s] ? '?' : b.A[s].hcp}</small></div>`).join('') +
+      `<div class="mid"><b>Board ${b.num}</b><span>Dealer ${SEATNAME[dl]}<br>Vul: ${v === 'None' ? 'None' : v === 'Both' ? 'Both' : v}</span></div>`;
+    // facts table
+    const show = s => showEW || s === 'N' || s === 'S' || revealed[s];
+    $('facts').innerHTML = `<tr><th>Seat</th><th>HCP</th><th>Shape</th><th>♠-♥-♦-♣</th><th>LTC</th><th>Ctrl</th></tr>` +
+      SEATS.map(s => { const A = b.A[s]; return show(s) ? `<tr><td>${SEATNAME[s]}</td><td>${A.hcp}</td><td>${A.key}</td><td>${A.len.join('-')}</td><td>${A.ltc}</td><td>${A.controls}</td></tr>` : `<tr><td>${SEATNAME[s]}</td><td colspan="5">hidden</td></tr>`; }).join('');
+    const ns = b.A.N.hcp + b.A.S.hcp, ew = 40 - ns;
+    $('sides').innerHTML = `N–S hold <b>${ns}</b> HCP, E–W hold <b>${showEW || (revealed.E && revealed.W) ? ew : '?'}</b>.` + (ns >= 33 ? ' Slam territory for North–South.' : ns >= 25 ? ' Game values for North–South.' : ew >= 33 ? ' Slam territory for East–West.' : ew >= 25 ? ' Game values for East–West.' : ' A partscore battle.');
+    gems(b);
+    $('status').textContent = b.tries > 1 ? `Found after ${b.tries.toLocaleString('en-US')} shuffles (filter: ${b.filter}).` : '';
+    $('prev').disabled = at <= 0;
+    // BBO link
+    const hv = s => SUITS.map(([, , L], i) => L.toLowerCase() + b.A[s].suits[i].map(r => RANKS[r] === '10' ? 't' : RANKS[r].toLowerCase()).join('')).join('');
+    const vv = { 'None': '-', 'N-S': 'n', 'E-W': 'e', 'Both': 'b' }[v];
+    $('bbo').href = `https://www.bridgebase.com/tools/handviewer.html?n=${hv('N')}&e=${hv('E')}&s=${hv('S')}&w=${hv('W')}&d=${dl.toLowerCase()}&v=${vv}&b=${b.num}`;
+  }
+
+  function gems(b) {
+    const out = [], seen = s => showEW || s === 'N' || s === 'S' || revealed[s];
+    // rarest shape at the table
+    let rare = null; SEATS.filter(seen).forEach(s => { const p = SHAPE[b.A[s].key]; if (!rare || p < rare.p) rare = { s, p, key: b.A[s].key }; });
+    if (rare) out.push(`<b>Rarest shape:</b> ${SEATNAME[rare.s]}'s ${rare.key}, dealt ${pct(rare.p)} of the time (${oneIn(rare.p)} hands).`);
+    SEATS.filter(seen).forEach(s => {
+      const A = b.A[s];
+      if (A.longest >= 7) out.push(`<b>${SEATNAME[s]} holds a ${A.longest}-card suit.</b> A ${A.longest}+ card suit comes along ${oneIn(LONGEST(A.longest))} hands.`);
+      if (A.voids) out.push(`<b>${SEATNAME[s]} has ${A.voids === 1 ? 'a void' : A.voids + ' voids'}.</b>`);
+      if (A.yarb) out.push(`<b>${SEATNAME[s]} holds a Yarborough</b>: nothing higher than a nine. That happens ${oneIn(PYARB)} hands. The story goes that Lord Yarborough offered 1,000 to 1 against it.`);
+      if (A.hcp >= 20) out.push(`<b>${SEATNAME[s]} has ${A.hcp} HCP.</b> ${A.hcp}+ points turns up in ${pct(atLeast(A.hcp))} of hands (${oneIn(atLeast(A.hcp))}).`);
+      if (A.hcp === 0) out.push(`<b>${SEATNAME[s]} has a zero-count hand.</b> Not a single honor: ${oneIn(HCPDIST[0])} hands.`);
+    });
+    const best = SEATS.filter(seen).reduce((m, s) => b.A[s].hcp > b.A[m].hcp ? s : m, 'S');
+    if (out.length < 3) out.push(`<b>Points:</b> ${SEATNAME[best]} has the most, ${b.A[best].hcp}. A hand averages exactly 10.`);
+    out.push(`<b>This exact deal:</b> <span class="odds">1 in 53,644,737,765,488,792,839,237,440,000</span>. It has almost certainly never been dealt before, and never will be again.`);
+    $('gems').innerHTML = out.map(x => `<li>${x}</li>`).join('');
+  }
+
+  // ================= PBN =================
+  function pbn(b) {
+    const hand = s => SUITS.map((_, i) => b.A[s].suits[i].map(r => RANKS[r] === '10' ? 'T' : RANKS[r]).join('')).join('.');
+    const v = { 'None': 'None', 'N-S': 'NS', 'E-W': 'EW', 'Both': 'All' }[vulOf(b.num)];
+    return `[Event "AugieLab Quantum Dealer"]\n[Board "${b.num}"]\n[Dealer "${dealerOf(b.num)}"]\n[Vulnerable "${v}"]\n[Deal "N:${['N', 'E', 'S', 'W'].map(hand).join(' ')}"]\n`;
+  }
+
+  // ================= Controls =================
+  $('deal').addEventListener('click', newBoard);
+  $('next').addEventListener('click', () => { if (at < boards.length - 1) { at++; revealed = {}; render(); } else newBoard(); });
+  $('prev').addEventListener('click', () => { if (at > 0) { at--; revealed = {}; render(); } });
+  $('hideEW').addEventListener('click', () => { showEW = !showEW; revealed = {}; $('hideEW').classList.toggle('on', !showEW); $('hideEW').setAttribute('aria-pressed', !showEW); render(); });
+  ['E', 'W'].forEach(s => $('h-' + s).addEventListener('click', () => { if (!showEW && !revealed[s]) { revealed[s] = true; render(); } }));
+  let four = false; try { four = localStorage.getItem('bridge-four') === '1'; } catch (e) {}
+  function setFour(v) { four = v; document.body.classList.toggle('four', v); $('four').classList.toggle('on', v); $('four').setAttribute('aria-pressed', v); try { localStorage.setItem('bridge-four', v ? '1' : '0'); } catch (e) {} }
+  setFour(four); $('four').addEventListener('click', () => setFour(!four));
+  $('print').addEventListener('click', () => print());
+  $('pbn').addEventListener('click', async () => {
+    const t = pbn(boards[at]);
+    try { await navigator.clipboard.writeText(t); $('status').textContent = 'PBN copied. Paste it into your bridge software.'; }
+    catch (e) { $('status').textContent = t.replace(/\n/g, '  '); }
+  });
+  $('filter').addEventListener('change', newBoard);
+  addEventListener('keydown', e => { if (e.target.tagName === 'SELECT') return; if (e.key === 'ArrowRight') $('next').click(); if (e.key === 'ArrowLeft') $('prev').click(); });
+
+  newBoard();
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
