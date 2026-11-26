@@ -34,7 +34,7 @@
   .style button { font: 700 .9rem "IBM Plex Sans", sans-serif; padding: 6px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
   .style button.on { background: var(--ink); color: #fff; }
 
-  .tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 16px 0; padding: 8px 0; background: var(--paper); }
+  .tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 16px 0; padding: 8px 0; background: var(--paper); }
   .tab { font: 700 1rem/1.15 "IBM Plex Sans", sans-serif; padding: 12px 6px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
   .tab.on { background: var(--red); border-color: var(--red); color: #fff; }
   .view { display: none; } .view.on { display: block; }
@@ -117,6 +117,19 @@
   .hand button.check svg rect { stroke: var(--gold); stroke-width: 5; }
   .hand button.check::before { content: "check"; position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); font: 700 11px/1 "IBM Plex Sans", sans-serif; color: var(--gold); text-transform: uppercase; letter-spacing: .05em; }
   .hand.flagged { padding-bottom: 14px; }
+  /* set check */
+  .found { font: 800 clamp(2.6rem, 12vw, 4.2rem)/1 "Fraunces", Georgia, serif; color: var(--green); }
+  .found small { font-size: .45em; color: var(--dim); font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  .missing { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
+  .chart { display: grid; gap: 3px; margin-top: 10px; }
+  .chart .r { display: grid; grid-template-columns: 2.2em repeat(13, minmax(0, 1fr)); gap: 3px; align-items: center; }
+  .chart .h { font: 700 .95rem "IBM Plex Mono", monospace; color: var(--dim); text-align: right; padding-right: 4px; }
+  .chart button { font: 700 clamp(.7rem, 3.2vw, 1rem) "IBM Plex Mono", monospace; aspect-ratio: 1; min-height: 26px; padding: 0; border-radius: 6px; cursor: pointer;
+    border: 2px dashed var(--red); background: #FDECEE; color: var(--red); }
+  .chart button.y { border: 2px solid var(--green); background: #E3F3EA; color: var(--green); }
+  .chart button.d { border: 2px solid var(--gold); background: #FFF4D6; color: #8A5E00; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: .95rem; color: var(--dim); }
+  .key i { display: inline-block; width: 16px; height: 16px; border-radius: 4px; vertical-align: -3px; margin-right: 6px; }
   .odds { margin-top: 10px; font-size: 1.1rem; font-weight: 600; }
 
   .rules { margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
@@ -128,6 +141,7 @@
     .pending { justify-self: center; }
     .pad { grid-template-columns: repeat(5, 1fr); }
     .pad button { height: 56px; }
+    .tabs { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 </head>
@@ -146,6 +160,7 @@
     <button class="tab on" data-v="open" role="tab">My opening train</button>
     <button class="tab" data-v="count" role="tab">Count my tiles</button>
     <button class="tab" data-v="score" role="tab">Scoreboard</button>
+    <button class="tab" data-v="set" role="tab">Check my set</button>
   </nav>
 
   <!-- ============ OPENING TRAIN ============ -->
@@ -236,6 +251,35 @@
       <div class="msg" id="msg-score" aria-live="polite"></div>
     </div>
   </section>
+  <!-- ============ CHECK MY SET ============ -->
+  <section class="view" id="v-set">
+    <div class="card">
+      <h2>Is a tile missing?</h2>
+      <p class="help" style="margin-top:0">A Double-12 set has <b>91 tiles</b>. Spread them face up in about <b>4 piles</b> and take one photo of each pile. The photos add up, and the chart shows what's missing.</p>
+      <div style="margin-top:12px">
+        <button class="btn photo" id="photo-set">📷 Snap a pile</button>
+        <button class="btn pick" id="pick-set">🖼️ Or choose saved photos</button>
+        <input type="file" accept="image/*" capture="environment" id="file-set" hidden>
+        <input type="file" accept="image/*" multiple id="gal-set" hidden>
+      </div>
+      <div class="photomsg" id="pmsg-set" aria-live="polite"></div>
+    </div>
+    <div class="card">
+      <div class="found" id="setFound">0 <small>of 91 found</small></div>
+      <p class="help" id="setPhotos">No photos yet.</p>
+      <div id="setMissing"></div>
+      <div class="row">
+        <button class="btn small" id="setUndo">Undo last photo</button>
+        <button class="btn small" id="setReset">Start a new check</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>All 91 tiles</h2>
+      <p class="help" style="margin-top:0">Each row is one number; each box is the other number. Tap a box to mark it found or missing yourself.</p>
+      <div class="key"><span><i style="background:#E3F3EA;border:2px solid var(--green)"></i>Found</span><span><i style="background:#FDECEE;border:2px dashed var(--red)"></i>Not found yet</span><span><i style="background:#FFF4D6;border:2px solid var(--gold)"></i>Seen twice (check it)</span></div>
+      <div class="chart" id="setChart"></div>
+    </div>
+  </section>
 </div>
 
 <template id="explain">
@@ -251,6 +295,8 @@
   <p>Thirteen rounds, from the double-12 engine down to double-0. The lowest total wins. Everything is saved on this phone, so closing the page or refreshing won't lose the game. Nothing is sent anywhere.</p>
   <h3>Snap a photo</h3>
   <p>Each photo replaces the tiles on that screen. Lay your tiles flat, spread out a little, in good light without glare, and take a picture from straight above. Claude (an AI from Anthropic) reads the dots or numbers and fills in your hand. Any tile it wasn't sure about gets a gold <strong>check</strong> label. Always look the tiles over: if one is wrong, tap it to remove it and tap in the right one. Set the <strong>Dots / Numbers</strong> switch to match your set first. The photo is only used to read the tiles and isn't saved.</p>
+  <h3>Check my set</h3>
+  <p>Spread the set face up in a few piles and photograph each pile. Every photo adds to the same check, so the app can tell which of the 91 tiles it hasn't seen. A tile seen in two photos is marked gold: either it was photographed twice, or one tile was misread (or there's a tile from another set mixed in). <strong>Undo last photo</strong> takes back a photo you didn't mean to add, and you can tap any box on the chart to fix it by hand.</p>
   <h3>What were the odds?</h3>
   <p>When you count your leftovers, the app works out how many of all the possible hands with that many tiles (from a full Double-12 set) would total as much as yours, or as little. It's exact math, not a guess.</p>
 </template>
@@ -480,6 +526,11 @@
     key: "Photo reading isn't working right now. Tap your tiles in for now.",
     credit: "Photo reading is out of credit right now. Tap your tiles in for now.",
   };
+  async function askPhoto(f) {
+    const image = await shrink(f);
+    const r = await fetch('/api/read-tiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, style }) });
+    return r.json().catch(() => ({}));
+  }
   function setupPhoto(id, E) {
     const btn = $('photo-' + id), pick = $('pick-' + id), msg = $('pmsg-' + id), label = btn.textContent;
     const say = (t, cls) => { msg.textContent = t; msg.className = 'photomsg ' + (cls || ''); };
@@ -489,9 +540,7 @@
     async function read(f) {
       btn.disabled = pick.disabled = true; btn.textContent = '⏳ Reading your tiles…'; say('Claude is counting the dots. This can take up to about 30 seconds.');
       try {
-        const image = await shrink(f);
-        const r = await fetch('/api/read-tiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, style }) });
-        const d = await r.json().catch(() => ({}));
+        const d = await askPhoto(f);
         if (!d.ok) { say(PHOTO_ERR[d.error] || "Couldn't read that photo. Try again in good light, or tap your tiles in.", 'bad'); return; }
         if (!d.tiles.length) { say(d.note || "I couldn't find any dominoes in that photo. Try again from straight above, in good light.", 'bad'); return; }
         const { added, dup } = E.add(d.tiles);
@@ -507,6 +556,62 @@
     }
   }
   setupPhoto('open', open); setupPhoto('count', count);
+
+  // ================= Check my set =================
+  let SET = store.get('setcheck', { photos: [], manual: {} });   // photos: [[ "a-b", ... ]], manual["a-b"] = true/false
+  const ALL = []; for (let a = 12; a >= 0; a--) for (let b = a; b >= 0; b--) ALL.push(`${a}-${b}`);
+  function setState() {
+    const seen = {}; SET.photos.forEach(ph => ph.forEach(k => seen[k] = (seen[k] || 0) + 1));
+    const st = {}; ALL.forEach(k => { const m = SET.manual[k]; st[k] = m === true ? 'y' : m === false ? 'n' : seen[k] > 1 ? 'd' : seen[k] ? 'y' : 'n'; });
+    return st;
+  }
+  function drawSet() {
+    const st = setState(), miss = ALL.filter(k => st[k] === 'n'), dups = ALL.filter(k => st[k] === 'd');
+    const n = 91 - miss.length;
+    $('setFound').innerHTML = `${n} <small>of 91 found</small>`;
+    $('setFound').style.color = n === 91 ? 'var(--green)' : 'var(--red)';
+    $('setPhotos').textContent = SET.photos.length ? `${SET.photos.length} photo${SET.photos.length === 1 ? '' : 's'} so far.` : 'No photos yet.';
+    const kt = k => k.split('-').map(Number);
+    let html = '';
+    if (!SET.photos.length && !Object.keys(SET.manual).length) html = '';
+    else if (!miss.length) html = `<p class="odds" style="color:var(--green)">🎉 All 91 tiles are here. The set is complete!</p>`;
+    else if (miss.length <= 12) html = `<p class="odds">Missing ${miss.length === 1 ? 'tile' : `${miss.length} tiles`}:</p><div class="missing">${miss.map(k => `<span style="display:inline-flex;align-items:center;gap:8px">${tile(...kt(k), TS())}<b style="font:800 1.6rem 'IBM Plex Mono',monospace;color:var(--red)">${k.replace('-', '|')}</b></span>`).join('')}</div>`;
+    else html = `<p class="help">${miss.length} tiles not seen yet. Keep adding piles.</p>`;
+    if (dups.length) html += `<p class="help" style="color:#8A5E00">Seen twice (gold on the chart): ${dups.map(k => k.replace('-', '|')).join(', ')}. Photographed twice, or one tile misread?</p>`;
+    $('setMissing').innerHTML = html;
+    $('setChart').innerHTML = Array.from({ length: 13 }, (_, i) => { const a = 12 - i;
+      return `<div class="r"><span class="h">${a}</span>${Array.from({ length: 13 }, (_, b) => b > a ? '<span></span>' :
+        `<button class="${st[`${a}-${b}`] === 'n' ? '' : st[`${a}-${b}`]}" data-k="${a}-${b}" aria-label="${a} and ${b}: ${st[`${a}-${b}`] === 'n' ? 'not found' : 'found'}">${b}</button>`).join('')}</div>`; }).join('');
+    $('setChart').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.k; SET.manual[k] = setState()[k] === 'n'; saveSet();
+    }));
+  }
+  function saveSet() { store.set('setcheck', SET); drawSet(); }
+  (() => {
+    const btn = $('photo-set'), pick = $('pick-set'), msg = $('pmsg-set'), label = btn.textContent;
+    const say = (t, cls) => { msg.textContent = t; msg.className = 'photomsg ' + (cls || ''); };
+    btn.addEventListener('click', () => $('file-set').click());
+    pick.addEventListener('click', () => $('gal-set').click());
+    [$('file-set'), $('gal-set')].forEach(inp => inp.addEventListener('change', async () => {
+      const files = [...inp.files]; inp.value = ''; if (!files.length) return;
+      btn.disabled = pick.disabled = true; let added = 0, bad = 0;
+      for (let i = 0; i < files.length; i++) {
+        btn.textContent = files.length > 1 ? `⏳ Reading photo ${i + 1} of ${files.length}…` : '⏳ Reading this pile…';
+        say('Claude is reading every tile. Each photo can take up to about 30 seconds.');
+        try {
+          const d = await askPhoto(files[i]);
+          if (!d.ok) { say(PHOTO_ERR[d.error] || "Couldn't read that photo. Try again in good light.", 'bad'); bad++; break; }
+          const keys = d.tiles.map(t => `${Math.max(t.a, t.b)}-${Math.min(t.a, t.b)}`);
+          if (keys.length) { SET.photos.push(keys); added += keys.length; window.labTrack && labTrack('photo', 1); saveSet(); }
+        } catch (e) { say("Couldn't send the photo. Check your connection and try again.", 'bad'); bad++; break; }
+      }
+      btn.disabled = pick.disabled = false; btn.textContent = label;
+      if (!bad) say(`Read ${added} tile${added === 1 ? '' : 's'}. ${files.length > 1 ? 'Those photos are' : 'This pile is'} added to the chart.`, 'ok');
+    }));
+    $('setUndo').addEventListener('click', () => { if (SET.photos.pop()) { saveSet(); say('Took back the last photo.', ''); } });
+    twoTap($('setReset'), 'Start a new check', () => { SET = { photos: [], manual: {} }; saveSet(); say('', ''); });
+    drawSet();
+  })();
 
   // ================= What were the odds? =================
   function oddsText(hand) {
@@ -536,7 +641,7 @@
   function setStyle(s) {
     style = s; store.set('style', s);
     document.querySelectorAll('[data-style]').forEach(b => b.classList.toggle('on', b.dataset.style === s));
-    open.draw(); count.draw(); if (!$('result').hidden) runSolve();
+    open.draw(); count.draw(); if (typeof drawSet === 'function' && SET) drawSet(); if (!$('result').hidden) runSolve();
   }
   document.querySelectorAll('[data-style]').forEach(b => b.addEventListener('click', () => setStyle(b.dataset.style)));
   setStyle(style); drawBoard();
