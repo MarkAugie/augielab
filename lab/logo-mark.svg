@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" role="img" aria-label="AugieLab">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE08A"/><stop offset="1" stop-color="#FF7A2E"/></linearGradient>
+<filter id="gl" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="4"/></filter></defs>
+<ellipse cx="160" cy="190" rx="150" ry="40" transform="rotate(-16 160 190)" fill="none" stroke="#4FD8FF" stroke-width="5" stroke-dasharray="470 60" opacity=".9"/>
+<path d="M160 22 L262 272 M160 22 L58 272" stroke="url(#g)" stroke-width="30" stroke-linecap="round" fill="none"/>
+<circle cx="300" cy="148" r="9" fill="#BFF4FF" filter="url(#gl)"/><circle cx="300" cy="148" r="6" fill="#fff"/>
+</svg>

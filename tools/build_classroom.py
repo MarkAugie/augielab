@@ -36,6 +36,7 @@ def sub(pattern, new, flags=0):
 sub(r'<link rel="preconnect"[^\n]*\n', '')
 sub(r'<link href="https://fonts.googleapis.com[^\n]*\n', '')
 sub(r'<meta property="og:[^\n]*\n', '')
+sub(r'<link rel="(?:icon|apple-touch-icon)"[^\n]*\n', '')
 sub(r'<title>[^<]*</title>', '<title>Where Am I, Really? GPS Accuracy (Classroom Edition)</title>')
 rep('<nav class="top"><a href="/">← AugieLab</a></nav>',
     '<nav class="top"><span style="color:var(--dim);font-weight:600">Classroom edition · works offline</span></nav>')

@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="description" content="Small things Mark Aughenbaugh builds, mostly for fun: quantum experiments and everyday tools.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://augielab.dev/">
@@ -11,7 +14,7 @@
 <meta property="og:description" content="Small things Mark builds, mostly for fun. Pick a unit off the rack.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=Orbitron:wght@900&display=swap" rel="stylesheet">
 <style>
   :root {
     --room: #D5DBE1;        /* lab wall */
@@ -31,7 +34,9 @@
     min-height: 100vh; padding: 48px 20px 64px; overflow-x: hidden; }
 
   header { max-width: 980px; margin: 0 auto 28px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-  h1 { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 700; font-size: clamp(3rem, 9vw, 5.2rem); line-height: .9; letter-spacing: -.01em; }
+  h1 { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 700; font-size: clamp(3rem, 9vw, 5.2rem); line-height: .9; letter-spacing: -.01em; display: flex; align-items: center; gap: .25em; }
+  h1 .mark { height: 1.15em; width: auto; flex: none; overflow: visible; }
+  h1 span { font-family: Orbitron, "IBM Plex Sans Condensed", sans-serif; font-weight: 900; font-size: .62em; letter-spacing: .12em; }
   .intro { max-width: 30ch; font-size: 1.05rem; color: #3D4651; }
 
   /* ---------- the rack ---------- */
@@ -97,7 +102,13 @@
 <body>
 
 <header>
-  <h1>AugieLab</h1>
+  <h1><svg class="mark" viewBox="0 0 320 300" aria-hidden="true">
+<defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE08A"/><stop offset="1" stop-color="#FF7A2E"/></linearGradient>
+<filter id="lgl" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="4"/></filter></defs>
+<ellipse cx="160" cy="190" rx="150" ry="40" transform="rotate(-16 160 190)" fill="none" stroke="#159BD0" stroke-width="9" stroke-dasharray="470 60" opacity=".9"/>
+<path d="M160 22 L262 272 M160 22 L58 272" stroke="url(#lg)" stroke-width="30" stroke-linecap="round" fill="none"/>
+<circle cx="300" cy="148" r="9" fill="#7FE3FF" filter="url(#lgl)"/><circle cx="300" cy="148" r="8" fill="#159BD0"/>
+</svg><span>AUGIELAB</span></h1>
   <p class="intro">Small things Mark builds, mostly for fun. Pick a unit off the rack.</p>
 </header>
 
