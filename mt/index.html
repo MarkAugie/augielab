@@ -109,6 +109,7 @@
 
   /* photo reading */
   .btn.photo { width: 100%; font-size: 1.15rem; padding: 15px 16px; background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.pick { width: 100%; margin-top: 8px; font-size: 1rem; }
   .btn.photo[disabled] { opacity: .65; cursor: wait; }
   .or { text-align: center; color: var(--dim); font-weight: 600; margin: 12px 0 10px; }
   .photomsg { margin-top: 10px; font-weight: 600; font-size: 1.02rem; }
@@ -156,7 +157,9 @@
     <div class="card">
       <h2>Enter your tiles</h2>
       <button class="btn photo" id="photo-open">📷 Snap a photo of my tiles</button>
-      <input type="file" accept="image/*" id="file-open" hidden>
+      <button class="btn pick" id="pick-open">🖼️ Or choose a saved photo</button>
+      <input type="file" accept="image/*" capture="environment" id="file-open" hidden>
+      <input type="file" accept="image/*" id="gal-open" hidden>
       <div class="photomsg" id="pmsg-open" aria-live="polite"></div>
       <p class="or">or tap them in</p>
       <div class="entry">
@@ -186,7 +189,9 @@
     <div class="card">
       <h2>Enter the tiles you're stuck with</h2>
       <button class="btn photo" id="photo-count">📷 Snap a photo of my leftovers</button>
-      <input type="file" accept="image/*" id="file-count" hidden>
+      <button class="btn pick" id="pick-count">🖼️ Or choose a saved photo</button>
+      <input type="file" accept="image/*" capture="environment" id="file-count" hidden>
+      <input type="file" accept="image/*" id="gal-count" hidden>
       <div class="photomsg" id="pmsg-count" aria-live="polite"></div>
       <p class="or">or tap them in</p>
       <div class="entry">
@@ -475,12 +480,13 @@
     credit: "Photo reading is out of credit right now. Tap your tiles in for now.",
   };
   function setupPhoto(id, E) {
-    const btn = $('photo-' + id), file = $('file-' + id), msg = $('pmsg-' + id), label = btn.textContent;
+    const btn = $('photo-' + id), pick = $('pick-' + id), msg = $('pmsg-' + id), label = btn.textContent;
     const say = (t, cls) => { msg.textContent = t; msg.className = 'photomsg ' + (cls || ''); };
-    btn.addEventListener('click', () => file.click());
-    file.addEventListener('change', async () => {
-      const f = file.files[0]; file.value = ''; if (!f) return;
-      btn.disabled = true; btn.textContent = '⏳ Reading your tiles…'; say('Claude is counting the dots. This can take up to about 30 seconds.');
+    btn.addEventListener('click', () => $('file-' + id).click());
+    pick.addEventListener('click', () => $('gal-' + id).click());
+    [$('file-' + id), $('gal-' + id)].forEach(inp => inp.addEventListener('change', () => { const f = inp.files[0]; inp.value = ''; if (f) read(f); }));
+    async function read(f) {
+      btn.disabled = pick.disabled = true; btn.textContent = '⏳ Reading your tiles…'; say('Claude is counting the dots. This can take up to about 30 seconds.');
       try {
         const image = await shrink(f);
         const r = await fetch('/api/read-tiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, style }) });
@@ -496,8 +502,8 @@
         if (id === 'open') $('result').hidden = true;
       } catch (e) {
         say("Couldn't send the photo. Check your connection and try again, or tap your tiles in.", 'bad');
-      } finally { btn.disabled = false; btn.textContent = label; }
-    });
+      } finally { btn.disabled = pick.disabled = false; btn.textContent = label; }
+    }
   }
   setupPhoto('open', open); setupPhoto('count', count);
 
