@@ -73,6 +73,18 @@
     </div>
 
     <section class="card">
+      <h2>Photo reading (Claude API, Mexican Train Helper)</h2>
+      <div class="grid">
+        <div><div class="label">Photos today</div><div class="big" id="pToday">0</div></div>
+        <div><div class="label">Cost today</div><div class="big" id="cToday">$0.00</div></div>
+        <div><div class="label">Photos all time</div><div class="big" id="pAll">0</div></div>
+        <div><div class="label">Cost all time</div><div class="big" id="cAll">$0.00</div></div>
+        <div><div class="label">Average per photo</div><div class="big" id="cAvg">–</div></div>
+      </div>
+      <p class="label" style="margin-top:12px" id="apiNote">Worked out from the token counts Claude reports for each photo. Your exact bill is at console.anthropic.com under Usage and Cost. Counting started Nov 26, 2026.</p>
+    </section>
+
+    <section class="card">
       <h2>Most popular projects</h2>
       <div class="bars" id="bars"></div>
     </section>
@@ -118,7 +130,7 @@
     '/bridge/':    { name: 'The quantum dealer (bridge)', color: '#D9B45A', acts: { deal: ['deal', 'deals'] } },
     '/puzzle/':    { name: 'Picture shuffle', color: '#E8577E', acts: { puzzle: ['puzzle started', 'puzzles started'], solved: ['puzzle solved', 'puzzles solved'] } },
     '/showdown/':  { name: 'Randomness showdown', color: '#B7F34A', acts: { kbits: ['thousand bits tested', 'thousand bits tested'] } },
-    '/mt/':        { name: 'Mexican train helper', color: '#B3122B', acts: { solve: ['train solved', 'trains solved'], count: ['hand counted', 'hands counted'] } },
+    '/mt/':        { name: 'Mexican train helper', color: '#B3122B', acts: { solve: ['train solved', 'trains solved'], count: ['hand counted', 'hands counted'], photo: ['photo read', 'photos read'] } },
     '/lightning/': { name: 'Lightning & frost', color: '#C9B6FF', acts: { growth: ['growth started', 'growths started'], kparticles: ['thousand particles stuck', 'thousand particles stuck'] } },
     '/coast/':     { name: 'How long is the coast?', color: '#F2B84B', acts: { measure: ['coast measured', 'coasts measured'] } },
     '/chaos/':     { name: 'The chaos game', color: '#FF5C8A', acts: { kdots: ['thousand dots', 'thousand dots'], flame: ['flame designed', 'flames designed'] } },
@@ -160,6 +172,14 @@
     $('v30').textContent = fmt(d.daily.reduce((s, r) => s + r.n, 0));
     $('vAll').textContent = fmt(sum(d.totals, r => r.kind === 'view'));
     $('aAll').textContent = fmt(sum(d.totals, r => r.kind !== 'view' && r.kind !== 'minute' && r.kind !== 'kkeys' && r.kind !== 'kdots' && r.kind !== 'kparticles' && r.kind !== 'kbits'));
+
+    // photo reading costs
+    const api = d.api || [], money = v => v === null ? '?' : '$' + (v < 1 ? v.toFixed(3) : v.toFixed(2));
+    const tot = rows => rows.reduce((a, r) => ({ n: a.n + r.photos, c: a.c === null || r.cost === null ? null : a.c + r.cost }), { n: 0, c: 0 });
+    const tA = tot(api), tT = tot(api.filter(r => r.day === d.today));
+    $('pToday').textContent = fmt(tT.n); $('cToday').textContent = money(tT.c);
+    $('pAll').textContent = fmt(tA.n); $('cAll').textContent = money(tA.c);
+    $('cAvg').textContent = tA.n && tA.c !== null ? '$' + (tA.c / tA.n).toFixed(3) : '–';
 
     // popularity bars, by visits
     const rows = Object.entries(PROJECTS).map(([path, p]) => {

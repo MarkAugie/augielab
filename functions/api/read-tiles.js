@@ -44,6 +44,17 @@ If a tile is only partly visible, or glare or blur makes a count uncertain, give
 Ignore anything that isn't a domino. When you are done, call the report_tiles tool with the result (if you can't use the tool, reply with only JSON like {"tiles":[{"a":12,"b":9,"sure":true}],"note":""}).`;
 }
 
+async function recordUse(env, model, usage) {      // tokens per day+model, for the stats page
+  const DB = dbOf(env); if (!DB || !usage) return;
+  try {
+    await DB.prepare('CREATE TABLE IF NOT EXISTS api_use (day TEXT, model TEXT, photos INTEGER, tin INTEGER, tout INTEGER, PRIMARY KEY (day, model))').run();
+    const tin = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0);
+    await DB.prepare(`INSERT INTO api_use (day, model, photos, tin, tout) VALUES (?1, ?2, 1, ?3, ?4)
+      ON CONFLICT (day, model) DO UPDATE SET photos = photos + 1, tin = tin + excluded.tin, tout = tout + excluded.tout`)
+      .bind(today(), model, tin, usage.output_tokens || 0).run();
+  } catch (e) {}
+}
+
 async function underCap(env) {
   const DB = dbOf(env);
   if (!DB) return true;
@@ -97,6 +108,7 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error, status: r.status, detail: detail.slice(0, 300) }, 502);
   }
   const data = await r.json().catch(() => null);
+  await recordUse(env, (data && data.model) || env.MT_MODEL || MODEL_DEFAULT, data && data.usage);
   const content = (data && data.content) || [];
   let input = (content.find(c => c.type === 'tool_use') || {}).input;
   if (!input) {                                       // answered in text instead: look for {"tiles": ...}

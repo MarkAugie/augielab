@@ -5,6 +5,8 @@ function sameKey(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0;
 }
+// Dollars per million tokens [input, output]. Unknown models show no cost.
+const PRICES = { 'claude-opus-5-5': [4, 20] };
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 export async function onRequestGet({ request, env }) {
@@ -23,5 +25,12 @@ export async function onRequestGet({ request, env }) {
     q(`SELECT country, SUM(n) AS n FROM hits WHERE kind = 'view' GROUP BY country ORDER BY n DESC LIMIT 12`),
     q(`SELECT ref, SUM(n) AS n FROM hits WHERE kind = 'view' AND ref <> '' GROUP BY ref ORDER BY n DESC LIMIT 12`)
   ]);
-  return json({ ok: true, today: t, since, totals, todayRows, daily, countries, refs });
+  let api = [];
+  try {
+    await DB.prepare('CREATE TABLE IF NOT EXISTS api_use (day TEXT, model TEXT, photos INTEGER, tin INTEGER, tout INTEGER, PRIMARY KEY (day, model))').run();
+    api = (await q(`SELECT day, model, photos, tin, tout FROM api_use`)).map(r => {
+      const p = PRICES[r.model]; return Object.assign(r, { cost: p ? (r.tin * p[0] + r.tout * p[1]) / 1e6 : null });
+    });
+  } catch (e) {}
+  return json({ ok: true, today: t, since, totals, todayRows, daily, countries, refs, api });
 }
