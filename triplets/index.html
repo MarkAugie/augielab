@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triplet trainer · AugieLab</title>
+<meta name="description" content="Learn to feel quarter-note triplets: three even notes in the space of two beats. Hear it, see it, then tap or play your flute along and get scored.">
+<meta property="og:title" content="Triplet trainer">
+<meta property="og:description" content="Three even notes in the space of two beats. Hear it, see it, then play along and get scored.">
+<meta property="og:url" content="https://augielab.dev/triplets/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #FBF6EA; --paper2: #F2EAD6; --ink: #1F2A44; --dim: #5D6478; --line: #D8CDB2;
+    --beat: #1F2A44; --trip: #B0457B; --tick: #9AA0AE; --good: #2E9E5B; --close: #D98E1A; --off: #C8402F; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 21px; background: var(--paper2); }
+  body { min-height: 100vh; color: var(--ink); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; line-height: 1.45; padding: 14px 14px 110px;
+    background: repeating-linear-gradient(180deg, transparent 0 46px, rgba(31,42,68,.05) 46px 47px), linear-gradient(180deg, var(--paper), var(--paper2)) fixed; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; } .top a { color: var(--dim); text-decoration: none; font-weight: 700; }
+  header { text-align: center; margin: 0 0 14px; }
+  h1 { font: 600 clamp(2.2rem, 7vw, 3.4rem)/1.05 "Fraunces", Georgia, serif; }
+  h1 em { color: var(--trip); }
+  .sub { font-size: 1.1rem; color: var(--dim); margin-top: 6px; }
+
+  /* steps */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 14px; }
+  .step { font: 700 1rem "Atkinson Hyperlegible", sans-serif; padding: 10px 6px; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; line-height: 1.2; }
+  .step small { display: block; font-weight: 400; font-size: .78rem; color: var(--dim); margin-top: 2px; }
+  .step.on { border-color: var(--trip); background: #F8E6EF; }
+  .stepNote { text-align: center; font-size: 1.05rem; margin: 0 0 12px; min-height: 2.9em; }
+
+  /* the bar */
+  .bar { position: relative; background: #fff; border: 2px solid var(--line); border-radius: 16px; padding: 14px 14px 12px; }
+  .lane { position: relative; height: 64px; margin-left: 66px; }
+  .lane + .lane { margin-top: 6px; }
+  .lname { position: absolute; left: -66px; top: 50%; transform: translateY(-50%); width: 60px; font-size: .78rem; font-weight: 700; color: var(--dim); text-align: right; line-height: 1.1; }
+  .mk { position: absolute; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; transition: transform .08s, background .08s, color .08s; }
+  .mk.beat { width: 50px; height: 50px; border-radius: 12px; border: 3px solid var(--beat); color: var(--beat); font: 700 1.4rem "Atkinson Hyperlegible", sans-serif; background: #fff; }
+  .mk.trip { width: auto; min-width: 66px; height: 50px; padding: 0 8px; border-radius: 25px; border: 3px solid var(--trip); color: var(--trip); font: 700 1.05rem "Atkinson Hyperlegible", sans-serif; background: #fff; }
+  .mk.tick { width: 16px; height: 16px; border-radius: 50%; background: var(--tick); }
+  .mk.tick.quiet { opacity: .35; } .mk.tick.gone { opacity: 0; }
+  .mk.trip.hide { border-style: dashed; color: #D6B3C5; border-color: #E2C3D2; }
+  .mk.lit.beat { background: var(--beat); color: #fff; transform: translate(-50%, -50%) scale(1.12); }
+  .mk.lit.trip { background: var(--trip); color: #fff; transform: translate(-50%, -50%) scale(1.12); }
+  .mk.lit.tick { background: var(--ink); opacity: 1; }
+  .guide { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #E6DDC8; }
+  .head { position: absolute; top: 8px; bottom: 8px; width: 3px; background: rgba(176,69,123,.55); border-radius: 2px; pointer-events: none; display: none; }
+  .you { height: 40px; }
+  .dot { position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); transition: opacity 1.2s; }
+  .dot.good { background: var(--good); } .dot.close { background: var(--close); } .dot.off { background: var(--off); }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin: 16px 0 10px; }
+  .tempo { display: flex; align-items: center; gap: 8px; background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 6px 8px; }
+  .tempo button { width: 52px; height: 52px; border-radius: 12px; border: 0; background: var(--paper2); font: 700 1.7rem "Atkinson Hyperlegible", sans-serif; color: var(--ink); cursor: pointer; }
+  .tempo .v { text-align: center; min-width: 92px; } .tempo .v b { font: 700 1.7rem/1 "Atkinson Hyperlegible", sans-serif; display: block; } .tempo .v small { font-size: .75rem; color: var(--dim); }
+  .go { font: 700 1.35rem "Atkinson Hyperlegible", sans-serif; padding: 16px 34px; border-radius: 16px; border: 0; cursor: pointer; color: #fff; background: var(--ink); box-shadow: 0 5px 0 #0D1426; min-width: 170px; }
+  .go:active { transform: translateY(3px); box-shadow: 0 2px 0 #0D1426; }
+  .go.stop { background: var(--off); box-shadow: 0 5px 0 #84261A; }
+  .pad { display: block; width: 100%; margin: 6px 0 0; padding: 30px 10px; border-radius: 20px; border: 3px solid var(--trip); background: #fff; color: var(--trip); cursor: pointer;
+    font: 700 1.6rem "Atkinson Hyperlegible", sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  .pad small { display: block; font-size: .85rem; font-weight: 400; color: var(--dim); margin-top: 4px; }
+  .pad.hit { background: #F8E6EF; }
+  .fb { text-align: center; font: 700 1.35rem "Atkinson Hyperlegible", sans-serif; min-height: 1.6em; margin-top: 10px; }
+  .fb.good { color: var(--good); } .fb.close { color: var(--close); } .fb.off { color: var(--off); }
+  .score { text-align: center; font-size: 1.05rem; color: var(--dim); min-height: 1.5em; }
+  .score b { color: var(--ink); }
+  .ladder { display: none; margin: 12px auto 0; text-align: center; }
+  .ladder.show { display: block; }
+  .ladder button { font: 700 1.1rem "Atkinson Hyperlegible", sans-serif; padding: 12px 22px; border-radius: 12px; border: 0; background: var(--good); color: #fff; cursor: pointer; }
+  .mic { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 16px; font-size: .95rem; }
+  .mic button { font: 700 1rem "Atkinson Hyperlegible", sans-serif; padding: 10px 16px; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+  .mic button.on { border-color: var(--good); background: #E3F3E9; }
+  .meter { width: 90px; height: 12px; border-radius: 6px; background: #E9E1CD; overflow: hidden; } .meter i { display: block; height: 100%; width: 0; background: var(--good); }
+  .mic select { font: 700 1rem "Atkinson Hyperlegible", sans-serif; padding: 8px; border-radius: 10px; border: 2px solid var(--line); background: #fff; }
+  .best { text-align: center; color: var(--dim); font-size: .95rem; margin-top: 12px; }
+  button:focus-visible, select:focus-visible { outline: 3px solid #E7B43B; outline-offset: 2px; }
+  @media (max-width: 640px) {
+    html { font-size: 18px; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .lane { margin-left: 0; } .lname { display: none; }
+    .mk.beat { width: 40px; height: 40px; font-size: 1.15rem; } .mk.trip { min-width: 0; height: 40px; padding: 0 5px; font-size: .78rem; }
+    .bar { padding: 10px 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">← AugieLab</a></div>
+  <header>
+    <h1>Triplet <em>trainer</em></h1>
+    <p class="sub">Quarter-note triplets: three even notes in the space of two beats.</p>
+  </header>
+
+  <div class="steps" role="group" aria-label="Practice step">
+    <button class="step on" data-s="1">1. Count six<small>hear every part</small></button>
+    <button class="step" data-s="2">2. Fade<small>the extras get quiet</small></button>
+    <button class="step" data-s="3">3. Just three<small>flute + beat</small></button>
+    <button class="step" data-s="4">4. On your own<small>beat only</small></button>
+  </div>
+  <p class="stepNote" id="stepNote"></p>
+
+  <div class="bar" id="bar">
+    <div class="lane" id="laneTrip"><span class="lname">Flute<br>(triplets)</span></div>
+    <div class="lane" id="laneTick" style="height:26px"><span class="lname">count</span></div>
+    <div class="lane" id="laneBeat"><span class="lname">Foot<br>(beat)</span></div>
+    <div class="lane you" id="laneYou"><span class="lname">You</span></div>
+    <div class="head" id="head"></div>
+  </div>
+
+  <div class="controls">
+    <div class="tempo">
+      <button id="slower" aria-label="Slower">−</button>
+      <div class="v"><b id="bpm">60</b><small>beats a minute</small></div>
+      <button id="faster" aria-label="Faster">+</button>
+    </div>
+    <button class="go" id="go">▶ Start</button>
+  </div>
+
+  <button class="pad" id="pad">TAP the triplets<small>tap here (or press the space bar) on each flute note</small></button>
+  <div class="fb" id="fb"></div>
+  <div class="score" id="score"></div>
+  <div class="ladder" id="ladder"><button id="up">Nice! Try it 5 faster →</button></div>
+
+  <div class="mic">
+    <button id="micBtn">🎤 Listen to my flute</button>
+    <span class="meter" aria-hidden="true"><i id="meter"></i></span>
+    <select id="sens" aria-label="Microphone sensitivity"><option value="1.6">More sensitive</option><option value="2.4" selected>Normal</option><option value="3.6">Less sensitive</option></select>
+  </div>
+  <p class="best" id="best"></p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The tricky part</h3>
+  <p>A quarter-note triplet squeezes <strong>three even notes into the space of two beats</strong>. Only the first one lands on a beat. The other two fall in between, where your foot isn't. That's why it feels slippery: everything in you wants to play on the beat.</p>
+  <h3>The trick: count in sixes</h3>
+  <p>Split two beats into six tiny, even counts: <em>"1-trip-let 2-trip-let"</em>. Now play on every <strong>other</strong> count: 1, 3 and 5. Those three notes are the quarter-note triplets. Step 1 lets you hear all six counts, step 2 makes the in-between ones quiet, step 3 takes them away, and step 4 takes the flute away too, so it's just you and the beat.</p>
+  <h3>Say it before you play it</h3>
+  <p>Say <strong>"pine-ap-ple"</strong> slowly and evenly, stretched across two beats, while you tap your foot: "PINE" lands with your foot, "ap" and "ple" fall in between. Say it along with the flute in step 3, then try step 4. Once your mouth has it, your flute will follow.</p>
+  <h3>Tapping and scoring</h3>
+  <p>Tap the big button (or the space bar) on each triplet note, and a dot shows where your tap landed: <span style="color:#2E9E5B">green</span> is right on, <span style="color:#D98E1A">orange</span> is close, <span style="color:#C8402F">red</span> is off. If you tap on beats 2 or 4 by mistake, it tells you: that's the most common slip. The score counts your last 12 notes. Get 10 or more on time in step 4 and it offers to go 5 beats a minute faster.</p>
+  <h3>Using the microphone</h3>
+  <p>Press "Listen to my flute" and play into your phone or computer instead of tapping. It listens for the start of each note. It works best in step 4 (so it doesn't hear its own flute) or with headphones. If it misses notes, choose "More sensitive"; if it hears things that aren't you, choose "Less sensitive". Nothing is recorded or sent anywhere.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let step = 1, bpm = 60;
+  try { const s = JSON.parse(localStorage.getItem('trip-set') || 'null'); if (s) { step = s.step || 1; bpm = s.bpm || 60; } } catch (e) {}
+  const saveSet = () => { try { localStorage.setItem('trip-set', JSON.stringify({ step, bpm })); } catch (e) {} };
+  const NOTES = {
+    1: 'Listen for six even counts per two beats: <b>1-trip-let 2-trip-let</b>. The flute plays on every other one.',
+    2: 'The in-between counts are quiet now. Keep feeling all six, but notice the flute: <b>pine-ap-ple</b> across two beats.',
+    3: 'Only the beat and the flute. Say <b>"pine-ap-ple"</b> along with it, then tap or play along.',
+    4: "Now it's you. The flute is gone: tap or play the three notes yourself, against the beat."
+  };
+  const SYL = ['pine', 'ap', 'ple', 'pine', 'ap', 'ple'];
+
+  // ================= Build the bar =================
+  // 12 counts per 4/4 bar (eighth-note triplets). Beats at 0,3,6,9. Quarter-note triplets at 0,2,4,6,8,10.
+  const pos = k => (k + .5) / 12 * 100;
+  const mk = { beat: [], trip: [], tick: [] };
+  for (let k = 0; k < 12; k++) {
+    for (const lane of ['laneTrip', 'laneTick', 'laneBeat', 'laneYou']) {
+      if (k % 3 === 0) { const g = document.createElement('span'); g.className = 'guide'; g.style.left = pos(k) + '%'; $(lane).appendChild(g); }
+    }
+    const t = document.createElement('span'); t.className = 'mk tick'; t.style.left = pos(k) + '%'; $('laneTick').appendChild(t); mk.tick[k] = t;
+    if (k % 3 === 0) { const b = document.createElement('span'); b.className = 'mk beat'; b.style.left = pos(k) + '%'; b.textContent = k / 3 + 1; $('laneBeat').appendChild(b); mk.beat[k] = b; }
+    if (k % 2 === 0) { const p = document.createElement('span'); p.className = 'mk trip'; p.style.left = pos(k) + '%'; p.textContent = SYL[k / 2]; $('laneTrip').appendChild(p); mk.trip[k] = p; }
+  }
+  function showStep() {
+    document.querySelectorAll('.step').forEach(b => b.classList.toggle('on', +b.dataset.s === step));
+    $('stepNote').innerHTML = NOTES[step];
+    mk.tick.forEach((t, k) => { t.classList.toggle('quiet', step === 2 && k % 2 === 1); t.classList.toggle('gone', step >= 3 || (step === 2 && k % 2 === 0)); });
+    mk.trip.forEach(p => p && p.classList.toggle('hide', step === 4));
+    $('ladder').classList.remove('show');
+    resetScore();
+  }
+  document.querySelectorAll('.step').forEach(b => b.addEventListener('click', () => { step = +b.dataset.s; saveSet(); showStep(); }));
+  function showBpm() { $('bpm').textContent = bpm; }
+  $('slower').addEventListener('click', () => { bpm = Math.max(30, bpm - 5); showBpm(); saveSet(); resetScore(); });
+  $('faster').addEventListener('click', () => { bpm = Math.min(160, bpm + 5); showBpm(); saveSet(); resetScore(); });
+  let best = {}; try { best = JSON.parse(localStorage.getItem('trip-best') || '{}'); } catch (e) {}
+  function showBest() { $('best').textContent = best.bpm ? `Best on your own (step 4): ${best.bpm} beats a minute.` : ''; }
+
+  // ================= Sound =================
+  let ctx = null, noiseBuf = null;
+  function audio() {
+    if (ctx) return ctx;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .5, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return ctx;
+  }
+  function click(t, accent) {          // woodblock-ish beat
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(accent ? 1500 : 1100, t); o.frequency.exponentialRampToValueAtTime(600, t + .05);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(accent ? .55 : .4, t + .002); g.gain.exponentialRampToValueAtTime(.001, t + .07);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .08);
+  }
+  function tick(t, vol) {              // soft count tick
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 3800; f.Q.value = 2;
+    g.gain.setValueAtTime(vol * .5, t); g.gain.exponentialRampToValueAtTime(.001, t + .03);
+    s.connect(f).connect(g).connect(ctx.destination); s.start(t); s.stop(t + .04);
+  }
+  function flute(t, freq, dur, accent) {
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), g2 = ctx.createGain();
+    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq; o2.type = 'sine'; o2.frequency.value = freq * 2; g2.gain.value = .12;
+    lfo.frequency.value = 5.2; lg.gain.value = freq * .006; lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+    const peak = accent ? .32 : .26;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + .04); g.gain.setValueAtTime(peak * .85, t + Math.max(.06, dur - .08)); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g); o2.connect(g2).connect(g); g.connect(ctx.destination);
+    // breath at the start of the note
+    const n = ctx.createBufferSource(), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
+    n.buffer = noiseBuf; nf.type = 'bandpass'; nf.frequency.value = freq * 2; nf.Q.value = 1.5;
+    ng.gain.setValueAtTime(.08, t); ng.gain.exponentialRampToValueAtTime(.001, t + .09);
+    n.connect(nf).connect(ng).connect(ctx.destination);
+    [o, o2, lfo].forEach(x => { x.start(t); x.stop(t + dur + .02); }); n.start(t); n.stop(t + .1);
+  }
+  const PITCH = [587.33, 659.25, 739.99];   // D5, E5, F#5: "pine-ap-ple"
+
+  // ================= Scheduler =================
+  let playing = false, nextT = 0, k = 0, bar = 0, timer = null;
+  const events = [];   // for the display: {t, k}
+  let targets = [];    // triplet notes to score: {t, k, hit, err, done}
+  const tickDur = () => 60 / bpm / 3;
+  function schedule() {
+    while (nextT < ctx.currentTime + .15) {
+      const countIn = bar === 0;
+      if (k % 3 === 0) click(nextT, k === 0);
+      if (!countIn) {
+        if (step === 1) tick(nextT, k % 2 === 0 ? .5 : .55);
+        if (step === 2 && k % 2 === 1) tick(nextT, .2);
+        if (k % 2 === 0 && step <= 3) flute(nextT, PITCH[(k / 2) % 3], tickDur() * 2 * .92, (k / 2) % 3 === 0);
+        if (k % 2 === 0) targets.push({ t: nextT, k, hit: false, err: 0, done: false });
+      }
+      events.push({ t: nextT, k, countIn });
+      nextT += tickDur(); k++;
+      if (k === 12) { k = 0; bar++; }
+    }
+  }
+  function heardNow() {
+    if (ctx.getOutputTimestamp) { const ts = ctx.getOutputTimestamp(); if (ts.contextTime > 0) return ts.contextTime + (performance.now() - ts.performanceTime) / 1000; }
+    return ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || .02);
+  }
+  function eventToHeard(e) {          // convert an input event's timestamp to the audio clock
+    if (ctx.getOutputTimestamp) { const ts = ctx.getOutputTimestamp(); if (ts.contextTime > 0) return ts.contextTime + (e - ts.performanceTime) / 1000; }
+    return heardNow() - (performance.now() - e) / 1000;
+  }
+  let lit = [], barStart = 0, started = 0;
+  function draw() {
+    if (!playing) return;
+    const now = heardNow();
+    while (events.length && events[0].t <= now) {
+      const e = events.shift();
+      if (e.k === 0) barStart = e.t;
+      lit.forEach(el => el.classList.remove('lit')); lit = [];
+      const add = el => { if (el) { el.classList.add('lit'); lit.push(el); } };
+      if (e.k % 3 === 0) add(mk.beat[e.k]);
+      if (!e.countIn) {
+        if (step === 1 || (step === 2 && e.k % 2 === 1)) add(mk.tick[e.k]);
+        if (e.k % 2 === 0 && step <= 3) add(mk.trip[e.k]);
+      }
+      $('stepNote').innerHTML = e.countIn ? `<b>Count-in: ${e.k / 3 + 1}…</b>` : NOTES[step];
+    }
+    const head = $('head'); head.style.display = 'block';
+    const frac = Math.min(1, Math.max(0, (now - barStart) / (tickDur() * 12)));
+    const w = $('laneYou').getBoundingClientRect().width, off = $('laneYou').offsetLeft;
+    head.style.left = (off + Math.min(1, (frac * 12 + .5) / 12) * w) + 'px';
+    // finalize missed notes
+    for (const tg of targets) if (!tg.done && now > tg.t + tickDur() * 1.05) { tg.done = true; if (scoring && tg.t >= scoreFrom) finished.push(tg.hit && Math.abs(tg.err) <= OK ? 1 : 0); updateScore(); }
+    targets = targets.filter(tg => !tg.done || now - tg.t < 4);
+    if (now - started > 60) { started = now; window.labTrack && labTrack('minute', 1); }
+    if (micOn) listen(now);
+    requestAnimationFrame(draw);
+  }
+  function start() {
+    audio(); if (ctx.state === 'suspended') ctx.resume();
+    playing = true; k = 0; bar = 0; events.length = 0; targets = []; nextT = ctx.currentTime + .15;
+    started = heardNow(); barStart = nextT;
+    timer = setInterval(schedule, 25); schedule();
+    $('go').textContent = '■ Stop'; $('go').classList.add('stop');
+    resetScore(); requestAnimationFrame(draw);
+  }
+  function stop() {
+    playing = false; clearInterval(timer);
+    lit.forEach(el => el.classList.remove('lit')); lit = [];
+    $('head').style.display = 'none';
+    $('go').textContent = '▶ Start'; $('go').classList.remove('stop');
+    $('stepNote').innerHTML = NOTES[step];
+  }
+  $('go').addEventListener('click', () => playing ? stop() : start());
+
+  // ================= Tapping and scoring =================
+  const OK = .07, CLOSE = .14;          // seconds
+  let scoring = false, scoreFrom = 0, finished = [];
+  function resetScore() { scoring = false; finished = []; $('score').textContent = ''; $('fb').textContent = ''; $('fb').className = 'fb'; $('ladder').classList.remove('show'); }
+  function updateScore() {
+    const last = finished.slice(-12), n = last.length; if (!n) return;
+    const good = last.reduce((a, b) => a + b, 0);
+    $('score').innerHTML = `On time: <b>${good} of the last ${n}</b> notes`;
+    if (step === 4 && n >= 12 && good >= 10) {
+      if (!best.bpm || bpm > best.bpm) { best.bpm = bpm; try { localStorage.setItem('trip-best', JSON.stringify(best)); } catch (e) {} showBest(); }
+      if (bpm < 160) { $('up').textContent = `Nice! Try it at ${bpm + 5} →`; $('ladder').classList.add('show'); }
+    }
+  }
+  function hit(at) {
+    if (!playing) { $('fb').className = 'fb'; $('fb').textContent = 'Press Start first.'; return; }
+    if (!scoring) { scoring = true; scoreFrom = at - tickDur(); finished = []; }
+    const T = tickDur();
+    let bestT = null, bestD = 1e9;
+    for (const tg of targets) { const d = at - tg.t; if (Math.abs(d) < Math.abs(bestD)) { bestD = d; bestT = tg; } }
+    // where in the bar did it land?
+    const ref = bestT ? bestT.t - bestT.k * T : barStart;
+    let kk = Math.round((at - ref) / T); kk = ((kk % 12) + 12) % 12;
+    let cls, msg;
+    if (bestT && Math.abs(bestD) <= T && !bestT.hit) {
+      bestT.hit = true; bestT.err = bestD;
+      const ms = Math.round(Math.abs(bestD) * 1000);
+      if (Math.abs(bestD) <= OK) { cls = 'good'; msg = 'Right on!'; }
+      else if (Math.abs(bestD) <= CLOSE) { cls = 'close'; msg = bestD < 0 ? `A little early (${ms} ms)` : `A little late (${ms} ms)`; }
+      else { cls = 'off'; msg = bestD < 0 ? 'Too early' : 'Too late'; }
+      if (cls !== 'good' && (kk === 3 || kk === 9)) msg = `That was on beat ${kk / 3 + 1}. The triplet note comes in between the beats.`;
+      dot(bestT.k + bestD / T, cls);
+    } else {
+      cls = 'off'; msg = (kk === 3 || kk === 9) ? `That was on beat ${kk / 3 + 1}. Triplets fall between the beats there.` : 'Extra note';
+      dot((at - ref) / T, cls);
+    }
+    $('fb').className = 'fb ' + cls; $('fb').textContent = msg;
+  }
+  function dot(kpos, cls) {
+    kpos = ((kpos % 12) + 12) % 12;
+    const d = document.createElement('span'); d.className = 'dot ' + cls; d.style.left = ((kpos + .5) / 12 * 100) + '%';
+    $('laneYou').appendChild(d);
+    setTimeout(() => d.style.opacity = '0', 1600); setTimeout(() => d.remove(), 3000);
+  }
+  $('pad').addEventListener('pointerdown', e => { e.preventDefault(); if (!ctx) return hit(0); hit(eventToHeard(e.timeStamp)); $('pad').classList.add('hit'); setTimeout(() => $('pad').classList.remove('hit'), 90); });
+  addEventListener('keydown', e => {
+    if (e.code !== 'Space' || e.repeat) return;
+    e.preventDefault(); if (!ctx) return hit(0); hit(eventToHeard(e.timeStamp));
+  });
+  document.querySelectorAll('button').forEach(b => b.addEventListener('click', () => b.blur()));
+
+  // ================= Microphone =================
+  let micOn = false, an = null, buf = null, avg = .01, lastOn = 0, stream = null;
+  $('micBtn').addEventListener('click', async () => {
+    if (micOn) { micOn = false; stream && stream.getTracks().forEach(t => t.stop()); $('micBtn').classList.remove('on'); $('micBtn').textContent = '🎤 Listen to my flute'; $('meter').style.width = '0'; return; }
+    audio(); if (ctx.state === 'suspended') ctx.resume();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 512; buf = new Float32Array(an.fftSize); src.connect(an);
+      micOn = true; $('micBtn').classList.add('on'); $('micBtn').textContent = '🎤 Listening (tap to stop)';
+      $('fb').className = 'fb'; $('fb').textContent = playing ? 'Listening. Play along!' : 'Listening. Press Start, then play along.';
+      if (!playing) requestAnimationFrame(function idle() { if (micOn && !playing) { listen(heardNow()); requestAnimationFrame(idle); } });
+    } catch (e) { $('fb').className = 'fb off'; $('fb').textContent = "Couldn't use the microphone. Check that this site is allowed to use it."; }
+  });
+  function listen(now) {
+    an.getFloatTimeDomainData(buf);
+    let s = 0; for (const v of buf) s += v * v; const rms = Math.sqrt(s / buf.length);
+    $('meter').style.width = Math.min(100, rms * 400) + '%';
+    const sens = +$('sens').value, floor = .012 * sens;
+    if (playing && rms > floor && rms > avg * sens && now - lastOn > Math.max(.15, tickDur() * .9)) {
+      lastOn = now; hit(now - an.fftSize / ctx.sampleRate / 2 - .015);
+    }
+    avg = avg * .93 + rms * .07;
+  }
+
+  showBpm(); showStep(); showBest();
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
