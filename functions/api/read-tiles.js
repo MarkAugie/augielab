@@ -5,7 +5,7 @@
 // A daily cap (MT_DAILY_CAP, default 150 photos) protects the prepaid credit.
 import { dbOf, today } from './hit.js';
 
-const MODEL_DEFAULT = 'claude-sonnet-5-5';
+const MODEL_DEFAULT = 'claude-opus-5-5';
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
 const TOOL = {
