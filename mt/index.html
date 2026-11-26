@@ -480,7 +480,7 @@
     btn.addEventListener('click', () => file.click());
     file.addEventListener('change', async () => {
       const f = file.files[0]; file.value = ''; if (!f) return;
-      btn.disabled = true; btn.textContent = '⏳ Reading your tiles…'; say('This takes about 10 to 20 seconds.');
+      btn.disabled = true; btn.textContent = '⏳ Reading your tiles…'; say('Claude is counting the dots. This can take up to about 30 seconds.');
       try {
         const image = await shrink(f);
         const r = await fetch('/api/read-tiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, style }) });

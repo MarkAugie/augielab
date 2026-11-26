@@ -39,7 +39,7 @@ ${style === 'nums'
     : 'This set uses dots (pips). Halves with 10, 11 or 12 dots are arranged in three columns (4-2-4, 4-3-4, 4-4-4). Count every dot carefully, one half at a time; dot colors may differ by number but do not rely on color alone.'}
 List every tile you can see exactly once, with the numbers on its two halves. A full Double-12 set has only one of each tile, so the same pair should never appear twice.
 If a tile is only partly visible, or glare or blur makes a count uncertain, give your best reading and set sure to false.
-Ignore anything that isn't a domino. Call report_tiles with the result.`;
+Ignore anything that isn't a domino. When you are done, call the report_tiles tool with the result (if you can't use the tool, reply with only JSON like {"tiles":[{"a":12,"b":9,"sure":true}],"note":""}).`;
 }
 
 async function underCap(env) {
@@ -67,32 +67,43 @@ export async function onRequestPost({ request, env }) {
 
   if (!(await underCap(env))) return json({ ok: false, error: 'cap' }, 429);
 
+  // The model may think first (good for counting dots), so: generous max_tokens, tool_choice auto,
+  // and a fallback that reads JSON from plain text if it answers without the tool.
+  const ask = extra => fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': String(env.ANTHROPIC_API_KEY).trim(), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify(Object.assign({
+      model: env.MT_MODEL || MODEL_DEFAULT,
+      max_tokens: 16000,
+      tools: [TOOL],
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+        { type: 'text', text: prompt(style) },
+      ] }],
+    }, extra)),
+  });
+
   let r;
   try {
-    r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': String(env.ANTHROPIC_API_KEY).trim(), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: env.MT_MODEL || MODEL_DEFAULT,
-        max_tokens: 2000,
-        tools: [TOOL],
-        tool_choice: { type: 'tool', name: 'report_tiles' },
-        messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
-          { type: 'text', text: prompt(style) },
-        ] }],
-      }),
-    });
+    r = await ask({ tool_choice: { type: 'auto' } });
+    if (r.status === 400) r = await ask({});          // older/odd model settings: plain request
   } catch (e) { return json({ ok: false, error: 'network' }, 502); }
 
   if (!r.ok) {
     const detail = await r.text().catch(() => '');
     const error = r.status === 401 ? 'key' : /credit|billing/i.test(detail) ? 'credit' : 'api';
-    return json({ ok: false, error, status: r.status }, 502);
+    return json({ ok: false, error, status: r.status, detail: detail.slice(0, 300) }, 502);
   }
   const data = await r.json().catch(() => null);
-  const use = data && (data.content || []).find(c => c.type === 'tool_use');
-  if (!use) return json({ ok: false, error: 'read' }, 502);
+  const content = (data && data.content) || [];
+  let input = (content.find(c => c.type === 'tool_use') || {}).input;
+  if (!input) {                                       // answered in text instead: look for {"tiles": ...}
+    const text = content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+    const m = text.match(/\{[\s\S]*"tiles"[\s\S]*\}/);
+    try { input = m && JSON.parse(m[0]); } catch (e) {}
+  }
+  if (!input || !Array.isArray(input.tiles)) return json({ ok: false, error: 'read', stop: data && data.stop_reason }, 502);
+  const use = { input };
 
   const seen = new Set(), tiles = [];
   for (const t of use.input.tiles || []) {
