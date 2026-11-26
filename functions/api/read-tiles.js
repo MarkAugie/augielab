@@ -36,7 +36,7 @@ function prompt(style) {
   return `This is a photo of a player's dominoes from a Double-12 set (each half shows 0 to 12; 0 is blank).
 ${style === 'nums'
     ? 'This set shows numerals instead of dots. Watch 6 vs 9 closely: on some sets only the 6 has a mark under it (a line or a small smiley-face curve) and the 9 has none; on others both are underlined. Use the marks and the direction the other numbers face. If you cannot tell, set sure to false.'
-    : 'This set uses dots (pips). Halves with 10, 11 or 12 dots are arranged in three columns (4-2-4, 4-3-4, 4-4-4). Count every dot carefully, one half at a time; dot colors may differ by number but do not rely on color alone.'}
+    : 'This set uses dots (pips). Halves with 10, 11 or 12 dots are arranged in three columns (4-2-4, 4-3-4, 4-4-4). Count every dot carefully, one half at a time; dot colors may differ by number but do not rely on color alone. A half is 0 (blank) ONLY if it has no dots at all: if you see any dots on a half, it is not blank, so count them again. Blanks are rare; double-check any 0 before reporting it, and set sure to false if a half might have faint or glared dots.'}
 List every tile you can see exactly once, with the numbers on its two halves. A full Double-12 set has only one of each tile, so the same pair should never appear twice.
 If a tile is only partly visible, or glare or blur makes a count uncertain, give your best reading and set sure to false.
 Ignore anything that isn't a domino. When you are done, call the report_tiles tool with the result (if you can't use the tool, reply with only JSON like {"tiles":[{"a":12,"b":9,"sure":true}],"note":""}).`;
