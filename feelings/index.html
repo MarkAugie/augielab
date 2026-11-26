@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Name that feeling · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="A feelings wheel for your phone. Pick the word you'd use and follow it in to the feeling underneath, or work outward from the big feelings. Private: nothing leaves your device.">
+<meta property="og:title" content="Name that feeling">
+<meta property="og:description" content="A feelings wheel: follow the word you'd use in to the feeling underneath.">
+<meta property="og:url" content="https://augielab.dev/feelings/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #FBF7F1; --ink: #2A2733; --dim: #6A6475; --line: #E6DED2; --card: #FFFFFF; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 21px; background: var(--bg); }
+  body { min-height: 100vh; color: var(--ink); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; line-height: 1.45; padding: 14px 14px 110px;
+    background: radial-gradient(ellipse 80% 50% at 50% 0%, #FFF0E0, var(--bg) 70%) fixed; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; } .top a { color: var(--dim); text-decoration: none; font-weight: 700; }
+  header { text-align: center; margin-bottom: 14px; }
+  h1 { font: 600 clamp(2.2rem, 7vw, 3.4rem)/1.05 "Fraunces", Georgia, serif; }
+  .sub { color: var(--dim); font-size: 1.08rem; margin-top: 6px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .wheel { width: 100%; max-width: 520px; margin: 0 auto; display: block; }
+  .wheel .seg { cursor: pointer; transition: opacity .25s; stroke: #fff; stroke-width: 1.5; }
+  .wheel .seg:focus-visible { outline: none; stroke: var(--ink); stroke-width: 3; }
+  .wheel.picked .seg { opacity: .28; } .wheel.picked .seg.on { opacity: 1; }
+  .wheel text { pointer-events: none; font-family: "Atkinson Hyperlegible", sans-serif; fill: #2A2733; }
+  .wheel.picked text { opacity: .35; } .wheel.picked text.on { opacity: 1; }
+
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: 0 10px 30px -18px rgba(60,40,20,.35); }
+  .search { position: relative; }
+  .search input { width: 100%; font: 700 1.05rem "Atkinson Hyperlegible", sans-serif; padding: 13px 14px; border: 2px solid var(--line); border-radius: 12px; color: var(--ink); background: #FFFDF9; }
+  .search input:focus { outline: 3px solid #F0B35A; outline-offset: 1px; }
+  .sugg { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 0; }
+  .q { margin: 16px 0 10px; font-weight: 700; font-size: 1.1rem; }
+  .crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 1rem; margin-top: 12px; min-height: 1.6em; }
+  .crumbs .c { font-weight: 700; padding: 3px 12px; border-radius: 999px; color: #2A2733; }
+  .crumbs .arr { color: var(--dim); }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chip { font: 700 1.08rem "Atkinson Hyperlegible", sans-serif; padding: 14px 10px; min-height: 56px; border-radius: 14px; border: 2px solid rgba(0,0,0,.08); cursor: pointer; color: #2A2733; text-align: center; }
+  .chip:hover { border-color: rgba(0,0,0,.3); }
+  .chip:focus-visible, button:focus-visible { outline: 3px solid #2A2733; outline-offset: 2px; }
+  .sugg .chip { padding: 8px 12px; min-height: 44px; font-size: .98rem; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btn { font: 700 1rem "Atkinson Hyperlegible", sans-serif; padding: 11px 16px; border-radius: 12px; border: 2px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; min-height: 48px; }
+  .btn.main { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .result { margin-top: 6px; }
+  .result .big { font: 600 2rem/1.15 "Fraunces", serif; margin: 6px 0 4px; }
+  .result .path { font-size: 1.08rem; }
+  .result .path b { padding: 1px 8px; border-radius: 8px; }
+  .note { margin-top: 12px; padding: 14px; border-radius: 14px; font-size: 1.05rem; }
+  .note h3 { font-size: 1.05rem; margin-bottom: 4px; }
+  .under { margin-top: 12px; font-size: 1rem; }
+  .under .choices { margin-top: 8px; }
+  textarea { width: 100%; font: 400 1rem "Atkinson Hyperlegible", sans-serif; padding: 10px 12px; border: 2px solid var(--line); border-radius: 12px; margin-top: 10px; min-height: 70px; resize: vertical; }
+  .journal { margin-top: 22px; }
+  .journal h2 { font: 600 1.5rem "Fraunces", serif; margin-bottom: 6px; }
+  .journal .hint { color: var(--dim); font-size: .92rem; }
+  .entry { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+  .entry .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; margin-top: 6px; }
+  .entry .when { color: var(--dim); font-size: .88rem; }
+  .entry .what { font-weight: 700; }
+  .entry .txt { font-size: .98rem; white-space: pre-wrap; }
+  .entry button { margin-left: auto; background: none; border: 0; color: var(--dim); font: 700 .9rem "Atkinson Hyperlegible", sans-serif; cursor: pointer; padding: 6px; min-width: 44px; min-height: 44px; }
+  .help { text-align: center; color: var(--dim); font-size: .9rem; margin-top: 22px; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } html { font-size: 19px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/">← AugieLab</a></div>
+  <header>
+    <h1>Name that feeling</h1>
+    <p class="sub">Start with the word you'd use, and follow it in to the feeling underneath.</p>
+  </header>
+
+  <div class="layout">
+    <svg class="wheel" id="wheel" viewBox="-215 -215 430 430" role="group" aria-label="Feelings wheel. Big feelings in the middle, more specific words toward the edge."></svg>
+
+    <div>
+      <div class="panel">
+        <div class="search">
+          <label for="find" style="font-weight:700">Type the word you'd use</label>
+          <input id="find" type="text" placeholder="e.g. stressed, irritated, lonely" autocomplete="off" style="margin-top:6px">
+          <div class="sugg" id="sugg"></div>
+        </div>
+        <div class="crumbs" id="crumbs"></div>
+        <div id="stage"></div>
+      </div>
+      <section class="journal" id="journal"></section>
+    </div>
+  </div>
+  <p class="help">This is a tool for noticing, not a diagnosis. If you're struggling, talk to someone you trust. In the US you can call or text <b>988</b> any time.</p>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The feeling wheel</h3>
+  <p>Feeling wheels have been used by counselors for decades. The best known was made by therapist Gloria Willcox in the early 1980s. The idea is simple: a few big, basic feelings sit in the middle, and each ring outward breaks them into more precise words. This page uses its own word list in the same spirit: six big feelings (scared, sad, mad, joyful, peaceful, powerful), each with six more specific feelings, each with two everyday words.</p>
+  <h3>Why naming it helps</h3>
+  <p>We usually reach for a surface word ("stressed", "annoyed", "fine"). Following it inward often turns up something different: "irritated" can turn out to be "frustrated", and frustration is a kind of anger, while "overwhelmed" usually sits inside fear. Researchers call this <strong>affect labeling</strong>: putting a precise name to a feeling tends to take some of its sting away, and it points to what you actually need.</p>
+  <h3>Feelings underneath feelings</h3>
+  <p>Anger is often a cover for something more vulnerable, like fear or hurt. So when your path ends in <strong>mad</strong>, the page asks whether something also felt scary or painful, and lets you follow that path too.</p>
+  <h3>Three ways in</h3>
+  <p>Type the word you'd use and tap a match; tap any slice of the wheel; or start from the big feelings and narrow down with two more taps. The wheel lights up your path.</p>
+  <h3>Private</h3>
+  <p>Nothing you pick or write leaves your device. The journal is saved only in this browser on this device, and you can delete any entry. The site only counts how many times a feeling was named, never which one.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  // ================= Words =================
+  // [core, color, [[middle, [outer, outer]], ...]]
+  const WHEEL = [
+    ['Scared', '#9C8CE8', [['Anxious', ['worried', 'overwhelmed']], ['Insecure', ['inadequate', 'inferior']], ['Rejected', ['left out', 'unwanted']],
+      ['Helpless', ['stuck', 'powerless']], ['Confused', ['lost', 'uncertain']], ['Embarrassed', ['foolish', 'exposed']]]],
+    ['Sad', '#6FA3E8', [['Lonely', ['isolated', 'abandoned']], ['Hurt', ['let down', 'disappointed']], ['Guilty', ['ashamed', 'regretful']],
+      ['Tired', ['drained', 'burned out']], ['Low', ['empty', 'hopeless']], ['Grieving', ['heartbroken', 'missing someone']]]],
+    ['Mad', '#F07C68', [['Frustrated', ['irritated', 'impatient']], ['Resentful', ['bitter', 'wronged']], ['Critical', ['judgmental', 'skeptical']],
+      ['Jealous', ['envious', 'possessive']], ['Annoyed', ['grumpy', 'touchy']], ['Disrespected', ['insulted', 'ignored']]]],
+    ['Joyful', '#F5CB4C', [['Excited', ['eager', 'thrilled']], ['Playful', ['silly', 'cheerful']], ['Hopeful', ['optimistic', 'inspired']],
+      ['Amused', ['delighted', 'entertained']], ['Curious', ['interested', 'fascinated']], ['Happy', ['glad', 'lighthearted']]]],
+    ['Peaceful', '#6CC4A4', [['Content', ['satisfied', 'comfortable']], ['Loving', ['caring', 'affectionate']], ['Grateful', ['thankful', 'blessed']],
+      ['Relaxed', ['calm', 'at ease']], ['Trusting', ['safe', 'secure']], ['Thoughtful', ['reflective', 'nostalgic']]]],
+    ['Powerful', '#F5A257', [['Confident', ['capable', 'self-assured']], ['Proud', ['accomplished', 'successful']], ['Respected', ['valued', 'appreciated']],
+      ['Brave', ['determined', 'bold']], ['Important', ['needed', 'worthy']], ['Focused', ['motivated', 'productive']]]]
+  ];
+  const NOTES = {
+    Scared: ['Fear is a signal', "It usually means something feels uncertain or threatening. What are you worried might happen? Is there one small thing you could do about it, or someone you could tell?"],
+    Sad: ['Sadness means something matters', "It often comes from losing something, or missing something you need. It usually needs comfort more than fixing. Who could you share it with?"],
+    Mad: ['Anger means a line was crossed', "Something may have felt unfair, or a need isn't being met. What do you need that you're not getting? Anger often sits on top of fear or hurt."],
+    Joyful: ['Enjoy it', "What's going right? Noticing it, and sharing it with someone, helps a good feeling last longer."],
+    Peaceful: ['A good place to be', 'Notice what helped you get here, so you can find your way back to it.'],
+    Powerful: ['You feel able to act', "A good moment to take on something you've been putting off, or to help someone else."]
+  };
+  const tint = (hex, t) => { const n = parseInt(hex.slice(1), 16); const c = [n >> 16, n >> 8 & 255, n & 255].map(v => Math.round(v + (255 - v) * t)); return `rgb(${c})`; };
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+  const ALL = [];   // every word with its path
+  WHEEL.forEach(([core, col, mids], ci) => {
+    ALL.push({ w: core, path: [ci] });
+    mids.forEach(([m, outs], mi) => { ALL.push({ w: m, path: [ci, mi] }); outs.forEach((o, oi) => ALL.push({ w: o, path: [ci, mi, oi] })); });
+  });
+  const color = (path) => { const base = WHEEL[path[0]][1]; return path.length === 1 ? base : path.length === 2 ? tint(base, .35) : tint(base, .6); };
+  const word = (path) => path.length === 1 ? WHEEL[path[0]][0] : path.length === 2 ? WHEEL[path[0]][2][path[1]][0] : WHEEL[path[0]][2][path[1]][1][path[2]];
+
+  // ================= Wheel =================
+  const R = [42, 100, 152, 212], NS = 'http://www.w3.org/2000/svg';
+  const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const pt = (r, a) => [r * Math.sin(a), -r * Math.cos(a)];
+  function arc(r0, r1, a0, a1) {
+    const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0), big = a1 - a0 > Math.PI ? 1 : 0;
+    return `M${x0} ${y0} A${r1} ${r1} 0 ${big} 1 ${x1} ${y1} L${x2} ${y2} A${r0} ${r0} 0 ${big} 0 ${x3} ${y3} Z`;
+  }
+  const segs = [], labels = [];
+  function label(text, r, a, size, ring, path, radial) {
+    const [x, y] = pt(r, a); let deg = a * 180 / Math.PI;
+    const t = el('text', { x: 0, y: 0, 'font-size': size, 'font-weight': ring === 0 ? 700 : 600, 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    if (radial) { let rot = deg - 90; if (deg > 180) rot += 180; t.setAttribute('transform', `translate(${x} ${y}) rotate(${rot})`); }
+    else t.setAttribute('transform', `translate(${x} ${y})`);
+    t.textContent = text; t.dataset.path = path.join('.'); $('wheel').appendChild(t); labels.push(t);
+  }
+  const step = 2 * Math.PI / 6;
+  WHEEL.forEach(([core, col, mids], ci) => {
+    const a0 = ci * step, ms = step / mids.length;
+    mids.forEach(([m, outs], mi) => {
+      const b0 = a0 + mi * ms, os = ms / outs.length;
+      outs.forEach((o, oi) => addSeg([ci, mi, oi], R[2], R[3], b0 + oi * os, b0 + (oi + 1) * os, o));
+      addSeg([ci, mi], R[1], R[2], b0, b0 + ms, m);
+    });
+    addSeg([ci], R[0], R[1], a0, a0 + step, core);
+  });
+  function addSeg(path, r0, r1, a0, a1, text) {
+    const p = el('path', { d: arc(r0, r1, a0, a1), fill: color(path), class: 'seg', tabindex: 0, role: 'button', 'aria-label': cap(text) });
+    p.dataset.path = path.join('.');
+    p.addEventListener('click', () => choose(path));
+    p.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(path); } });
+    $('wheel').insertBefore(p, $('wheel').firstChild); segs.push(p);
+    const ring = path.length - 1, mid = (a0 + a1) / 2, rr = (r0 + r1) / 2;
+    if (ring === 0) label(text, rr, mid, 15, 0, path, false);
+    else label(text.length > 13 ? text.replace(' someone', '…') : text, rr, mid, ring === 1 ? 10.5 : 8.6, ring, path, true);
+  }
+  $('wheel').appendChild(el('circle', { r: R[0] - 2, fill: '#FFFDF9' }));
+  const hub = el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 11, 'font-weight': 700, fill: '#6A6475' }); hub.textContent = 'start here'; $('wheel').appendChild(hub);
+
+  function lightWheel(path) {
+    const keys = path ? path.map((_, i) => path.slice(0, i + 1).join('.')) : [];
+    $('wheel').classList.toggle('picked', !!path);
+    for (const s of segs) s.classList.toggle('on', keys.includes(s.dataset.path) || (path && s.dataset.path.startsWith(path.join('.') + '.')));
+    for (const t of labels) t.classList.toggle('on', keys.includes(t.dataset.path) || (path && t.dataset.path.startsWith(path.join('.') + '.')));
+  }
+
+  // ================= Panel =================
+  let cur = null;
+  const chip = (path, text) => `<button class="chip" data-p="${path.join('.')}" style="background:${color(path)}">${cap(text || word(path))}</button>`;
+  function crumbs(path) {
+    $('crumbs').innerHTML = path ? path.map((_, i) => { const p = path.slice(0, i + 1); return `<span class="c" style="background:${color(p)}">${cap(word(p))}</span>`; }).join('<span class="arr">›</span>') : '';
+  }
+  function render() {
+    lightWheel(cur); crumbs(cur);
+    let h = '';
+    if (!cur) {
+      h = `<p class="q">Or start with the big feeling that's closest:</p><div class="choices">${WHEEL.map((_, i) => chip([i])).join('')}</div>`;
+    } else if (cur.length < 3 && !done) {
+      const kids = cur.length === 1 ? WHEEL[cur[0]][2].map((_, i) => [cur[0], i]) : WHEEL[cur[0]][2][cur[1]][1].map((_, i) => [cur[0], cur[1], i]);
+      h = `<p class="q">Which is closer?</p><div class="choices">${kids.map(p => chip(p)).join('')}</div>
+        <div class="row"><button class="btn main" id="thisone">"${cap(word(cur))}" is it</button><button class="btn" id="back">← Back</button><button class="btn" id="over">Start over</button></div>`;
+    } else h = result(cur);
+    $('stage').innerHTML = h;
+    $('stage').querySelectorAll('.chip').forEach(b => { if (!b.closest('.under')) b.addEventListener('click', () => choose(b.dataset.p.split('.').map(Number))); });
+    const on = (id, f) => { const b = $(id); if (b) b.addEventListener('click', f); };
+    on('thisone', () => { done = true; render(); });
+    on('back', () => { cur = cur.length > 1 ? cur.slice(0, -1) : null; done = false; render(); });
+    on('over', reset);
+    if (cur && (cur.length === 3 || done)) wireResult();
+  }
+  let done = false, counted = false;
+  function result(path) {
+    const core = WHEEL[path[0]][0], [title, body] = NOTES[core];
+    const steps = path.map((_, i) => path.slice(0, i + 1)).reverse();
+    const words = steps.map(p => `<b style="background:${color(p)}">${word(p).toLowerCase()}</b>`);
+    const pathTxt = path.length === 1 ? `This is one of the big, basic feelings.` :
+      `${words.join(' <span class="arr">is a kind of</span> ')}`;
+    let under = '';
+    if (core === 'Mad') under = `<div class="under">Is something underneath the anger? Did anything also feel <b>scary</b> or <b>hurtful</b>?<div class="choices">${chip([0], 'Scared, maybe')}${chip([1], 'Hurt or sad, maybe')}</div></div>`;
+    return `<div class="result">
+      <p class="q" style="margin-bottom:0">You're feeling</p>
+      <div class="big">${cap(word(path))}</div>
+      <p class="path">${pathTxt}</p>
+      <div class="note" style="background:${tint(WHEEL[path[0]][1], .78)}"><h3>${title}</h3>${body}</div>
+      ${under}
+      <textarea id="jtxt" placeholder="Optional: what's going on? (stays on this device)"></textarea>
+      <div class="row"><button class="btn main" id="save">Save to my journal</button><button class="btn" id="back">← Back</button><button class="btn" id="over">Start over</button></div>
+    </div>`;
+  }
+  function wireResult() {
+    $('stage').querySelectorAll('.under .chip').forEach(b => b.addEventListener('click', () => choose(b.dataset.p.split('.').map(Number))));
+    $('save').addEventListener('click', () => {
+      J.unshift({ t: Date.now(), p: cur, n: $('jtxt').value.trim().slice(0, 1000) }); saveJ(); showJ();
+      $('save').textContent = 'Saved ✓'; $('save').disabled = true;
+    });
+    if (!counted) { counted = true; window.labTrack && labTrack('named', 1); }
+  }
+  function choose(path) { cur = path; done = false; counted = false; render(); }
+  function reset() { cur = null; done = false; $('find').value = ''; $('sugg').innerHTML = ''; render(); }
+
+  // ================= Search =================
+  $('find').addEventListener('input', () => {
+    const q = $('find').value.trim().toLowerCase();
+    if (!q) { $('sugg').innerHTML = ''; return; }
+    const hits = ALL.filter(x => x.w.toLowerCase().includes(q)).sort((a, b) => a.w.toLowerCase().indexOf(q) - b.w.toLowerCase().indexOf(q)).slice(0, 8);
+    $('sugg').innerHTML = hits.length ? hits.map(x => chip(x.path, x.w)).join('') : `<span style="color:var(--dim);font-size:.95rem">Not on this wheel. Try a nearby word, or start with a big feeling below.</span>`;
+    $('sugg').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+      choose(b.dataset.p.split('.').map(Number));
+      $('sugg').innerHTML = ''; $('find').value = '';
+    }));
+  });
+
+  // ================= Journal (this device only) =================
+  let J = []; try { J = JSON.parse(localStorage.getItem('feel-journal') || '[]'); } catch (e) {}
+  const saveJ = () => { try { localStorage.setItem('feel-journal', JSON.stringify(J.slice(0, 200))); } catch (e) {} };
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function showJ() {
+    if (!J.length) { $('journal').innerHTML = ''; return; }
+    $('journal').innerHTML = `<h2>My journal</h2><p class="hint">Saved only on this device.</p>` + J.map((e, i) => {
+      const d = new Date(e.t), when = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      const trail = e.p.map((_, k) => word(e.p.slice(0, k + 1)).toLowerCase()).reverse().join(' → ');
+      return `<div class="entry"><span class="dot" style="background:${WHEEL[e.p[0]][1]}"></span><div><div class="when">${when}</div><div class="what">${esc(trail)}</div>${e.n ? `<div class="txt">${esc(e.n)}</div>` : ''}</div><button data-i="${i}" aria-label="Delete this entry">Delete</button></div>`;
+    }).join('');
+    $('journal').querySelectorAll('button[data-i]').forEach(b => b.addEventListener('click', () => { if (confirm('Delete this entry?')) { J.splice(+b.dataset.i, 1); saveJ(); showJ(); } }));
+  }
+  render(); showJ();
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
