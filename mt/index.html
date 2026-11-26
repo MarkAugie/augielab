@@ -250,7 +250,7 @@
   <h3>The scoreboard</h3>
   <p>Thirteen rounds, from the double-12 engine down to double-0. The lowest total wins. Everything is saved on this phone, so closing the page or refreshing won't lose the game. Nothing is sent anywhere.</p>
   <h3>Snap a photo</h3>
-  <p>Lay your tiles flat, spread out a little, in good light without glare, and take a picture from straight above. Claude (an AI from Anthropic) reads the dots or numbers and fills in your hand. Any tile it wasn't sure about gets a gold <strong>check</strong> label. Always look the tiles over: if one is wrong, tap it to remove it and tap in the right one. Set the <strong>Dots / Numbers</strong> switch to match your set first. The photo is only used to read the tiles and isn't saved.</p>
+  <p>Each photo replaces the tiles on that screen. Lay your tiles flat, spread out a little, in good light without glare, and take a picture from straight above. Claude (an AI from Anthropic) reads the dots or numbers and fills in your hand. Any tile it wasn't sure about gets a gold <strong>check</strong> label. Always look the tiles over: if one is wrong, tap it to remove it and tap in the right one. Set the <strong>Dots / Numbers</strong> switch to match your set first. The photo is only used to read the tiles and isn't saved.</p>
   <h3>What were the odds?</h3>
   <p>When you count your leftovers, the app works out how many of all the possible hands with that many tiles (from a full Double-12 set) would total as much as yours, or as little. It's exact math, not a guess.</p>
 </template>
@@ -303,7 +303,8 @@
       h.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const [t] = E.hand.splice(+b.dataset.i, 1); E.flag.delete(key(...t)); save(); }));
     }
     function save() { store.set('hand-' + id, E.hand); store.set('flag-' + id, [...E.flag]); draw(); onChange(); }
-    E.add = list => {                          // tiles from a photo: [{a, b, sure}]
+    E.add = list => {                          // tiles from a photo replace the hand: [{a, b, sure}]
+      E.hand = []; E.flag.clear(); E.first = null;
       let added = 0, dup = 0;
       for (const { a, b, sure } of list) {
         const t = [Math.max(a, b), Math.min(a, b)];
@@ -496,7 +497,7 @@
         const { added, dup } = E.add(d.tiles);
         const unsure = d.tiles.filter(t => !t.sure).length;
         window.labTrack && labTrack('photo', 1);
-        say(`Found ${d.tiles.length} tile${d.tiles.length === 1 ? '' : 's'}${dup ? ` (${dup} already in your hand)` : ''}. ` +
+        say(`Found ${d.tiles.length} tile${d.tiles.length === 1 ? '' : 's'}. ` +
           (unsure ? `Look closely at the ${unsure} marked “check”. ` : '') +
           'Make sure they match your real tiles: tap a wrong one to remove it, then tap in the right one.' + (d.note ? ' ' + d.note : ''), 'ok');
         if (id === 'open') $('result').hidden = true;
