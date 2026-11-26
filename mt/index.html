@@ -107,6 +107,17 @@
   tfoot td { font: 700 1.1rem "IBM Plex Mono", monospace; background: #F3EBDB; }
   .x { background: none; border: 0; color: var(--red); font: 700 1rem sans-serif; cursor: pointer; padding: 0 4px; }
 
+  /* photo reading */
+  .btn.photo { width: 100%; font-size: 1.15rem; padding: 15px 16px; background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.photo[disabled] { opacity: .65; cursor: wait; }
+  .or { text-align: center; color: var(--dim); font-weight: 600; margin: 12px 0 10px; }
+  .photomsg { margin-top: 10px; font-weight: 600; font-size: 1.02rem; }
+  .photomsg.bad { color: var(--red); } .photomsg.ok { color: var(--green); }
+  .hand button.check svg rect { stroke: var(--gold); stroke-width: 5; }
+  .hand button.check::before { content: "check"; position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); font: 700 11px/1 "IBM Plex Sans", sans-serif; color: var(--gold); text-transform: uppercase; letter-spacing: .05em; }
+  .hand.flagged { padding-bottom: 14px; }
+  .odds { margin-top: 10px; font-size: 1.1rem; font-weight: 600; }
+
   .rules { margin-top: 12px; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
   .rules input { width: 22px; height: 22px; }
 
@@ -144,6 +155,10 @@
     </div>
     <div class="card">
       <h2>Enter your tiles</h2>
+      <button class="btn photo" id="photo-open">📷 Snap a photo of my tiles</button>
+      <input type="file" accept="image/*" id="file-open" hidden>
+      <div class="photomsg" id="pmsg-open" aria-live="polite"></div>
+      <p class="or">or tap them in</p>
       <div class="entry">
         <div class="pending" id="pend-open"></div>
         <div class="pad" id="pad-open"></div>
@@ -165,10 +180,15 @@
     <div class="card">
       <span class="lbl">Points left in your hand</span>
       <div class="totalrow"><div class="total" id="total">0</div><div class="help" id="totalNote">0 tiles</div></div>
+      <p class="odds" id="odds"></p>
       <label class="rules"><input type="checkbox" id="rule50" checked> Double-blank (0|0) counts <b>50</b></label>
     </div>
     <div class="card">
       <h2>Enter the tiles you're stuck with</h2>
+      <button class="btn photo" id="photo-count">📷 Snap a photo of my leftovers</button>
+      <input type="file" accept="image/*" id="file-count" hidden>
+      <div class="photomsg" id="pmsg-count" aria-live="polite"></div>
+      <p class="or">or tap them in</p>
       <div class="entry">
         <div class="pending" id="pend-count"></div>
         <div class="pad" id="pad-count"></div>
@@ -224,8 +244,10 @@
   <p>At the end of a round, enter the tiles you're stuck with. It adds up every dot or number. With the house rule on, the double-blank counts 50. Then send the total straight to the scoreboard.</p>
   <h3>The scoreboard</h3>
   <p>Thirteen rounds, from the double-12 engine down to double-0. The lowest total wins. Everything is saved on this phone, so closing the page or refreshing won't lose the game. Nothing is sent anywhere.</p>
-  <h3>Coming later</h3>
-  <p>A "snap a photo of my tiles" option, which would fill in your hand and let you fix any tile it misread (6s and 9s on number sets are the tricky part).</p>
+  <h3>Snap a photo</h3>
+  <p>Lay your tiles flat, spread out a little, in good light without glare, and take a picture from straight above. Claude (an AI from Anthropic) reads the dots or numbers and fills in your hand. Any tile it wasn't sure about gets a gold <strong>check</strong> label. Always look the tiles over: if one is wrong, tap it to remove it and tap in the right one. Set the <strong>Dots / Numbers</strong> switch to match your set first. The photo is only used to read the tiles and isn't saved.</p>
+  <h3>What were the odds?</h3>
+  <p>When you count your leftovers, the app works out how many of all the possible hands with that many tiles (from a full Double-12 set) would total as much as yours, or as little. It's exact math, not a guess.</p>
 </template>
 
 <script>
@@ -264,17 +286,27 @@
   // ================= Tile entry (used twice) =================
   const key = (a, b) => a <= b ? `${a}-${b}` : `${b}-${a}`;
   function makeEntry(id, onChange) {
-    const E = { hand: store.get('hand-' + id, []), first: null };
+    const E = { hand: store.get('hand-' + id, []), first: null, flag: new Set(store.get('flag-' + id, [])) };
     const pad = $('pad-' + id);
     pad.innerHTML = Array.from({ length: 13 }, (_, i) => `<button data-n="${i}" aria-label="${i}">${i === 6 || i === 9 ? `<span class="u">${i}</span>` : i}</button>`).join('');
     function draw() {
       $('pend-' + id).innerHTML = E.first === null ? `<div class="help" style="margin:0">Next tile</div>${tileBlank()}` : `<div class="help" style="margin:0">Now the other end</div>${tileHalf(E.first)}`;
       pad.querySelectorAll('button').forEach(b => b.classList.toggle('first', +b.dataset.n === E.first));
       const h = $('hand-' + id);
-      h.innerHTML = E.hand.length ? E.hand.map((t, i) => `<button data-i="${i}" aria-label="Remove ${t[0]} and ${t[1]}">${tile(t[0], t[1], TS())}</button>`).join('') : '<span class="empty">No tiles yet</span>';
-      h.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { E.hand.splice(+b.dataset.i, 1); save(); }));
+      h.innerHTML = E.hand.length ? E.hand.map((t, i) => { const c = E.flag.has(key(...t)); return `<button data-i="${i}" class="${c ? 'check' : ''}" aria-label="Remove ${t[0]} and ${t[1]}${c ? ' (please check this one)' : ''}">${tile(t[0], t[1], TS())}</button>`; }).join('') : '<span class="empty">No tiles yet</span>';
+      h.classList.toggle('flagged', E.hand.some(t => E.flag.has(key(...t))));
+      h.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const [t] = E.hand.splice(+b.dataset.i, 1); E.flag.delete(key(...t)); save(); }));
     }
-    function save() { store.set('hand-' + id, E.hand); draw(); onChange(); }
+    function save() { store.set('hand-' + id, E.hand); store.set('flag-' + id, [...E.flag]); draw(); onChange(); }
+    E.add = list => {                          // tiles from a photo: [{a, b, sure}]
+      let added = 0, dup = 0;
+      for (const { a, b, sure } of list) {
+        const t = [Math.max(a, b), Math.min(a, b)];
+        if (E.hand.some(h => key(...h) === key(...t))) { dup++; continue; }
+        E.hand.push(t); if (!sure) E.flag.add(key(...t)); added++;
+      }
+      save(); return { added, dup };
+    };
     pad.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return; const n = +b.dataset.n; $('msg-' + id).textContent = '';
       if (E.first === null) { E.first = n; draw(); return; }
@@ -282,8 +314,8 @@
       if (E.hand.some(h => key(...h) === key(...t))) { $('msg-' + id).textContent = `You already have ${t[0]}|${t[1]}. A set only has one of each.`; draw(); return; }
       E.hand.push(t); save();
     });
-    $('undo-' + id).addEventListener('click', () => { if (E.first !== null) { E.first = null; draw(); } else { E.hand.pop(); save(); } });
-    $('clear-' + id).addEventListener('click', () => { E.first = null; E.hand = []; save(); });
+    $('undo-' + id).addEventListener('click', () => { if (E.first !== null) { E.first = null; draw(); } else { const t = E.hand.pop(); if (t) E.flag.delete(key(...t)); save(); } });
+    $('clear-' + id).addEventListener('click', () => { E.first = null; E.hand = []; E.flag.clear(); save(); $('pmsg-' + id).textContent = ''; });
     E.draw = draw; draw();
     return E;
   }
@@ -367,6 +399,7 @@
     const h = count.hand; $('total').textContent = points(h);
     const z = h.some(t => t[0] === 0 && t[1] === 0) && rule50();
     $('totalNote').textContent = `${h.length} tile${h.length === 1 ? '' : 's'}${z ? ' (includes 50 for the double-blank)' : ''}`;
+    $('odds').textContent = oddsText(h);
   }
   updateTotal();
 
@@ -420,6 +453,71 @@
     window.labTrack && labTrack('count', 1);
     $('msg-send').textContent = `Added ${points(count.hand)} to ${p}, round ${r}|${r}.`;
   });
+
+  // ================= Photo reading =================
+  function shrink(file) {                       // longest side 1600px, JPEG
+    return new Promise((ok, bad) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        ok(c.toDataURL('image/jpeg', .85).split(',')[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); bad(new Error('img')); };
+      img.src = url;
+    });
+  }
+  const PHOTO_ERR = {
+    setup: "Photo reading isn't switched on yet. Tap your tiles in for now.",
+    cap: 'Photo reading has reached its limit for today. Tap your tiles in for now.',
+    key: "Photo reading isn't working right now. Tap your tiles in for now.",
+    credit: "Photo reading is out of credit right now. Tap your tiles in for now.",
+  };
+  function setupPhoto(id, E) {
+    const btn = $('photo-' + id), file = $('file-' + id), msg = $('pmsg-' + id), label = btn.textContent;
+    const say = (t, cls) => { msg.textContent = t; msg.className = 'photomsg ' + (cls || ''); };
+    btn.addEventListener('click', () => file.click());
+    file.addEventListener('change', async () => {
+      const f = file.files[0]; file.value = ''; if (!f) return;
+      btn.disabled = true; btn.textContent = '⏳ Reading your tiles…'; say('This takes about 10 to 20 seconds.');
+      try {
+        const image = await shrink(f);
+        const r = await fetch('/api/read-tiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, style }) });
+        const d = await r.json().catch(() => ({}));
+        if (!d.ok) { say(PHOTO_ERR[d.error] || "Couldn't read that photo. Try again in good light, or tap your tiles in.", 'bad'); return; }
+        if (!d.tiles.length) { say(d.note || "I couldn't find any dominoes in that photo. Try again from straight above, in good light.", 'bad'); return; }
+        const { added, dup } = E.add(d.tiles);
+        const unsure = d.tiles.filter(t => !t.sure).length;
+        window.labTrack && labTrack('photo', 1);
+        say(`Found ${d.tiles.length} tile${d.tiles.length === 1 ? '' : 's'}${dup ? ` (${dup} already in your hand)` : ''}. ` +
+          (unsure ? `Look closely at the ${unsure} marked “check”. ` : '') +
+          'Make sure they match your real tiles: tap a wrong one to remove it, then tap in the right one.' + (d.note ? ' ' + d.note : ''), 'ok');
+        if (id === 'open') $('result').hidden = true;
+      } catch (e) {
+        say("Couldn't send the photo. Check your connection and try again, or tap your tiles in.", 'bad');
+      } finally { btn.disabled = false; btn.textContent = label; }
+    });
+  }
+  setupPhoto('open', open); setupPhoto('count', count);
+
+  // ================= What were the odds? =================
+  function oddsText(hand) {
+    const n = hand.length; if (!n || n > 30) return '';
+    const T = points(hand), vals = [];
+    for (let a = 0; a <= 12; a++) for (let b = 0; b <= a; b++) vals.push(value([a, b]));
+    const maxS = vals.reduce((s, v) => s + v, 0);
+    let dp = Array.from({ length: n + 1 }, () => new Float64Array(maxS + 1)); dp[0][0] = 1;
+    for (const v of vals) for (let k = n; k >= 1; k--) { const to = dp[k], from = dp[k - 1]; for (let s = maxS; s >= v; s--) if (from[s - v]) to[s] += from[s - v]; }
+    const row = dp[n]; let all = 0, ge = 0, le = 0, mean = 0;
+    for (let s = 0; s <= maxS; s++) { all += row[s]; mean += s * row[s]; if (s >= T) ge += row[s]; if (s <= T) le += row[s]; }
+    mean /= all; const avg = Math.round(mean), pg = ge / all, pl = le / all;
+    const oneIn = p => { const x = 1 / p; return x >= 100 ? Math.round(x).toLocaleString('en-US') : x >= 10 ? Math.round(x) : x.toFixed(1).replace(/\.0$/, ''); };
+    const tiles = `${n} tile${n === 1 ? '' : 's'}`;
+    if (pg <= .2) return `😬 Ouch! Only about 1 in ${oneIn(pg)} hands of ${tiles} add up to ${T} or more. (Average is about ${avg}.)`;
+    if (pl <= .2) return `😎 Lucky! Only about 1 in ${oneIn(pl)} hands of ${tiles} are as light as ${T} or less. (Average is about ${avg}.)`;
+    return `About average: ${tiles} usually add up to around ${avg}.`;
+  }
 
   // ================= Tabs and style =================
   document.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => {
