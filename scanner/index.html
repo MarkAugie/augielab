@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drive the Scanner · Mobile LiDAR &amp; Survey Control · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Drive a mobile laser scanner down a road and watch the point cloud build. Without survey control the road slowly bends and sags; set control nails and it snaps back. Plant a blunder and find it with checkpoints and residuals.">
+<meta property="og:title" content="Drive the Scanner: why mobile LiDAR needs survey control">
+<meta property="og:description" content="Watch a scanned road bend and sag from drift, then pin it with control nails. Checkpoints, RMSE, a hidden blunder to find, and a pass/fail against your project spec.">
+<meta property="og:url" content="https://augielab.dev/scanner/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070B12; --panel: #0F1724; --line: #233349;
+    --text: #EEF2F8; --dim: #B5C1D2; --soft: #8394AB;
+    --laser: #FF4FA3; --truth: #FFFFFF; --raw: #FF9A3C; --fixed: #43F0B0; --sky: #7FD4FF; --warn: #FFD36E; --bad: #FF6F86;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--bg); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 90% 700px at 50% 0%, #142338, var(--bg) 75%) no-repeat, var(--bg); }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  header { margin: 4px 0 18px; }
+  h1 { font: 800 clamp(2.4rem, 7vw, 4.2rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; }
+  h1 em { font-weight: 500; color: var(--laser); }
+  .sub { margin-top: 12px; font-size: 1.12rem; color: var(--dim); max-width: 68ch; }
+
+  .lab { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .view { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #03060B; }
+  #three { display: block; width: 100%; height: 600px; touch-action: none; }
+  .hud { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+  .pill { padding: 6px 12px; border-radius: 999px; font: 700 .78rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+    background: rgba(7,11,18,.78); border: 1px solid rgba(255,255,255,.25); color: var(--text); }
+  .pill.st { font-family: "IBM Plex Mono", monospace; letter-spacing: .02em; text-transform: none; font-size: .85rem; }
+  .pill.raw { color: var(--raw); border-color: rgba(255,154,60,.55); }
+  .pill.fix { color: var(--fixed); border-color: rgba(67,240,176,.55); }
+  .pill.ex { color: var(--warn); border-color: rgba(255,211,110,.55); }
+  .pill.gnss { color: var(--sky); border-color: rgba(127,212,255,.55); }
+  .pill.lost { color: var(--bad); border-color: rgba(255,111,134,.6); }
+  .cams { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .cams .btn { background: rgba(7,11,18,.82); font-size: .85rem; padding: 7px 11px; }
+  .legend { position: absolute; left: 12px; bottom: 12px; font-size: .8rem; color: var(--dim); background: rgba(7,11,18,.78); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 10px; padding: 7px 11px; line-height: 1.55; pointer-events: none; }
+  .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: 4px; margin-right: 6px; border-radius: 2px; }
+
+  .chartbox { margin-top: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 8px; }
+  .chartbox .lbl { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  #chart { display: block; width: 100%; height: 230px; cursor: crosshair; touch-action: manipulation; }
+  .hint { font-size: .9rem; color: var(--soft); margin-top: 2px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 15px 17px; }
+  .panel + .panel { margin-top: 14px; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--soft); }
+  .btn { font: 600 .98rem "IBM Plex Sans", sans-serif; padding: 9px 12px; border-radius: 8px; cursor: pointer; color: var(--text); background: #14213A; border: 1px solid #30486B; }
+  .btn:hover { border-color: var(--text); }
+  .btn.on { background: var(--laser); color: #2A0018; border-color: var(--laser); }
+  .btn.primary { background: var(--laser); color: #2A0018; border-color: var(--laser); min-width: 6.5em; }
+  .btn.good { background: var(--fixed); color: #002A1B; border-color: var(--fixed); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .ctl + .ctl { margin-top: 14px; }
+  .note { margin-top: 8px; color: var(--dim); font-size: .92rem; }
+  .note b { color: var(--text); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  .big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .cell { background: #0B121E; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+  .cell .v { font: 600 1.25rem/1.2 "IBM Plex Mono", monospace; margin-top: 2px; }
+  .cell .v small { font-size: .62em; color: var(--dim); }
+  .v.raw { color: var(--raw); } .v.fix { color: var(--fixed); } .v.bad { color: var(--bad); } .v.warn { color: var(--warn); }
+  .verdict { margin-top: 14px; padding: 13px 16px; border-radius: 12px; font-size: 1.04rem; background: rgba(255,79,163,.07); border: 1px solid rgba(255,79,163,.3); }
+  .verdict.pass { background: rgba(67,240,176,.07); border-color: rgba(67,240,176,.35); }
+  .verdict.fail { background: rgba(255,111,134,.08); border-color: rgba(255,111,134,.4); }
+  .verdict b { color: var(--warn); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
+  th { text-align: left; font: 700 .72rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  td { white-space: nowrap; padding: 6px; border-bottom: 1px solid rgba(35,51,73,.6); font-family: "IBM Plex Mono", monospace; }
+  td.flag { color: var(--bad); font-weight: 600; }
+  td.ok { color: var(--fixed); }
+  .role { font: 600 .82rem "IBM Plex Sans", sans-serif; padding: 4px 9px; border-radius: 6px; cursor: pointer; border: 1px solid; background: transparent; }
+  .role.c { color: var(--laser); border-color: rgba(255,79,163,.6); }
+  .role.k { color: var(--sky); border-color: rgba(127,212,255,.6); }
+  .x { background: none; border: 0; color: var(--soft); cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
+  .x:hover { color: var(--bad); }
+  .empty { color: var(--soft); font-size: .92rem; margin-top: 8px; }
+  .hide { display: none !important; }
+  .lab > div { min-width: 0; }
+  #nailTable { overflow-x: auto; }
+
+  .source { margin-top: 26px; display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .95rem; color: var(--dim); text-align: center; }
+  .source i { width: 11px; height: 11px; border-radius: 50%; background: #E0A423; flex: none; }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 1.05rem; }
+
+  @media (max-width: 980px) {
+    html { font-size: 18px; }
+    body { padding: 14px 10px 110px; }
+    .lab { grid-template-columns: 1fr; gap: 14px; }
+    #three { height: 440px; }
+    .legend { display: none; }
+    td { padding: 6px 4px; font-size: .85rem; }
+    .cams .btn { font-size: .8rem; padding: 6px 9px; }
+  }
+</style>
+</head>
+<body data-explain-bottom="16">
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <header>
+    <h1>Drive the <em>scanner</em></h1>
+    <p class="sub">A mobile laser scanner paints a road with millions of points as it drives. But its idea of where it is slowly drifts, so the scanned road bends and sags. Survey control nails pin it back to the real world. Set the control, plant a blunder, and see whether your checkpoints catch it.</p>
+  </header>
+
+  <main class="lab">
+    <div>
+      <div class="view">
+        <canvas id="three" aria-label="3D view of the scanned road point cloud, the scanner's path, the true road line, and survey nails"></canvas>
+        <div class="loading" id="loading">Building the road…</div>
+        <div class="hud">
+          <span class="pill st" id="hudSta">Sta 0+000</span>
+          <span class="pill raw" id="hudState">Raw scan</span>
+          <span class="pill gnss hide" id="hudGnss">RTK fixed</span>
+          <span class="pill ex" id="hudEx">Errors ×30</span>
+        </div>
+        <div class="legend">
+          <div><i style="background:#fff"></i>True road centerline</div>
+          <div><i style="background:var(--raw)"></i>Scanner's path, raw</div>
+          <div><i style="background:var(--fixed)"></i>Path after adjustment</div>
+          <div><i style="background:var(--laser)"></i>Control nail &nbsp;<i style="background:var(--sky)"></i>Checkpoint</div>
+        </div>
+        <div class="cams" role="group" aria-label="Camera">
+          <button class="btn on" data-cam="chase">Chase</button>
+          <button class="btn" data-cam="top">Overhead</button>
+          <button class="btn" data-cam="whole">Whole road</button>
+        </div>
+      </div>
+
+      <div class="chartbox">
+        <div class="lbl"><span>Error along the road (the God's-eye view)</span><span id="chartKey"></span></div>
+        <canvas id="chart" aria-label="Chart of horizontal and vertical error along the road, before and after adjustment, with the survey nails marked"></canvas>
+        <p class="hint">Tap the chart to set a nail at that station. Tap a nail again to remove it. In real life nobody can see this chart: that's what checkpoints are for.</p>
+      </div>
+
+      <div class="verdict" id="verdict" aria-live="polite">Press <b>Drive</b>. The scanner has no survey control yet.</div>
+    </div>
+
+    <div>
+      <section class="panel">
+        <span class="lbl">Drive</span>
+        <div class="row" style="margin-top:8px">
+          <button class="btn primary" id="play">Drive</button>
+          <button class="btn" id="all">Scan it all now</button>
+          <button class="btn" id="redrive">New drive</button>
+        </div>
+        <div class="ctl" style="margin-top:14px"><span class="lbl">Where the scanner gets its position</span>
+          <div class="seg" role="group" aria-label="Trajectory source">
+            <button class="btn on" data-src="slam">SLAM only, no GNSS</button>
+            <button class="btn" data-src="rtk">SLAM + its own RTK</button>
+          </div>
+        </div>
+        <div class="ctl"><span class="lbl">How much the scanner drifts</span>
+          <div class="seg" role="group" aria-label="Drift level">
+            <button class="btn" data-drift="low">Low</button>
+            <button class="btn on" data-drift="typ">Typical</button>
+            <button class="btn" data-drift="bad">Featureless road</button>
+          </div>
+        </div>
+        <p class="note" id="srcNote"></p>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">Survey control</span>
+        <div class="seg" role="group" aria-label="Control presets">
+          <button class="btn" data-ctl="none">None</button>
+          <button class="btn" data-ctl="ends">Ends only</button>
+          <button class="btn" data-ctl="200">Every 200 m</button>
+          <button class="btn" data-ctl="100">Every 100 m</button>
+          <button class="btn" data-ctl="100k">Every 100 m + checks</button>
+        </div>
+        <div class="ctl"><span class="lbl">Plant a blunder in one control nail</span>
+          <div class="seg" role="group" aria-label="Blunders">
+            <button class="btn" data-blunder="xy">Wrong nail, 25 cm</button>
+            <button class="btn" data-blunder="hi">Wrong rod height, 0.20 m</button>
+            <button class="btn" data-blunder="none">No blunder</button>
+            <button class="btn hide" id="reveal">Show me which one</button>
+          </div>
+        </div>
+        <div id="nailTable"></div>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">Results</span>
+        <div class="big">
+          <div class="cell"><div class="lbl">Worst error, raw</div><div class="v raw" id="rawMax">–</div></div>
+          <div class="cell"><div class="lbl">Worst error, adjusted</div><div class="v fix" id="adjMax">–</div></div>
+          <div class="cell"><div class="lbl">Checkpoint RMSE</div><div class="v" id="rmse">–</div></div>
+          <div class="cell"><div class="lbl">Project spec (RMSE)</div>
+            <div class="seg" role="group" aria-label="Project accuracy spec" style="margin-top:4px">
+              <button class="btn" data-spec="0.02">2 cm</button>
+              <button class="btn on" data-spec="0.05">5 cm</button>
+              <button class="btn" data-spec="0.10">10 cm</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <span class="lbl">View</span>
+        <div class="ctl" style="margin-top:4px"><span class="lbl">Show the cloud</span>
+          <div class="seg" role="group" aria-label="Raw or adjusted">
+            <button class="btn on" data-show="raw">Raw</button>
+            <button class="btn" data-show="adj">Adjusted</button>
+          </div>
+        </div>
+        <div class="ctl"><span class="lbl">Exaggerate errors</span>
+          <div class="seg" role="group" aria-label="Error exaggeration">
+            <button class="btn" data-ex="1">×1 (true size)</button>
+            <button class="btn" data-ex="10">×10</button>
+            <button class="btn on" data-ex="30">×30</button>
+            <button class="btn" data-ex="100">×100</button>
+          </div>
+        </div>
+        <div class="ctl"><span class="lbl">Color the points by</span>
+          <div class="seg" role="group" aria-label="Point color">
+            <button class="btn on" data-color="nat">Scene</button>
+            <button class="btn" data-color="hgt">Height</button>
+            <button class="btn" data-color="err">Error</button>
+          </div>
+        </div>
+        <div class="ctl"><span class="lbl">Units</span>
+          <div class="seg" role="group" aria-label="Units">
+            <button class="btn on" data-u="m">Metric</button>
+            <button class="btn" data-u="ft">US feet</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="source"><i></i><span>Drift and noise: demo mode, from your browser's generator. Every number on this page is simulated.</span></div>
+</div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>A scanner that measures itself</h3>
+  <p>A mobile laser scanner fires hundreds of thousands of laser pulses a second and times each echo, so it knows how far away every bounce was. That only builds a map if it also knows where <em>it</em> was, and which way it was pointing, at the instant of every pulse. That record is called the <strong>trajectory</strong>. Every point in the cloud is "where the scanner was" plus "how far the laser went." Any error in the trajectory lands directly in the points.</p>
+  <h3>Why it drifts</h3>
+  <p>Without satellites, the scanner works out its own motion from its inertial sensor and by matching each new scan to the last one (<strong>SLAM</strong>, Simultaneous Localization And Mapping). Each step is very good but not perfect, and the small errors add up, like a long traverse with a tiny angle error at every setup. A heading error of a few thousandths of a degree, carried for hundreds of meters, swings the road sideways. A small pitch error makes it sag or climb. A road with nothing to grab onto, like a long, straight stretch with no buildings or poles, drifts worst. Try <strong>Featureless road</strong>.</p>
+  <h3>Pinning it with control</h3>
+  <p>Surveyors set <strong>control nails</strong> (ground control points) along the route and measure them with RTK or a total station. The nails show up in the scan as targets. The software compares where the scan put each nail with where the survey says it is, and bends the trajectory to match, shrinking the error to near zero at each nail. Between nails the drift comes back, so spacing matters. Here the fix is simple: the correction is spread in a straight line from one nail to the next, along the road. Real trajectory adjustment software is more sophisticated, but it behaves the same way.</p>
+  <h3>Control versus checkpoints</h3>
+  <p>A nail used in the adjustment will always look perfect afterwards, because the adjustment forced it to fit. It can't tell you anything. A <strong>checkpoint</strong> is a surveyed nail you deliberately leave out, so it's an honest test. Standards like the ASPRS Positional Accuracy Standards judge a dataset by the <strong>RMSE</strong> (root mean square error) at independent checkpoints. No checkpoints means you can't prove your accuracy, and this page will tell you so. Tap the Role button in the nail table to switch a nail between control and check.</p>
+  <h3>Blunders</h3>
+  <p>A blunder is a plain mistake, not random error: the rod on the wrong nail, a bad shot, or the wrong antenna height typed in. If a control nail has a blunder, the adjustment dutifully bends the whole road toward the wrong spot. To find it, this page tries each control nail in turn and asks: "if I left this one out, would its neighbors predict it?" A nail that disagrees with its neighbors far more than the others do gets flagged. Don't just turn a suspect nail into a checkpoint: its surveyed coordinates are still wrong. Throw it out, or go back and re-measure it. Plant one and see if you can find it before you press <strong>Show me which one</strong>. An antenna-height blunder shows up only in height, which is a clue to the cause.</p>
+  <h3>The scanner's own RTK</h3>
+  <p>Many scanners carry a GNSS receiver. With RTK it keeps the trajectory within a few centimeters while it can see the sky. Under tree canopy, beside tall buildings or in a tunnel, it loses its fix and falls back on SLAM until the sky opens up again. The software then spreads the error across the gap, so the worst of it ends up in the middle. The trees around station 0+360 to 0+480 do that here. Control nails in the gap fix it, and checkpoints elsewhere prove the RTK held.</p>
+  <h3>What the God's-eye chart shows</h3>
+  <p>Because this is a simulation, we know the true road exactly, so the chart shows the real error everywhere: orange before adjustment, green after. Out in the field nobody has that chart. All you have are your checkpoints. Watch how a few well-placed checkpoints tell you most of the story, and how a road can look fine at the checks and still be off between them if they're spaced too far apart.</p>
+  <h3>Exaggeration and other simplifications</h3>
+  <p>Drift of a few centimeters is invisible on a road 800 m long, so the 3D view multiplies every error by the number you choose (×30 by default). Choose ×1 to see true size. The error sizes are illustrative, not a spec for any particular scanner. Real systems also drift in roll, pitch and timing, use smarter math (least squares and smoothing), and need lever-arm and boresight calibration. The idea is the same: trajectory error becomes point error, and control plus checkpoints is how you find it, fix it and prove it.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>The drift and measurement noise come from random numbers. Right now those are from your browser. Each <strong>New drive</strong> is a different, equally likely run of drift.</p>
+</template>
+
+<script type="importmap">{ "imports": { "three": "/lab/vendor/three.module.min.js" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/lab/vendor/OrbitControls.js';
+
+/* ------------------------------------------------------------------ helpers */
+const $ = (id) => document.getElementById(id);
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function gauss(r) { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ------------------------------------------------------------------ the road (true geometry) */
+const L = 800, DS = 0.5, NS = Math.round(L / DS) + 1;     // centerline samples every 0.5 m
+const CANOPY = [360, 480];                                 // tree canopy over the road (RTK outage)
+const SENSOR_H = 2.2;                                      // scanner height above the road
+const cE = new Float64Array(NS), cN = new Float64Array(NS), cH = new Float64Array(NS), cT = new Float64Array(NS);
+(function buildCenterline() {
+  let e = 0, n = 0, th = 0.15;
+  for (let i = 0; i < NS; i++) {
+    const s = i * DS;
+    cE[i] = e; cN[i] = n; cT[i] = th;
+    cH[i] = 120 + 5.5 * Math.sin(Math.PI * s / L * 1.6 - 0.4) + 2.2 * Math.sin(Math.PI * s / 210);
+    const k = 0.0042 * Math.sin(2 * Math.PI * s / 640) - 0.0015 * Math.sin(2 * Math.PI * s / 260 + 1.0);   // curvature, 1/m
+    th += k * DS; e += Math.cos(th) * DS; n += Math.sin(th) * DS;
+  }
+  const mE = cE[NS >> 1], mN = cN[NS >> 1], mH = cH[NS >> 1];   // center the scene near the origin
+  for (let i = 0; i < NS; i++) { cE[i] -= mE; cN[i] -= mN; cH[i] -= mH; }
+})();
+// cross-section height relative to the centerline at lateral offset d (meters, + = left)
+function crossH(d, i, r) {
+  const a = Math.abs(d);
+  if (a <= 3.6) return -0.02 * a;                                   // crowned two-lane road
+  if (a <= 3.75) return -0.072 + (a - 3.6) / 0.15 * 0.15;           // curb face
+  if (a <= 5.5) return 0.078 - 0.01 * (a - 3.75);                   // shoulder / sidewalk
+  if (a <= 9) { const t = (a - 5.5) / 3.5; return 0.06 - 0.85 * Math.sin(Math.PI * t); }   // ditch
+  return 0.06 + (a - 9) * (d > 0 ? 0.06 : 0.035) + 0.25 * Math.sin(i * 0.013 + d * 0.21) + 0.04 * gauss(r);
+}
+const toWorld = (i, d, up) => {   // station index, lateral offset, height above centerline → [E, N, H]
+  const nx = -Math.sin(cT[i]), ny = Math.cos(cT[i]);
+  return [cE[i] + nx * d, cN[i] + ny * d, cH[i] + up];
+};
+
+/* ------------------------------------------------------------------ point cloud (true positions) */
+// Each point remembers: true E,N,H; the station index it was scanned from; and its offset from the scanner.
+const P = { n: 0 };
+const KIND = { road: 0, line: 1, yline: 2, curb: 3, grass: 4, trunk: 5, leaf: 6, pole: 7, wall: 8, nail: 9, rail: 10 };
+function buildCloud(seed) {
+  const r = rng(seed ^ 0xA11CE);
+  const pts = [];   // [i, E, N, H, kind]
+  const add = (i, E, N, H, kind) => pts.push(i, E, N, H, kind);
+  // ground: road + shoulders + terrain. Density falls with distance from the scanner, like a real scan.
+  for (let i2 = 0; i2 < NS * 2 - 1; i2 += 1) {
+    const i = i2 >> 1, s = i2 * DS / 2;
+    for (let d = -26; d <= 26; ) {
+      const a = Math.abs(d);
+      const jitter = (r() - 0.5) * 0.4;
+      const dd = d + jitter * (a < 4 ? 0.15 : 0.5);
+      const h = crossH(dd, i, r);
+      const [E0, N0, H] = toWorld(i, dd, h);
+      const half = (i2 & 1) * DS / 2, E = E0 + Math.cos(cT[i]) * half, N = N0 + Math.sin(cT[i]) * half;
+      let kind = a <= 3.6 ? KIND.road : a <= 3.75 ? KIND.curb : a <= 5.5 ? KIND.curb : KIND.grass;
+      if (Math.abs(dd) < 0.12 && (s % 12) < 6) kind = KIND.yline;
+      if (Math.abs(Math.abs(dd) - 3.45) < 0.08) kind = KIND.line;
+      add(i, E, N, H, kind);
+      d += (a < 4 ? 0.22 : a < 10 ? 0.45 : 1.0 + a * 0.05) * (0.8 + 0.4 * r());
+    }
+  }
+  // guardrail on the outside of the first curve
+  for (let i = Math.round(90 / DS); i < Math.round(230 / DS); i++) for (let z = 0.5; z <= 0.8; z += 0.15) { const [E, N, H] = toWorld(i, -6.2, crossH(-6.2, i, r) + z); add(i, E, N, H, KIND.rail); }
+  // utility poles every 45 m on the right
+  for (let s = 20; s < L; s += 45) {
+    const i = Math.round(s / DS), base = crossH(-7.2, i, r);
+    for (let z = 0; z < 10; z += 0.12) for (let k = 0; k < 4; k++) { const ang = k * Math.PI / 2 + r(); const [E, N, H] = toWorld(i, -7.2 + Math.cos(ang) * 0.15, base + z); add(i, E + Math.sin(ang) * 0.15, N, H, KIND.pole); }
+    for (let x = -1.2; x <= 1.2; x += 0.08) { const [E, N, H] = toWorld(i, -7.2 + x, base + 9.2); add(i, E, N, H, KIND.pole); }
+  }
+  // trees: scattered along the road, and a thick canopy that arches over the road between the CANOPY stations
+  const tree = (s, d, height, crownR) => {
+    const i = clamp(Math.round(s / DS), 0, NS - 1), base = crossH(d, i, r);
+    for (let z = 0; z < height * 0.55; z += 0.15) { const [E, N, H] = toWorld(i, d + (r() - 0.5) * 0.3, base + z); add(i, E, N, H, KIND.trunk); }
+    const nLeaf = Math.round(crownR * crownR * 55);
+    for (let k = 0; k < nLeaf; k++) {
+      const u = r() * 2 - 1, ph = r() * 2 * Math.PI, rr = crownR * Math.cbrt(0.35 + 0.65 * r());
+      const x = Math.sqrt(1 - u * u) * Math.cos(ph) * rr, y = Math.sqrt(1 - u * u) * Math.sin(ph) * rr, z = u * rr * 0.8;
+      const ii = clamp(i + Math.round(y / DS), 0, NS - 1);
+      const [E, N, H] = toWorld(ii, d + x, base + height * 0.62 + z);
+      add(ii, E, N, H, KIND.leaf);
+    }
+  };
+  for (let s = 8; s < L; s += 14 + r() * 26) {
+    const inCan = s > CANOPY[0] && s < CANOPY[1];
+    if (inCan) continue;
+    tree(s, (r() < 0.5 ? 1 : -1) * (11 + r() * 12), 7 + r() * 6, 2.2 + r() * 1.8);
+  }
+  for (let s = CANOPY[0]; s < CANOPY[1]; s += 7 + r() * 5) {
+    tree(s, 6.5 + r() * 2, 13 + r() * 4, 4.8 + r() * 1.2);
+    tree(s + 3, -6.5 - r() * 2, 13 + r() * 4, 4.8 + r() * 1.2);
+  }
+  // two buildings near the start and end: tall walls make drift easy to see as a lean or a shift
+  const building = (s0, s1, d, height) => {
+    for (let i = Math.round(s0 / DS); i < Math.round(s1 / DS); i++) {
+      for (let z = 0; z < height; z += 0.25) { const [E, N, H] = toWorld(i, d, crossH(d, i, r) + z); add(i, E, N, H, KIND.wall); }
+    }
+  };
+  building(40, 75, 14, 9); building(690, 735, -15, 12); building(610, 640, 16, 6);
+  // pack into typed arrays, sorted by station so we can reveal the cloud as the scanner drives
+  const n = pts.length / 5, order = new Uint32Array(n);
+  for (let k = 0; k < n; k++) order[k] = k;
+  order.sort((a, b) => pts[a * 5] - pts[b * 5]);
+  P.n = n; P.i = new Uint16Array(n); P.E = new Float64Array(n); P.N = new Float64Array(n); P.H = new Float64Array(n); P.kind = new Uint8Array(n);
+  P.noise = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) {
+    const o = order[k] * 5;
+    P.i[k] = pts[o]; P.E[k] = pts[o + 1]; P.N[k] = pts[o + 2]; P.H[k] = pts[o + 3]; P.kind[k] = pts[o + 4];
+  }
+  P.firstAt = new Uint32Array(NS + 1);   // first point index for each station (for the reveal)
+  let k = 0; for (let i = 0; i <= NS; i++) { while (k < n && P.i[k] < i) k++; P.firstAt[i] = k; }
+}
+
+/* ------------------------------------------------------------------ drift model */
+const DRIFT = {   // heading and pitch random walks (rad per √m), slow biases (rad per m), scale error, scan noise (m)
+  low: { psi: 0.8e-5, psiB: 1.5e-7, phi: 0.6e-5, phiB: 1.2e-7, scale: 0.00004, noise: 0.008 },
+  typ: { psi: 1.8e-5, psiB: 1.0e-6, phi: 1.3e-5, phiB: 7.0e-7, scale: 0.00015, noise: 0.012 },
+  bad: { psi: 5.0e-5, psiB: 3.2e-6, phi: 3.5e-5, phiB: 2.2e-6, scale: 0.0006, noise: 0.02 },
+};
+const S = {   // simulation state
+  seed: 20261127, src: 'slam', drift: 'typ', show: 'raw', ex: 30, color: 'nat', units: 'm', spec: 0.05,
+  nails: [], blunder: null, blunderNail: -1, revealed: false, s: 0, playing: false,
+};
+// per-station trajectory error: position error eE,eN,eH (m) and heading error dPsi (rad)
+const T = { eE: new Float64Array(NS), eN: new Float64Array(NS), eH: new Float64Array(NS), psi: new Float64Array(NS) };
+function slamDrift(r, p, out) {
+  let psi = 0, phi = 0, lat = 0, lon = 0, up = 0;
+  const sgn1 = r() < 0.5 ? -1 : 1, sgn2 = r() < 0.5 ? -1 : 1, sgn3 = r() < 0.5 ? -1 : 1;
+  for (let i = 0; i < NS; i++) {
+    out.lat[i] = lat; out.lon[i] = lon; out.up[i] = up; out.psi[i] = psi;
+    psi += p.psi * Math.sqrt(DS) * gauss(r) + sgn1 * p.psiB * DS;
+    phi += p.phi * Math.sqrt(DS) * gauss(r) + sgn2 * p.phiB * DS;
+    lat += psi * DS; up += phi * DS; lon += sgn3 * p.scale * DS;
+  }
+}
+function buildTrajectory() {
+  const r = rng(S.seed * 7 + 3);   // same random sequence at every drift level, so Low < Typical < Featureless
+  const p = DRIFT[S.drift];
+  const d = { lat: new Float64Array(NS), lon: new Float64Array(NS), up: new Float64Array(NS), psi: new Float64Array(NS) };
+  slamDrift(r, p, d);
+  if (S.src === 'rtk') {
+    // RTK keeps a few cm of slowly wandering noise; inside the canopy SLAM bridges the gap,
+    // and the smoothing ties both ends of the gap, so the worst error ends up in the middle.
+    const i0 = Math.round(CANOPY[0] / DS), i1 = Math.round(CANOPY[1] / DS);
+    let nE = 0, nN = 0, nH = 0;
+    const a = Math.exp(-DS / 90);
+    for (let i = 0; i < NS; i++) {
+      nE = a * nE + Math.sqrt(1 - a * a) * 0.010 * gauss(r);
+      nN = a * nN + Math.sqrt(1 - a * a) * 0.010 * gauss(r);
+      nH = a * nH + Math.sqrt(1 - a * a) * 0.018 * gauss(r);
+      let lat = 0, lon = 0, up = 0, psi = 0;
+      if (i > i0 && i < i1) {
+        const t = (i - i0) / (i1 - i0);
+        lat = 12 * (d.lat[i] - d.lat[i0] - t * (d.lat[i1] - d.lat[i0]));   // canopy: worse than open-road SLAM
+        lon = 12 * (d.lon[i] - d.lon[i0] - t * (d.lon[i1] - d.lon[i0]));
+        up = 12 * (d.up[i] - d.up[i0] - t * (d.up[i1] - d.up[i0]));
+        psi = d.psi[i] - d.psi[i0];
+      }
+      const c = Math.cos(cT[i]), sn = Math.sin(cT[i]);
+      T.eE[i] = nE + lon * c - lat * sn; T.eN[i] = nN + lon * sn + lat * c; T.eH[i] = nH + up; T.psi[i] = psi;
+    }
+  } else {
+    for (let i = 0; i < NS; i++) {
+      const c = Math.cos(cT[i]), sn = Math.sin(cT[i]);
+      T.eE[i] = d.lon[i] * c - d.lat[i] * sn; T.eN[i] = d.lon[i] * sn + d.lat[i] * c; T.eH[i] = d.up[i]; T.psi[i] = d.psi[i];
+    }
+  }
+  // per-point scan noise (range noise), seeded
+  const rn = rng(S.seed * 13 + 5), sig = p.noise;
+  for (let k = 0; k < P.n * 3; k++) P.noise[k] = sig * gauss(rn) * (k % 3 === 2 ? 0.8 : 0.6);
+}
+// raw (unadjusted) error of a point at true E,N,H scanned from station i
+function pointErr(i, E, N, H, out) {
+  const sE = cE[i], sN = cN[i];
+  const vx = E - sE, vy = N - sN, ps = T.psi[i];   // heading error swings the point around the scanner
+  out[0] = T.eE[i] - ps * vy; out[1] = T.eN[i] + ps * vx; out[2] = T.eH[i];
+}
+
+/* ------------------------------------------------------------------ survey nails and the adjustment */
+const NAIL_D = 6.0;   // nails sit on the shoulder, 6 m right of centerline
+let nailId = 1;
+function makeNail(s, role) {
+  const r = rng(S.seed * 31 + Math.round(s * 10));
+  const i = clamp(Math.round(s / DS), 0, NS - 1);
+  const h = crossH(-NAIL_D, i, () => 0.5);
+  const [E, N, H] = toWorld(i, -NAIL_D, h);
+  return { id: nailId++, s: i * DS, i, E, N, H, role, sv: [0.008 * gauss(r), 0.008 * gauss(r), 0.012 * gauss(r)], scanN: [0.006 * gauss(r), 0.006 * gauss(r), 0.008 * gauss(r)] };
+}
+// surveyed ("known") coordinates of a nail, including any blunder
+function known(n) {
+  const k = [n.E + n.sv[0], n.N + n.sv[1], n.H + n.sv[2]];
+  if (S.blunderNail === n.id) {
+    if (S.blunder === 'xy') { const a = (n.id * 2.399) % (2 * Math.PI); k[0] += 0.25 * Math.cos(a); k[1] += 0.25 * Math.sin(a); }
+    if (S.blunder === 'hi') k[2] -= 0.20;   // rod height entered 0.20 m too long → ground computed 0.20 m too low
+  }
+  return k;
+}
+// where the raw scan put the nail target
+const tmp = [0, 0, 0];
+function scanned(n) { pointErr(n.i, n.E, n.N, n.H, tmp); return [n.E + tmp[0] + n.scanN[0], n.N + tmp[1] + n.scanN[1], n.H + tmp[2] + n.scanN[2]]; }
+// correction at each control nail = known − scanned. Spread linearly along the road between control nails.
+const C = { E: new Float64Array(NS), N: new Float64Array(NS), H: new Float64Array(NS) };
+function interp(ctrl, out) {   // ctrl: [{i, c:[dE,dN,dH]}] sorted by i
+  if (!ctrl.length) { out.E.fill(0); out.N.fill(0); out.H.fill(0); return; }
+  let j = 0;
+  for (let i = 0; i < NS; i++) {
+    while (j < ctrl.length - 1 && ctrl[j + 1].i <= i) j++;
+    let c;
+    if (i <= ctrl[0].i) c = ctrl[0].c;
+    else if (i >= ctrl[ctrl.length - 1].i) c = ctrl[ctrl.length - 1].c;
+    else { const a = ctrl[j], b = ctrl[j + 1], t = (i - a.i) / (b.i - a.i); c = [lerp(a.c[0], b.c[0], t), lerp(a.c[1], b.c[1], t), lerp(a.c[2], b.c[2], t)]; }
+    out.E[i] = c[0]; out.N[i] = c[1]; out.H[i] = c[2];
+  }
+}
+function predictAt(ctrl, i) {   // correction at station i predicted from the given control nails only
+  if (!ctrl.length) return [0, 0, 0];
+  if (i <= ctrl[0].i) return ctrl[0].c;
+  if (i >= ctrl[ctrl.length - 1].i) return ctrl[ctrl.length - 1].c;
+  for (let j = 0; j < ctrl.length - 1; j++) if (ctrl[j + 1].i >= i) { const a = ctrl[j], b = ctrl[j + 1], t = (i - a.i) / (b.i - a.i); return [lerp(a.c[0], b.c[0], t), lerp(a.c[1], b.c[1], t), lerp(a.c[2], b.c[2], t)]; }
+  return [0, 0, 0];
+}
+let R = {};   // results
+function adjust() {
+  const ctrl = S.nails.filter((n) => n.role === 'c').sort((a, b) => a.i - b.i).map((n) => { const k = known(n), m = scanned(n); return { n, i: n.i, c: [k[0] - m[0], k[1] - m[1], k[2] - m[2]] }; });
+  interp(ctrl, C);
+  // checkpoints: adjusted scan vs surveyed coordinates (an honest test)
+  const checks = S.nails.filter((n) => n.role === 'k').map((n) => {
+    const k = known(n), m = scanned(n);
+    const dE = m[0] + C.E[n.i] - k[0], dN = m[1] + C.N[n.i] - k[1], dH = m[2] + C.H[n.i] - k[2];
+    return { n, dE, dN, dH };
+  });
+  // control: leave-one-out. Would the other control nails have predicted this one?
+  const loo = ctrl.map((c, j) => {
+    if (ctrl.length < 2) return { n: c.n, dE: NaN, dN: NaN, dH: NaN };
+    const others = ctrl.filter((_, q) => q !== j), p = predictAt(others, c.i);
+    return { n: c.n, dE: c.c[0] - p[0], dN: c.c[1] - p[1], dH: c.c[2] - p[2] };
+  });
+  // flag a control nail whose leave-one-out misfit is far bigger than its neighbors'
+  // End nails can only be predicted by extrapolation, so only interior nails (a neighbor on each side) can be flagged.
+  // Test each one: "if this nail were the blunder and we dropped it, would the rest agree with each other?"
+  const looMag = (list, j) => { const o = list.filter((_, q) => q !== j), pr = predictAt(o, list[j].i), c = list[j].c; return Math.hypot(c[0] - pr[0], c[1] - pr[1], c[2] - pr[2]); };
+  const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
+  loo.forEach((x, j) => { x.mag = Math.hypot(x.dE, x.dN, x.dH); x.inner = j > 0 && j < loo.length - 1; });
+  let worst = null;
+  loo.forEach((x, j) => {
+    if (!x.inner || !isFinite(x.mag)) return;
+    // compare with nails far enough away not to be pulled by this one (a blunder drags its neighbors' misfits too)
+    let far = loo.filter((y, q) => y.inner && Math.abs(q - j) > 1).map((y) => Math.hypot(y.dE, y.dN, y.dH));
+    if (far.length < 2) { const rest = ctrl.filter((_, q) => q !== j); far = rest.map((_, q) => (q > 0 && q < rest.length - 1 ? looMag(rest, q) : NaN)).filter(isFinite); }
+    const base = Math.max(isFinite(median(far)) ? median(far) : 0.03, 0.015);
+    x.score = x.mag / base;
+    if (x.mag > 0.12 && x.score > 3 && (!worst || x.score > worst.score)) worst = x;
+  });
+  loo.forEach((x) => (x.flag = x === worst));
+  // God's-eye error along the centerline
+  let rawH = 0, rawV = 0, adjH = 0, adjV = 0;
+  for (let i = 0; i < NS; i++) {
+    rawH = Math.max(rawH, Math.hypot(T.eE[i], T.eN[i])); rawV = Math.max(rawV, Math.abs(T.eH[i]));
+    adjH = Math.max(adjH, Math.hypot(T.eE[i] + C.E[i], T.eN[i] + C.N[i])); adjV = Math.max(adjV, Math.abs(T.eH[i] + C.H[i]));
+  }
+  let rmseH = NaN, rmseV = NaN;
+  if (checks.length) {
+    rmseH = Math.sqrt(checks.reduce((a, c) => a + c.dE * c.dE + c.dN * c.dN, 0) / checks.length);
+    rmseV = Math.sqrt(checks.reduce((a, c) => a + c.dH * c.dH, 0) / checks.length);
+  }
+  R = { ctrl, checks, loo, flagged: worst, rawH, rawV, adjH, adjV, rmseH, rmseV };
+}
+
+/* ------------------------------------------------------------------ formatting */
+function pair(h, v) {   // two numbers, one unit, for the narrow table column
+  if (S.units === 'ft') return `${(h / 0.3048).toFixed(2)} / ${(v / 0.3048).toFixed(2)} ft`;
+  return `${(h * 100).toFixed(1)} / ${(v * 100).toFixed(1)} cm`;
+}
+function fmt(m, dp) {
+  if (!isFinite(m)) return '–';
+  if (S.units === 'ft') { const f = m / 0.3048; return f.toFixed(dp ?? (Math.abs(f) < 1 ? 2 : 1)) + ' ft'; }
+  const cm = m * 100; return Math.abs(cm) >= 100 ? (m).toFixed(2) + ' m' : cm.toFixed(dp ?? (Math.abs(cm) < 10 ? 1 : 0)) + ' cm';
+}
+const sta = (s) => { const km = Math.floor(s / 1000), m = s - km * 1000; return km + '+' + String(Math.round(m)).padStart(3, '0'); };
+
+/* ------------------------------------------------------------------ 3D scene */
+const canvas = $('three');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x03060B);
+const scene = new THREE.Scene();
+const fog = new THREE.Fog(0x03060B, 180, 600); scene.fog = fog;
+const camera = new THREE.PerspectiveCamera(55, 2, 0.5, 3000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.495;
+// survey E,N,H → three.js x, y(up), z
+const V3 = (E, N, H, out) => { out.x = E; out.y = H; out.z = -N; return out; };
+
+let cloud, cloudGeo, posAttr, colAttr;
+const lines = {};
+const nailGroup = new THREE.Group(); scene.add(nailGroup);
+const vehicle = new THREE.Group();
+(function buildVehicle() {
+  const body = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.6, 2.0), new THREE.MeshBasicMaterial({ color: 0xDCE4F0 }));
+  body.position.y = 0.9; vehicle.add(body);
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5, 18), new THREE.MeshBasicMaterial({ color: 0x222831 }));
+  head.position.set(0.6, 2.0, 0); vehicle.add(head);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(24, 24.4, 96, 1, 0, Math.PI * 2), new THREE.MeshBasicMaterial({ color: 0xFF4FA3, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 2.0; vehicle.add(ring); vehicle.userData.ring = ring;
+  const beam = new THREE.Mesh(new THREE.PlaneGeometry(26, 0.12), new THREE.MeshBasicMaterial({ color: 0xFF4FA3, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+  beam.rotation.x = -Math.PI / 2; beam.position.y = 2.05; const piv = new THREE.Group(); piv.position.set(0.6, 0, 0); beam.position.x = 13; piv.add(beam); vehicle.add(piv); vehicle.userData.beam = piv;
+  scene.add(vehicle);
+})();
+
+function makeLine(color, opacity = 1, dashed = false) {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NS * 3), 3));
+  const m = dashed ? new THREE.LineDashedMaterial({ color, dashSize: 4, gapSize: 3, transparent: true, opacity, depthTest: false }) : new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false });
+  const l = new THREE.Line(g, m); l.renderOrder = 5; l.frustumCulled = false; scene.add(l); return l;
+}
+
+function buildSceneObjects() {
+  if (cloud) { scene.remove(cloud); cloudGeo.dispose(); }
+  cloudGeo = new THREE.BufferGeometry();
+  posAttr = new THREE.BufferAttribute(new Float32Array(P.n * 3), 3); posAttr.setUsage(THREE.DynamicDrawUsage);
+  colAttr = new THREE.BufferAttribute(new Float32Array(P.n * 3), 3); colAttr.setUsage(THREE.DynamicDrawUsage);
+  cloudGeo.setAttribute('position', posAttr); cloudGeo.setAttribute('color', colAttr);
+  cloud = new THREE.Points(cloudGeo, new THREE.PointsMaterial({ size: 0.2, vertexColors: true, sizeAttenuation: true, map: dotTex, alphaTest: 0.5, transparent: false }));
+  pointStyle();
+  cloud.frustumCulled = false; scene.add(cloud);
+  if (!lines.truth) { lines.truth = makeLine(0xFFFFFF, 0.9, true); lines.raw = makeLine(0xFF9A3C, 1); lines.adj = makeLine(0x43F0B0, 1); }
+}
+
+const dotTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.beginPath(); g.arc(32, 32, 30, 0, Math.PI * 2); g.fill(); const tx = new THREE.CanvasTexture(c); return tx; })();
+function pointStyle() {   // close up: real-size dots; far views: fixed-size dots so the road stays visible
+  if (!cloud) return;
+  const near = camMode === 'chase' || camMode === 'free';
+  cloud.material.sizeAttenuation = near; cloud.material.size = near ? 0.2 : 2.2 * Math.min(devicePixelRatio, 2) / renderer.getPixelRatio();
+  cloud.material.needsUpdate = true;
+  scene.fog = camMode === 'chase' ? fog : null;
+}
+const hue = new THREE.Color();
+const NAT = {
+  [KIND.road]: [0.33, 0.35, 0.39], [KIND.line]: [0.95, 0.95, 0.95], [KIND.yline]: [0.98, 0.78, 0.2], [KIND.curb]: [0.6, 0.6, 0.58],
+  [KIND.grass]: [0.32, 0.5, 0.26], [KIND.trunk]: [0.45, 0.32, 0.22], [KIND.leaf]: [0.22, 0.62, 0.3], [KIND.pole]: [0.7, 0.66, 0.6],
+  [KIND.wall]: [0.82, 0.72, 0.58], [KIND.rail]: [0.75, 0.78, 0.82], [KIND.nail]: [1, 0.3, 0.64],
+};
+function errColor(m, out) {   // 0 cm blue → 5 green → 15 yellow → 40+ red
+  const t = clamp(m / 0.40, 0, 1);
+  const stops = [[0, [0.25, 0.45, 1]], [0.125, [0.26, 0.94, 0.69]], [0.375, [1, 0.83, 0.43]], [1, [1, 0.3, 0.38]]];
+  for (let k = 0; k < stops.length - 1; k++) if (t <= stops[k + 1][0]) { const [a, ca] = stops[k], [b, cb] = stops[k + 1], u = (t - a) / (b - a); out[0] = lerp(ca[0], cb[0], u); out[1] = lerp(ca[1], cb[1], u); out[2] = lerp(ca[2], cb[2], u); return; }
+  out[0] = 1; out[1] = 0.3; out[2] = 0.38;
+}
+
+// recompute every displayed point: true + exaggeration × (error [+ correction])
+const e3 = [0, 0, 0], col = [0, 0, 0];
+let hMin = 0, hMax = 1;
+function updateCloud() {
+  const pa = posAttr.array, ca = colAttr.array, ex = S.ex, adj = S.show === 'adj';
+  hMin = Infinity; hMax = -Infinity;
+  for (let k = 0; k < P.n; k++) { const h = P.H[k]; if (h < hMin) hMin = h; if (h > hMax) hMax = h; }
+  for (let k = 0; k < P.n; k++) {
+    const i = P.i[k];
+    pointErr(i, P.E[k], P.N[k], P.H[k], e3);
+    let dE = e3[0] + P.noise[k * 3], dN = e3[1] + P.noise[k * 3 + 1], dH = e3[2] + P.noise[k * 3 + 2];
+    if (adj) { dE += C.E[i]; dN += C.N[i]; dH += C.H[i]; }
+    pa[k * 3] = P.E[k] + ex * dE; pa[k * 3 + 1] = P.H[k] + ex * dH; pa[k * 3 + 2] = -(P.N[k] + ex * dN);
+    if (S.color === 'nat') { const c = NAT[P.kind[k]]; const sh = 0.86 + 0.14 * Math.sin(k * 12.9898); col[0] = c[0] * sh; col[1] = c[1] * sh; col[2] = c[2] * sh; }
+    else if (S.color === 'hgt') { hue.setHSL(0.7 - 0.7 * (P.H[k] - hMin) / (hMax - hMin), 0.85, 0.55); col[0] = hue.r; col[1] = hue.g; col[2] = hue.b; }
+    else errColor(Math.hypot(dE - P.noise[k * 3], dN - P.noise[k * 3 + 1], dH - P.noise[k * 3 + 2]), col);
+    ca[k * 3] = col[0]; ca[k * 3 + 1] = col[1]; ca[k * 3 + 2] = col[2];
+  }
+  posAttr.needsUpdate = true; colAttr.needsUpdate = true;
+  // lines: truth (centerline at road level), raw path and adjusted path at road level
+  const v = new THREE.Vector3();
+  const tp = lines.truth.geometry.attributes.position, rp = lines.raw.geometry.attributes.position, ap = lines.adj.geometry.attributes.position;
+  for (let i = 0; i < NS; i++) {
+    V3(cE[i], cN[i], cH[i] + 0.15, v); tp.setXYZ(i, v.x, v.y, v.z);
+    V3(cE[i] + ex * T.eE[i], cN[i] + ex * T.eN[i], cH[i] + 0.25 + ex * T.eH[i], v); rp.setXYZ(i, v.x, v.y, v.z);
+    V3(cE[i] + ex * (T.eE[i] + C.E[i]), cN[i] + ex * (T.eN[i] + C.N[i]), cH[i] + 0.35 + ex * (T.eH[i] + C.H[i]), v); ap.setXYZ(i, v.x, v.y, v.z);
+  }
+  tp.needsUpdate = rp.needsUpdate = ap.needsUpdate = true;
+  lines.truth.computeLineDistances();
+  lines.adj.visible = R.ctrl && R.ctrl.length > 0;
+  buildNailMarkers();
+  updateReveal();
+}
+
+// nails: a pin at the surveyed coordinate, plus a small target disc where the (raw or adjusted) scan put it
+const pinMat = { c: new THREE.MeshBasicMaterial({ color: 0xFF4FA3 }), k: new THREE.MeshBasicMaterial({ color: 0x7FD4FF }) };
+const tgtMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+const pinGeo = new THREE.ConeGeometry(0.45, 2.4, 14), stemGeo = new THREE.CylinderGeometry(0.07, 0.07, 3.4, 8), tgtGeo = new THREE.RingGeometry(0.25, 0.6, 24);
+function buildNailMarkers() {
+  while (nailGroup.children.length) nailGroup.remove(nailGroup.children[0]);
+  const v = new THREE.Vector3();
+  for (const n of S.nails) {
+    if (n.i * DS > S.s + 30 && S.s < L) continue;
+    const k = known(n), m = scanned(n), ex = S.ex;
+    // pin at the surveyed coordinate (exaggerated relative to the truth, like everything else)
+    const pE = n.E + ex * (k[0] - n.E), pN = n.N + ex * (k[1] - n.N), pH = n.H + ex * (k[2] - n.H);
+    const g = new THREE.Group();
+    const stem = new THREE.Mesh(stemGeo, pinMat[n.role]); stem.position.y = 1.7; g.add(stem);
+    const cone = new THREE.Mesh(pinGeo, pinMat[n.role]); cone.rotation.x = Math.PI; cone.position.y = 4.4; g.add(cone);
+    V3(pE, pN, pH, v); g.position.copy(v); nailGroup.add(g);
+    // target as the scan sees it
+    let dE = m[0] - n.E, dN = m[1] - n.N, dH = m[2] - n.H;
+    if (S.show === 'adj') { dE += C.E[n.i]; dN += C.N[n.i]; dH += C.H[n.i]; }
+    const t = new THREE.Mesh(tgtGeo, tgtMat); t.rotation.x = -Math.PI / 2;
+    V3(n.E + ex * dE, n.N + ex * dN, n.H + ex * dH + 0.05, v); t.position.copy(v); nailGroup.add(t);
+  }
+}
+
+function updateReveal() {
+  const i = clamp(Math.floor(S.s / DS), 0, NS - 1);
+  const ahead = Math.round(24 / DS);   // the scanner sees ~24 m ahead
+  cloudGeo.setDrawRange(0, P.firstAt[clamp(i + ahead, 0, NS)]);
+  lines.raw.geometry.setDrawRange(0, i + 1);
+  lines.adj.geometry.setDrawRange(0, i + 1);
+  // vehicle on the raw (believed) path
+  const ex = S.ex, adj = S.show === 'adj';
+  const dE = T.eE[i] + (adj ? C.E[i] : 0), dN = T.eN[i] + (adj ? C.N[i] : 0), dH = T.eH[i] + (adj ? C.H[i] : 0);
+  const v = new THREE.Vector3();
+  V3(cE[i] + ex * dE, cN[i] + ex * dN, cH[i] + ex * dH, v);
+  vehicle.position.copy(v); vehicle.rotation.y = cT[i] + ex * T.psi[i];
+  vehicle.visible = S.s < L;
+  $('hudSta').textContent = 'Sta ' + sta(Math.min(S.s, L));
+  const inCan = S.s > CANOPY[0] && S.s < CANOPY[1];
+  const g = $('hudGnss'); g.classList.toggle('hide', S.src !== 'rtk' || S.s >= L);
+  g.textContent = inCan ? 'Under trees: RTK lost, SLAM only' : 'RTK fixed'; g.classList.toggle('lost', inCan);
+}
+
+/* ------------------------------------------------------------------ camera */
+let camMode = 'chase';
+const tgt = new THREE.Vector3(), camPos = new THREE.Vector3();
+function setCam(mode, jump = true) {
+  camMode = mode;
+  document.querySelectorAll('[data-cam]').forEach((b) => b.classList.toggle('on', b.dataset.cam === mode));
+  if (!jump) return;
+  const fitDist = (span) => span / 2 / Math.tan(camera.fov * Math.PI / 360) / Math.min(1, camera.aspect) * 1.05;
+  if (mode === 'top') { camera.position.set(BB.cx, fitDist(BB.span), -BB.cn + 0.01); controls.target.set(BB.cx, 0, -BB.cn); }
+  if (mode === 'whole') { const d = fitDist(BB.span) * 0.95; camera.position.set(BB.cx - d * 0.35, d * 0.55, -BB.cn + d * 0.75); controls.target.set(BB.cx, 0, -BB.cn); }
+  if (mode === 'side') {
+    // look across the road from the right side, low down, to see the vertical profile sag
+    const i = NS >> 1, nx = -Math.sin(cT[i]), ny = Math.cos(cT[i]), d = fitDist(L * 0.92) * 0.8;
+    camera.position.set(cE[i] - nx * d, cH[i] + 6, -(cN[i] - ny * d)); controls.target.set(cE[i], cH[i], -cN[i]);
+  }
+  pointStyle();
+  controls.update();
+}
+controls.addEventListener('start', () => { if (camMode === 'chase') { setCam('free', false); pointStyle(); } });
+const BB = (() => { let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity; for (let i = 0; i < NS; i++) { a = Math.min(a, cE[i]); b = Math.max(b, cE[i]); c = Math.min(c, cN[i]); d = Math.max(d, cN[i]); } return { cx: (a + b) / 2, cn: (c + d) / 2, span: Math.max(b - a, d - c) + 60 }; })();
+function followCam() {
+  if (camMode !== 'chase') return;
+  const i = clamp(Math.floor(S.s / DS), 0, NS - 1);
+  const p = vehicle.position, th = vehicle.rotation.y;
+  tgt.set(p.x + Math.cos(th) * 18, p.y + 1, p.z - Math.sin(th) * 18);
+  camPos.set(p.x - Math.cos(th) * 26 + Math.sin(th) * 10, p.y + 13, p.z + Math.sin(th) * 26 + Math.cos(th) * 10);
+  controls.target.lerp(tgt, 0.12); camera.position.lerp(camPos, 0.08);
+}
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * renderer.getPixelRatio()) || canvas.height !== Math.round(h * renderer.getPixelRatio())) {
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  drawChart();
+}
+addEventListener('resize', resize);
+
+/* ------------------------------------------------------------------ chart */
+const chart = $('chart'), cx = chart.getContext('2d');
+const CH = { padL: 52, padR: 12, padT: 12, padB: 30 };
+function drawChart() {
+  const dpr = Math.min(devicePixelRatio, 2), w = chart.clientWidth, h = chart.clientHeight;
+  if (chart.width !== Math.round(w * dpr)) { chart.width = Math.round(w * dpr); chart.height = Math.round(h * dpr); }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, w, h);
+  if (!R.ctrl) return;
+  const X = (s) => CH.padL + (w - CH.padL - CH.padR) * s / L;
+  let ymax = 0.05;
+  for (let i = 0; i < NS; i += 4) ymax = Math.max(ymax, Math.hypot(T.eE[i], T.eN[i]), Math.abs(T.eH[i]));
+  ymax *= 1.12;
+  const Y = (m) => CH.padT + (h - CH.padT - CH.padB) * (1 - m / ymax);
+  // canopy band
+  if (S.src === 'rtk') { cx.fillStyle = 'rgba(255,111,134,.09)'; cx.fillRect(X(CANOPY[0]), CH.padT, X(CANOPY[1]) - X(CANOPY[0]), h - CH.padT - CH.padB); cx.fillStyle = '#FF6F86'; cx.font = '600 11px "IBM Plex Sans"'; cx.fillText('trees: no RTK', X(CANOPY[0]) + 4, CH.padT + 12); }
+  // grid + labels
+  cx.font = '13px "IBM Plex Mono", monospace'; cx.fillStyle = '#8394AB'; cx.strokeStyle = 'rgba(131,148,171,.18)'; cx.lineWidth = 1;
+  const stepM = niceStep(ymax);
+  for (let m = 0; m <= ymax + 1e-9; m += stepM) { cx.beginPath(); cx.moveTo(CH.padL, Y(m)); cx.lineTo(w - CH.padR, Y(m)); cx.stroke(); cx.textAlign = 'right'; cx.fillText(fmt(m, m && stepM * (S.units === 'ft' ? 3.28 : 100) < 1 ? 1 : 0).replace(' ', ''), CH.padL - 6, Y(m) + 4); }
+  cx.textAlign = 'center';
+  const lstep = w < 520 ? 200 : 100;
+  for (let s = 0; s <= L; s += lstep) { cx.textAlign = s === 0 ? 'left' : s === L ? 'right' : 'center'; cx.fillText(sta(s), X(s), h - 10); }
+  // spec line
+  cx.setLineDash([6, 5]); cx.strokeStyle = 'rgba(255,211,110,.75)'; cx.beginPath(); cx.moveTo(CH.padL, Y(S.spec)); cx.lineTo(w - CH.padR, Y(S.spec)); cx.stroke(); cx.setLineDash([]);
+  if (S.spec < ymax) { cx.fillStyle = '#FFD36E'; cx.textAlign = 'left'; cx.font = '600 11px "IBM Plex Sans"'; cx.fillText('spec', w - CH.padR - 30, Y(S.spec) - 4); }
+  const seen = Math.min(S.s, L);
+  const plot = (f, color, width, dash) => {
+    cx.strokeStyle = color; cx.lineWidth = width; cx.setLineDash(dash || []); cx.beginPath();
+    for (let i = 0; i * DS <= seen; i += 2) { const x = X(i * DS), y = Y(Math.min(f(i), ymax)); i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
+    cx.stroke(); cx.setLineDash([]);
+  };
+  const hasCtl = R.ctrl.length > 0;
+  plot((i) => Math.hypot(T.eE[i], T.eN[i]), hasCtl ? 'rgba(255,154,60,.45)' : '#FF9A3C', 2);
+  plot((i) => Math.abs(T.eH[i]), hasCtl ? 'rgba(255,154,60,.45)' : '#FF9A3C', 2, [5, 4]);
+  if (hasCtl) {
+    plot((i) => Math.hypot(T.eE[i] + C.E[i], T.eN[i] + C.N[i]), '#43F0B0', 2.5);
+    plot((i) => Math.abs(T.eH[i] + C.H[i]), '#43F0B0', 2.5, [5, 4]);
+  }
+  // nails
+  for (const n of S.nails) {
+    const x = X(n.s), y = h - CH.padB;
+    cx.fillStyle = n.role === 'c' ? '#FF4FA3' : '#7FD4FF';
+    cx.beginPath(); cx.moveTo(x, y - 12); cx.lineTo(x - 7, y + 1); cx.lineTo(x + 7, y + 1); cx.closePath(); cx.fill();
+    const fl = R.flagged && R.flagged.n === n;
+    if (fl || (S.revealed && S.blunderNail === n.id)) { cx.strokeStyle = '#FF6F86'; cx.lineWidth = 2; cx.beginPath(); cx.arc(x, y - 5, 11, 0, Math.PI * 2); cx.stroke(); }
+  }
+  // scanner position
+  if (S.s < L) { cx.strokeStyle = 'rgba(255,79,163,.8)'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(X(seen), CH.padT); cx.lineTo(X(seen), h - CH.padB); cx.stroke(); }
+  $('chartKey').innerHTML = `<span style="color:#FF9A3C">— raw</span> &nbsp;<span style="color:#43F0B0">— adjusted</span> &nbsp;<span style="color:#B5C1D2">solid = horizontal, dashed = height</span>`;
+}
+function niceStep(max) {
+  const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+chart.addEventListener('click', (ev) => {
+  const rect = chart.getBoundingClientRect(), w = rect.width;
+  const s = clamp((ev.clientX - rect.left - CH.padL) / (w - CH.padL - CH.padR) * L, 0, L);
+  const hit = S.nails.find((n) => Math.abs(n.s - s) < L * 0.018);
+  if (hit) { S.nails = S.nails.filter((n) => n !== hit); if (S.blunderNail === hit.id) { S.blunderNail = -1; S.blunder = null; } }
+  else S.nails.push(makeNail(Math.round(s / 5) * 5, 'c'));
+  markPreset(null); refresh();
+});
+
+/* ------------------------------------------------------------------ UI */
+function seg(attr, fn) { document.querySelectorAll(`[data-${attr}]`).forEach((b) => b.addEventListener('click', () => { document.querySelectorAll(`[data-${attr}]`).forEach((x) => x.classList.toggle('on', x === b)); fn(b.dataset[attr]); })); }
+function markPreset(v) { document.querySelectorAll('[data-ctl]').forEach((x) => x.classList.toggle('on', x.dataset.ctl === v)); }
+seg('src', (v) => { S.src = v; buildTrajectory(); refresh(); });
+seg('drift', (v) => { S.drift = v; buildTrajectory(); refresh(); });
+seg('show', (v) => { S.show = v; refresh(); });
+seg('ex', (v) => { S.ex = +v; refresh(); });
+seg('color', (v) => { S.color = v; refresh(); });
+seg('u', (v) => { S.units = v; refresh(); });
+seg('spec', (v) => { S.spec = +v; refresh(); });
+seg('cam', (v) => setCam(v));
+seg('ctl', (v) => {
+  S.nails = []; S.blunderNail = -1; S.blunder = null; S.revealed = false;
+  document.querySelectorAll('[data-blunder]').forEach((x) => x.classList.remove('on'));
+  if (v === 'ends') { S.nails.push(makeNail(5, 'c'), makeNail(795, 'c')); }
+  if (v === '200') for (let s = 0; s <= L; s += 200) S.nails.push(makeNail(clamp(s, 5, 795), 'c'));
+  if (v === '100') for (let s = 0; s <= L; s += 100) S.nails.push(makeNail(clamp(s, 5, 795), 'c'));
+  if (v === '100k') { for (let s = 0; s <= L; s += 100) S.nails.push(makeNail(clamp(s, 5, 795), 'c')); for (let s = 50; s < L; s += 100) S.nails.push(makeNail(s, 'k')); }
+  if (v !== 'none' && S.show === 'raw' && S.s >= L) { S.show = 'adj'; document.querySelectorAll('[data-show]').forEach((x) => x.classList.toggle('on', x.dataset.show === 'adj')); }
+  refresh();
+});
+seg('blunder', (v) => {
+  S.revealed = false;
+  if (v === 'none') { S.blunder = null; S.blunderNail = -1; refresh(); return; }
+  const ctrl = S.nails.filter((n) => n.role === 'c').sort((a, b) => a.s - b.s);
+  if (ctrl.length < 3) {
+    // need enough control to have a blunder worth hunting: set up every 100 m + checks
+    S.nails = []; for (let s = 0; s <= L; s += 100) S.nails.push(makeNail(clamp(s, 5, 795), 'c')); for (let s = 50; s < L; s += 100) S.nails.push(makeNail(s, 'k'));
+    markPreset('100k');
+  }
+  const c2 = S.nails.filter((n) => n.role === 'c').sort((a, b) => a.s - b.s);
+  const inner = c2.length > 2 ? c2.slice(1, -1) : c2;
+  S.blunder = v; S.blunderNail = inner[Math.floor(rng(Date.now())() * inner.length)].id;
+  if (S.show === 'raw') { S.show = 'adj'; document.querySelectorAll('[data-show]').forEach((x) => x.classList.toggle('on', x.dataset.show === 'adj')); }
+  if (window.labTrack) labTrack('blunder');
+  refresh();
+});
+$('reveal').addEventListener('click', () => { S.revealed = true; refresh(); });
+
+$('play').addEventListener('click', () => {
+  if (S.s >= L) S.s = 0;
+  S.playing = !S.playing; $('play').textContent = S.playing ? 'Pause' : 'Drive';
+  if (S.playing) { setCam('chase'); if (window.labTrack) labTrack('drive'); }
+});
+$('all').addEventListener('click', () => { S.s = L; S.playing = false; $('play').textContent = 'Drive again'; refresh(); if (camMode === 'chase') setCam('top'); });
+$('redrive').addEventListener('click', () => {
+  S.seed = (Math.random() * 1e9) >>> 0; buildTrajectory();
+  S.s = 0; S.playing = true; $('play').textContent = 'Pause'; setCam('chase'); refresh();
+  if (window.labTrack) labTrack('drive');
+});
+
+function renderNailTable() {
+  const box = $('nailTable');
+  if (!S.nails.length) { box.innerHTML = '<p class="empty">No nails yet. Pick a preset above, or tap the chart.</p>'; return; }
+  const rows = [...S.nails].sort((a, b) => a.s - b.s).map((n) => {
+    let res = '', cls = '';
+    if (n.role === 'k') { const c = R.checks.find((x) => x.n === n); res = pair(Math.hypot(c.dE, c.dN), c.dH); cls = Math.max(Math.hypot(c.dE, c.dN), Math.abs(c.dH)) > S.spec * 2 ? 'flag' : 'ok'; }
+    else { const c = R.loo.find((x) => x.n === n); if (c && isFinite(c.dE)) { res = pair(Math.hypot(c.dE, c.dN), c.dH); if (c.flag) cls = 'flag'; } else res = '–'; }
+    const flag = (R.flagged && R.flagged.n === n) ? ' ⚠' : '';
+    const rev = (S.revealed && S.blunderNail === n.id) ? ' ← blunder' : '';
+    return `<tr><td>${sta(n.s)}</td><td><button class="role ${n.role === 'c' ? 'c' : 'k'}" data-role="${n.id}" aria-label="Switch station ${sta(n.s)} between control and checkpoint">${n.role === 'c' ? 'Control' : 'Check'}</button></td><td class="${cls}">${res}${flag}${rev}</td><td><button class="x" data-del="${n.id}" aria-label="Remove nail at ${sta(n.s)}">×</button></td></tr>`;
+  }).join('');
+  box.innerHTML = `<table><thead><tr><th>Station</th><th>Role</th><th>Misfit horiz / height</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="note">Checkpoints show how far the adjusted scan is from their surveyed spot. Control nails show how far they disagree with their neighbors (leave-one-out). Tap <b>Control</b>/<b>Check</b> to switch.</p>`;
+  box.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => { const n = S.nails.find((x) => x.id === +b.dataset.role); n.role = n.role === 'c' ? 'k' : 'c'; markPreset(null); refresh(); }));
+  box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { const id = +b.dataset.del; S.nails = S.nails.filter((x) => x.id !== id); if (S.blunderNail === id) { S.blunderNail = -1; S.blunder = null; } markPreset(null); refresh(); }));
+}
+
+function srcNote() {
+  const d = { low: 'a scanner with a good inertial unit on a road full of features', typ: 'a typical SLAM scanner on a normal road', bad: 'a long, plain road with little for SLAM to lock onto' }[S.drift];
+  $('srcNote').innerHTML = S.src === 'slam'
+    ? `<b>No satellites.</b> The scanner tracks itself with its inertial unit and scan matching (SLAM). Drift setting: ${d}.`
+    : `<b>RTK on the scanner</b> holds the path to a few centimeters, until the trees between ${sta(CANOPY[0])} and ${sta(CANOPY[1])} block the sky.`;
+}
+
+function verdict() {
+  const v = $('verdict'); v.className = 'verdict';
+  const done = S.s >= L;
+  const nC = R.ctrl.length, nK = R.checks.length;
+  if (!done && !S.playing && S.s === 0) { v.innerHTML = 'Press <b>Drive</b>, or <b>Scan it all now</b> to skip ahead. The scanner has no survey control yet.'; return; }
+  if (!done) { v.innerHTML = `Scanning… at <b>${sta(S.s)}</b>, the scanner's own position is off by <b>${fmt(Math.hypot(T.eE[Math.floor(S.s / DS)], T.eN[Math.floor(S.s / DS)]))}</b> sideways and <b>${fmt(Math.abs(T.eH[Math.floor(S.s / DS)]))}</b> in height. It has no idea.`; return; }
+  if (!nC && !nK) {
+    v.innerHTML = S.src === 'slam'
+      ? `Scan done. Without control, the road has drifted up to <b>${fmt(R.rawH)}</b> sideways and <b>${fmt(R.rawV)}</b> in height by the end. The cloud looks crisp, but it's in the wrong place. Add control nails.`
+      : `Scan done. RTK kept most of the road tight, but under the trees it drifted up to <b>${fmt(R.rawH)}</b> sideways and <b>${fmt(R.rawV)}</b> in height. Nobody would know without checkpoints. Try <b>Every 100 m + checks</b>.`;
+    return;
+  }
+  if (R.flagged) {
+    const solved = S.revealed ? (R.flagged.n.id === S.blunderNail ? ' And it\'s the one you planted.' : '') : ' Press <b>Show me which one</b> to check.';
+    const kind = Math.abs(R.flagged.dH) > Math.hypot(R.flagged.dE, R.flagged.dN) * 2 ? ' The misfit is almost all in height: think antenna or rod height.' : Math.hypot(R.flagged.dE, R.flagged.dN) > Math.abs(R.flagged.dH) * 2 ? ' The misfit is horizontal: think a bad shot or the wrong nail.' : '';
+    v.className = 'verdict fail';
+    const none = !S.blunder ? ' <br>No blunder was planted this time: the drift alone fooled the test. That\'s why surveyors re-measure a suspect nail before throwing it out.' : '';
+    v.innerHTML = `⚠ The control nail at <b>${sta(R.flagged.n.s)}</b> disagrees with its neighbors by <b>${fmt(R.flagged.mag)}</b>, far more than the rest. It looks like a blunder, not drift.${kind} Remove it with the <b>×</b> in the table (in the field: re-measure it) and the road straightens out.${S.blunder ? solved : none}`;
+    return;
+  }
+  if (S.blunder && !S.revealed) {
+    v.className = 'verdict fail';
+    v.innerHTML = `A blunder is planted, but it's <b>hiding in the drift</b>: no control nail stands out from its neighbors. That happens when control is sparse or the scanner drifts a lot. Try <b>Every 100 m + checks</b> or less drift, or look for a checkpoint that's way off.` + (nK ? ` Checkpoint RMSE: <b>${fmt(R.rmseH)}</b> horizontal, <b>${fmt(R.rmseV)}</b> height.` : '');
+    return;
+  }
+  if (!nK) {
+    v.innerHTML = `Adjusted with ${nC} control nail${nC > 1 ? 's' : ''}. The worst error is now <b>${fmt(Math.max(R.adjH, R.adjV))}</b>, but only the God's-eye chart knows that. <b>With no checkpoints you can't prove the accuracy.</b> Switch some nails to Check.`;
+    return;
+  }
+  const pass = R.rmseH <= S.spec && R.rmseV <= S.spec;
+  const hidden = Math.max(R.adjH, R.adjV) > S.spec * 2.5 && pass;
+  v.className = 'verdict ' + (pass ? 'pass' : 'fail');
+  v.innerHTML = `${pass ? '✓ Passes' : '✗ Fails'} the ${fmt(S.spec)} spec at ${nK} checkpoint${nK > 1 ? 's' : ''}: RMSE <b>${fmt(R.rmseH)}</b> horizontal, <b>${fmt(R.rmseV)}</b> height.` +
+    (hidden ? ` But the God's-eye chart shows <b>${fmt(Math.max(R.adjH, R.adjV))}</b> between them. The checkpoints are too far apart to see it.` : '') +
+    (!pass && nC < 3 ? ' More control would help.' : '');
+}
+
+function refresh() {
+  srcNote(); adjust(); updateCloud(); renderNailTable(); verdict();
+  const done = S.s >= L;
+  $('rawMax').innerHTML = done ? `${fmt(R.rawH)} <small>H</small><br>${fmt(R.rawV)} <small>V</small>` : '–';
+  $('adjMax').innerHTML = done && R.ctrl.length ? `${fmt(R.adjH)} <small>H</small><br>${fmt(R.adjV)} <small>V</small>` : '–';
+  const rm = $('rmse');
+  if (R.checks.length && done) { rm.innerHTML = `${fmt(R.rmseH)} <small>H</small><br>${fmt(R.rmseV)} <small>V</small>`; rm.className = 'v ' + (R.rmseH <= S.spec && R.rmseV <= S.spec ? 'fix' : 'bad'); }
+  else { rm.innerHTML = R.checks.length ? 'after the scan' : 'no checkpoints'; rm.className = 'v warn'; rm.style.fontSize = '1rem'; }
+  if (R.checks.length && done) rm.style.fontSize = '';
+  $('hudState').textContent = S.show === 'adj' ? (R.ctrl.length ? 'Adjusted to control' : 'Adjusted (no control yet)') : 'Raw scan';
+  $('hudState').className = 'pill ' + (S.show === 'adj' && R.ctrl.length ? 'fix' : 'raw');
+  $('hudEx').textContent = S.ex === 1 ? 'True size' : `Errors ×${S.ex}`;
+  $('reveal').classList.toggle('hide', !S.blunder || S.revealed);
+  drawChart();
+}
+
+/* ------------------------------------------------------------------ loop */
+let last = performance.now(), lastUi = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (S.playing) {
+    S.s += dt * 38;   // fast-forward: ~38 m per second of screen time
+    if (S.s >= L) { S.s = L; S.playing = false; $('play').textContent = 'Drive again'; refresh(); setTimeout(() => { if (camMode === 'chase') setCam('top'); }, 600); }
+    updateReveal();
+    if (now - lastUi > 250) { lastUi = now; verdict(); drawChart(); buildNailMarkers(); }
+  }
+  vehicle.userData.beam.rotation.y += dt * 14;
+  followCam();
+  controls.update();
+  resize();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+buildCloud(S.seed); buildSceneObjects(); buildTrajectory();
+$('loading').remove();
+setCam('chase'); refresh();
+requestAnimationFrame(frame);
+window.__scan = { S, R: () => R, refresh, L, n: P.n, buildTrajectory, adjust, makeNail };
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>

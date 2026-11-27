@@ -183,7 +183,7 @@
 <path d="M160 22 L262 272 M160 22 L58 272" stroke="url(#lg)" stroke-width="30" stroke-linecap="round" fill="none"/>
 <circle cx="300" cy="148" r="9" fill="#7FE3FF" filter="url(#lgl)"/><circle cx="300" cy="148" r="8" fill="#159BD0"/>
 </svg><span>AUGIELAB</span></h1>
-  <p class="intro"><b>Mark “Augie” Aughenbaugh</b><br>HPC and AI-cluster support · 20 years in Intel labs.<br>GPU-cluster tools up top; quantum experiments and game-night fun below.</p>
+  <p class="intro"><b>Mark “Augie” Aughenbaugh</b><br>HPC and AI-cluster support · 20 years in Intel labs.<br>GPU-cluster tools up top; quantum, surveying and game-night fun below.</p>
 </header>
 
 <main class="rack" aria-label="Projects">
@@ -333,11 +333,21 @@
       <span class="state">Live (demo)</span>
     </a>
 
+
+    <div class="blank" role="heading" aria-level="2">Surveying and mapping</div>
+
     <a class="unit live" href="/gps/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Where am I, really?</span>
       <span class="desc">Why your phone's GPS dot wanders a few meters, how surveyors pin it to a centimeter, and what Einstein really does to GPS.</span>
       <span class="state">Live (demo)</span>
+    </a>
+
+    <a class="unit live" href="/scanner/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Drive the scanner</span>
+      <span class="desc">Drive a mobile laser scanner down a road in 3D. Watch drift bend the point cloud, pin it with survey control, and hunt a hidden blunder with checkpoints.</span>
+      <span class="state">Live</span>
     </a>
 
     <div class="blank" role="heading" aria-level="2">Game night</div>
@@ -461,10 +471,11 @@
   const SECTIONS = [
     { name: 'AI infrastructure', accent: '#159BD0' },
     { name: 'Quantum experiments', accent: '#7A4FD6' },
+    { name: 'Surveying and mapping', accent: '#FF7A2E' },
     { name: 'Game night', accent: '#25B85C' },
     { name: 'Everyday tools and fun', accent: '#D98A0B' },
   ];
-  const TOPICS = ['GPU clusters', 'Uses AI', 'Quantum', 'Physics', 'Math & patterns', 'Dominoes', 'Cards', 'Art & music', 'Everyday'];
+  const TOPICS = ['GPU clusters', 'Uses AI', 'Quantum', 'Surveying', 'Physics', 'Math & patterns', 'Dominoes', 'Cards', 'Art & music', 'Everyday'];
   const APPS = [
     // ---------- AI infrastructure ----------
     { s: 0, href: '/cluster/', name: 'Cluster triage sim', tags: ['GPU clusters'],
@@ -528,48 +539,51 @@
     { s: 1, href: '/monkeys/', name: 'Infinite monkeys', tags: ['Quantum', 'Math & patterns'],
       why: 'Can monkeys at typewriters write Shakespeare?',
       text: 'Six monkeys hit keys completely at random, forever. Give them your name or a line of Shakespeare and watch how close they get. A shelf collects the longest real words they type by accident, and the page works out how long the whole job would really take. Hint: much longer than the universe has existed.' },
-    { s: 1, href: '/gps/', name: 'Where am I, really?', tags: ['Physics', 'Everyday'],
+    { s: 2, href: '/gps/', name: 'Where am I, really?', tags: ['Surveying', 'Physics'],
       why: 'Why your phone\'s blue dot wanders.',
       text: 'Watch a phone, a free-corrections receiver and a surveyor\'s RTK rover all try to find one brass survey marker. The phone wanders a few meters; the surveyor stays within a centimeter. Learn how that works, and what Einstein really does to GPS (it is not quite what you have heard). You can even plot your own phone\'s readings, which stay on your device.' },
+    { s: 2, href: '/scanner/', name: 'Drive the scanner', tags: ['Surveying', 'Physics'],
+      why: 'Why a $15,000 laser scanner still needs survey nails.',
+      text: 'Drive a mobile LiDAR scanner down 800 m of road in 3D and watch the point cloud build. Its idea of where it is slowly drifts, so the scanned road bends and sags away from the true line. Set control nails and the cloud snaps back. Then plant a blunder, like a wrong rod height, and see whether your checkpoints and residuals catch it, with a pass or fail against your project spec. Try the scanner\'s own RTK too, and see what the trees do to it.' },
     // ---------- Game night ----------
-    { s: 2, href: '/mt/', name: 'Mexican train helper', tags: ['Dominoes', 'Uses AI'],
+    { s: 3, href: '/mt/', name: 'Mexican train helper', tags: ['Dominoes', 'Uses AI'],
       why: 'Your game-night sidekick for real dominoes.',
       text: 'Snap a photo of your dominoes and Claude AI reads them for you, or tap them in. It finds your best opening train, counts your leftover points, and keeps score for all 13 rounds. A "Check my set" tab even finds missing tiles in your box. Built for an actual family game table.' },
-    { s: 2, href: '/mexican/', name: 'Mexican train', tags: ['Dominoes'],
+    { s: 3, href: '/mexican/', name: 'Mexican train', tags: ['Dominoes'],
       why: 'Play Mexican Train against the computer.',
       text: 'Double-12 dominoes against computer players. Every time you have to draw, a coach shows your odds of pulling a domino that fits, and a "Lucky draws?" panel compares what the odds predicted with what really happened. Play a single round or a full game.' },
-    { s: 2, href: '/train/', name: 'The miracle train', tags: ['Dominoes', 'Math & patterns'],
+    { s: 3, href: '/train/', name: 'The miracle train', tags: ['Dominoes', 'Math & patterns'],
       why: 'Someone went out on the first play. How rare is that?',
       text: 'At a real game with six players, one person laid down their whole hand in one train on the very first play. An AI guessed it was about as rare as a royal flush. This page shuffles millions of hands to find the true odds for your table\'s rules, and shows you miracle hands as it finds them.' },
-    { s: 2, href: '/dominoes/', name: 'Dominoes', tags: ['Dominoes'],
+    { s: 3, href: '/dominoes/', name: 'Dominoes', tags: ['Dominoes'],
       why: 'The classic game, with the odds shown.',
       text: 'Draw or Block dominoes with a double-12 set against the computer. Highest double starts, and you can choose whether doubles open up their sides. A coach shows which numbers are open and your chance of drawing a fit. Good practice, or just a relaxing game.' },
-    { s: 2, href: '/nopeek/', name: 'Seven card no peek', tags: ['Cards'],
+    { s: 3, href: '/nopeek/', name: 'Seven card no peek', tags: ['Cards'],
       why: 'The family card game, with a live odds coach.',
       text: 'Everyone gets seven cards face down, and you flip until you beat the best hand showing. Queens are wild, so five of a kind is possible. While anyone is flipping, the coach shows what they need to beat, their odds, and what their cards could still turn into.' },
-    { s: 2, href: '/bridge/', name: 'The quantum dealer', tags: ['Cards', 'Quantum'],
+    { s: 3, href: '/bridge/', name: 'The quantum dealer', tags: ['Cards', 'Quantum'],
       why: 'Bridge deals worth talking about.',
       text: 'Truly shuffled bridge deals with a full hand record: high-card points, shape, losing tricks, and the odds of anything unusual. Ask for slam hands, freak distributions or a Yarborough. Print the record, copy it in PBN, or open the deal in Bridge Base Online.' },
-    { s: 2, href: '/puzzle/', name: 'Picture shuffle', tags: ['Everyday'],
+    { s: 3, href: '/puzzle/', name: 'Picture shuffle', tags: ['Everyday'],
       why: 'Your own photo, cut up and scrambled.',
       text: 'Pick a photo, or use one made for you, and choose 12, 20 or 30 pieces. Swap them back into place against the clock. Pieces that fit together join up and move as a group. Your photo stays on your phone. Fun with grandkids.' },
     // ---------- Everyday ----------
-    { s: 3, href: '/pomodoro/', name: 'Pomodoro timer', tags: ['Everyday'],
+    { s: 4, href: '/pomodoro/', name: 'Pomodoro timer', tags: ['Everyday'],
       why: 'Get things done, 25 minutes at a time.',
       text: 'Focus for 25 minutes, then take a 5-minute break. The countdown glows on old-style Nixie tubes. You can change the times, and the space bar starts and pauses it. The page tells the story of the tomato-shaped kitchen timer that gave the method its name.' },
-    { s: 3, href: '/triplets/', name: 'Triplet trainer', tags: ['Art & music'],
+    { s: 4, href: '/triplets/', name: 'Triplet trainer', tags: ['Art & music'],
       why: 'Finally feel quarter-note triplets.',
       text: 'Three even notes in the space of two beats trip up a lot of musicians. Hear them over a steady beat in four steps, from counting all six parts to playing on your own. Then tap along, or play your flute into the microphone, and get scored on your timing.' },
-    { s: 3, href: '/feelings/', name: 'Name that feeling', tags: ['Everyday'],
+    { s: 4, href: '/feelings/', name: 'Name that feeling', tags: ['Everyday'],
       why: 'Find the word for what you actually feel.',
       text: 'A feelings wheel for your phone. Start with the everyday word you would use, like "mad," and follow it inward to the more precise feeling underneath. It includes a private journal that stays on your device. A tool for noticing, not a diagnosis.' },
-    { s: 3, href: '/ss/', name: 'Early or late?', tags: ['Everyday', 'Math & patterns'],
+    { s: 4, href: '/ss/', name: 'Early or late?', tags: ['Everyday', 'Math & patterns'],
       why: 'Social Security: claim early, or wait until 70?',
       text: 'Nobody knows how long they will live, so this rolls 10,000 random lifetimes from the official life tables and counts who collects more. It handles couples and survivor benefits, and you can add investment growth. A clear picture of the bet, not financial advice.' },
-    { s: 3, href: '/norad/', name: 'Strategic display', tags: ['Everyday'],
+    { s: 4, href: '/norad/', name: 'Strategic display', tags: ['Everyday'],
       why: 'A Cold War command-center big board.',
       text: 'A glowing green NORAD-style display. Watch the 72-minute timeline from the book Nuclear War: A Scenario unfold, or relive the night in 1983 when Soviet officer Stanislav Petrov saw five "incoming missiles" on his screen and decided they were a false alarm.' },
-    { s: 3, href: '/opscon/', name: 'Opscon', tags: ['Everyday', 'Art & music'],
+    { s: 4, href: '/opscon/', name: 'Opscon', tags: ['Everyday', 'Art & music'],
       why: 'A movie-style hacker screen for your spare monitor.',
       text: 'Matrix rain, glowing world maps, spinning satellites and a fake break-in that always ends in ACCESS GRANTED. None of it is real; it is a screensaver dressed up like the movies. Press F for full screen and leave it running on a spare monitor.' },
   ];
