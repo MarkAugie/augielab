@@ -91,6 +91,13 @@
   .exp { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .hide { display: none !important; }
   .hidden-ans .ans { filter: blur(7px); user-select: none; }
+  .math { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px 20px 18px; }
+  .math h3 { font: 700 1.02rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); margin: 18px 0 6px; }
+  .math p { color: var(--dim); font-size: .98rem; margin: 4px 0; }
+  .math .eq { font: 500 .95rem/1.7 "IBM Plex Mono", monospace; color: var(--text); white-space: pre-wrap; overflow-x: auto; padding: 8px 12px; margin: 6px 0;
+    background: #0A1B2E; border-radius: 8px; border-left: 3px solid #335C86; }
+  .math .eq b { color: var(--adj); font-weight: 600; }
+  .printonly { display: none; }
   .source { margin-top: 26px; text-align: center; font-size: .95rem; color: var(--dim); }
 
   @media (max-width: 980px) {
@@ -101,6 +108,25 @@
     .big { grid-template-columns: 1fr 1fr; }
   }
   @media print {
+    .printonly { display: block; margin-bottom: 14px; }
+    .printonly h2 { font: 700 14pt "IBM Plex Sans", sans-serif; margin: 0 0 6px; }
+    .printonly table { border-collapse: collapse; font: 10pt "IBM Plex Mono", monospace; }
+    .printonly td, .printonly th { border: 1px solid #999; padding: 3px 8px; text-align: left; }
+    .math.hide { display: block !important; }
+    .math { background: #fff !important; border-color: #999 !important; }
+    .math h3, .math p, .math .eq, .math .eq b { color: #000 !important; }
+    .math .eq { background: #f4f4f4 !important; border-left-color: #999 !important; }
+    .math h3 { break-after: avoid; }
+    .math .eq { break-inside: avoid; }
+    #mathBtn { display: none; }
+    #plot text { fill: #222 !important; }
+    #plot path[stroke="#6CF0B4"] { stroke: #0A7A4A; fill: rgba(10,122,74,.06); }
+    #plot path[stroke="#FFB347"] { stroke: #C06A00; }
+    #plot line[stroke^="rgba(140"] { stroke: #e6e6e6; }
+    #plot rect { fill: #fff; stroke: #999; }
+    #plot circle[fill="#0B1E33"] { fill: #fff; stroke: #222; }
+    #plot g path[fill="#F1F6FC"] { fill: #222; }
+    .plot { break-inside: avoid; }
     html, body { background: #fff !important; color: #000; font-size: 11pt; }
     body { padding: 0; }
     .top, .panel.inputs, .plot .tools, .exp, .lab-why, .no-print, .source { display: none !important; }
@@ -121,7 +147,8 @@
     <p class="sub">Type in your field notes: interior angles, or bearings and distances. See how far the traverse misses closing, the precision ratio, a Compass Rule adjustment with every step shown, the area, and where a blunder is likely hiding. Then send it to CAD as a DXF.</p>
   </header>
 
-  <main class="lab" id="lab">
+  <section class="printonly" id="notes"></section>
+<main class="lab" id="lab">
     <div>
       <div class="plot">
         <svg id="plot" role="img" aria-label="Plot of the traverse: field (unadjusted) lines, adjusted lines, stations, and the closure gap"></svg>
@@ -223,12 +250,14 @@
   <div class="work ans" id="work"></div>
   <h2 class="sec">Adjusted coordinates</h2>
   <div class="work ans" id="coords"></div>
+  <h2 class="sec mathhead">All the math <button class="btn no-print" id="mathBtn" type="button" aria-expanded="false" style="margin-left:10px;font-size:.85rem;text-transform:none;letter-spacing:0">Show every calculation</button></h2>
+  <div class="math ans hide" id="math"></div>
   <div class="exp no-print">
     <button class="btn primary" id="dxf" type="button">⬇ DXF for CAD</button>
     <button class="btn" id="csv" type="button">⬇ Points (PNEZD .csv)</button>
-    <button class="btn" id="print" type="button">🖨 Print a report</button>
+    <button class="btn" id="print" type="button">🖨 Print the full report</button>
   </div>
-  <p class="note no-print">The DXF has layers for the adjusted lines, field lines, points and labels, with Easting as X and Northing as Y. Your traverse also stays in this browser, so it's here when you come back.</p>
+  <p class="note no-print">The printed report has your field notes, the drawing, the results and every calculation written out. The DXF has layers for the adjusted lines, field lines, points and labels, with Easting as X and Northing as Y. Your traverse also stays in this browser, so it's here when you come back.</p>
 
   <p class="source">Free to use for teaching, under the MIT License. Everything is computed in your browser; nothing is sent anywhere.</p>
 </div>
@@ -302,7 +331,7 @@
   }
   const num = (s) => { const v = parseFloat(String(s).replace(/,/g, '')); return isFinite(v) ? v : NaN; };
   const f = (v, dp = 2) => isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }) : '–';
-  const sgn = (v, dp = 3) => (v >= 0 ? '+' : '−') + f(Math.abs(v), dp);
+  const sgn = (v, dp = 3) => { if (Math.abs(v) < 0.5 * 10 ** -dp) v = 0; return (v >= 0 ? '+' : '−') + f(Math.abs(v), dp); };
 
   /* ---------------- state ---------------- */
   const S = { mode: 'angles', rot: 'ccw', units: 'ft', close: 'loop', rule: 'compass', req: 10000, labels: true, raw: true, hideAns: false,
@@ -462,7 +491,7 @@
     if (!R) {
       $('kAng').textContent = $('kLin').textContent = $('kPrec').textContent = $('kArea').textContent = '–';
       $('verdict').className = 'verdict ans'; $('verdict').innerHTML = S.rows.length ? 'Fill in every box (red boxes need a look) and the closure appears here.' : 'Add your stations, or press <b>Example</b> or <b>Make me a problem</b>.';
-      $('work').innerHTML = ''; $('coords').innerHTML = ''; drawPlot(); return;
+      $('work').innerHTML = ''; $('coords').innerHTML = ''; $('math').innerHTML = ''; buildNotes(); drawPlot(); return;
     }
     const A = R.angInfo, nm = names();
     $('kAng').innerHTML = A ? `${dms(A.mis, 0, true)}<small>sum ${dms(A.sum)}</small>` : '–<small>not used with bearings</small>';
@@ -502,8 +531,98 @@
       c += `<tr><td>${esc(name)}</td><td class="c">${f(R.fN[i], 3)}</td><td class="c">${f(R.fE[i], 3)}</td><td class="a">${f(R.aN[i], 3)}</td><td class="a">${f(R.aE[i], 3)}</td><td>${i < R.n ? bearing(R.adjAz[i]) : ''}</td><td>${i < R.n ? f(R.adjDist[i], 2) : ''}</td></tr>`;
     }
     $('coords').innerHTML = c + '</tbody></table>';
+    buildMath(); buildNotes();
     drawPlot();
   }
+
+  /* ---------------- every calculation, written out ---------------- */
+  const n6 = (v) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(6);
+  const s3 = (v) => (v < 0 ? '− ' : '+ ') + f(Math.abs(v), 3);
+  const p3 = (v) => (v < 0 ? '(−' + f(Math.abs(v), 3) + ')' : f(v, 3));
+  function buildMath() {
+    if (!R) { $('math').innerHTML = ''; return; }
+    const A = R.angInfo, nm = names(), u = U(), out = [];
+    const to = (i) => (i === R.n - 1 ? endName() : nm[i + 1]);
+    let step = 1;
+    if (A) {
+      out.push(`<h3>Step ${step++}. Check and balance the angles</h3><p>The interior angles of an n-sided figure add up to (n − 2) × 180°.</p>`);
+      out.push(`<div class="eq">Sum of measured angles = ${A.angs.map((a) => dms(a)).join(' + ')}
+                          = <b>${dms(A.sum)}</b>
+Should be (n − 2) × 180° = (${R.n} − 2) × 180° = <b>${dms(A.theo)}</b>
+Angular misclosure = ${dms(A.sum)} − ${dms(A.theo)} = <b>${dms(A.mis, 0, true)}</b>
+Correction per angle = −(${dms(A.mis, 0, true)}) ÷ ${R.n} = <b>${dms(A.corr, 1, true)}</b></div>`);
+      out.push(`<div class="eq">${A.angs.map((a, i) => `Station ${esc(nm[i])}: ${dms(a)} ${A.corr < 0 ? '−' : '+'} ${dms(Math.abs(A.corr), 1)} = <b>${dms(A.bal[i], 1)}</b>`).join('\n')}</div>`);
+      out.push(`<h3>Step ${step++}. Carry the azimuths around</h3><p>Start with the given direction of the first course. Going ${A.ccw ? 'counterclockwise' : 'clockwise'}: next azimuth = previous azimuth + 180° ${A.ccw ? '+' : '−'} balanced angle at the next station (then add or subtract 360° to keep it between 0° and 360°).</p>`);
+      let lines = `Az ${esc(nm[0])}→${esc(to(0))} = given ${esc(S.az0.trim())} = <b>${dms(R.az[0], 1)}</b>`;
+      for (let i = 1; i < R.n; i++) {
+        const raw = R.az[i - 1] + 180 + (A.ccw ? A.bal[i] : -A.bal[i]);
+        const wrap = raw >= 360 ? ` − 360°` : raw < 0 ? ` + 360°` : '';
+        lines += `\nAz ${esc(nm[i])}→${esc(to(i))} = ${dms(R.az[i - 1], 1)} + 180° ${A.ccw ? '+' : '−'} ${dms(A.bal[i], 1)}${wrap} = <b>${dms(R.az[i], 1)}</b>   (${bearing(R.az[i], 1)})`;
+      }
+      const back = norm(R.az[R.n - 1] + 180 + (A.ccw ? A.bal[0] : -A.bal[0]));
+      lines += `\nCheck at ${esc(nm[0])}: ${dms(R.az[R.n - 1], 1)} + 180° ${A.ccw ? '+' : '−'} ${dms(A.bal[0], 1)} = <b>${dms(back, 1)}</b>, the starting azimuth again ✓`;
+      out.push(`<div class="eq">${lines}</div>`);
+    } else {
+      out.push(`<h3>Step ${step++}. Directions as azimuths</h3><p>Bearings are turned into azimuths (clockwise from north): NE = angle, SE = 180° − angle, SW = 180° + angle, NW = 360° − angle.</p>`);
+      out.push(`<div class="eq">${S.rows.map((r, i) => `${esc(nm[i])}→${esc(to(i))}: ${esc(String(r.dir).trim())} = <b>${dms(R.az[i], 1)}</b>`).join('\n')}</div>`);
+    }
+    out.push(`<h3>Step ${step++}. Latitudes and departures</h3><p>Latitude (north–south) = distance × cos(azimuth). Departure (east–west) = distance × sin(azimuth).</p>`);
+    out.push(`<div class="eq">${R.az.map((a, i) => `${esc(nm[i])}→${esc(to(i))}:  Lat = ${f(R.dist[i], 2)} × cos ${dms(a, 1)} = ${f(R.dist[i], 2)} × ${n6(Math.cos(a * D2R))} = <b>${sgn(R.lat[i])}</b>
+${' '.repeat(esc(nm[i]).length + esc(to(i)).length + 3)}  Dep = ${f(R.dist[i], 2)} × sin ${dms(a, 1)} = ${f(R.dist[i], 2)} × ${n6(Math.sin(a * D2R))} = <b>${sgn(R.dep[i])}</b>`).join('\n')}</div>`);
+    out.push(`<h3>Step ${step++}. Misclosure and precision</h3>`);
+    const shouldN = R.nEnd - R.n0, shouldE = R.eEnd - R.e0;
+    out.push(`<div class="eq">ΣLat = ${R.lat.map((v) => p3(v)).join(' + ')} = <b>${sgn(R.sumLat)}</b>
+ΣDep = ${R.dep.map((v) => p3(v)).join(' + ')} = <b>${sgn(R.sumDep)}</b>
+${R.loop ? 'For a closed loop both should be 0.' : `They should equal known end − start: ΔN = ${sgn(shouldN)}, ΔE = ${sgn(shouldE)}.`}
+Error in latitude  eN = ${R.loop ? 'ΣLat' : `${p3(R.sumLat)} − ${p3(shouldN)}`} = <b>${sgn(R.misN)}</b>
+Error in departure eE = ${R.loop ? 'ΣDep' : `${p3(R.sumDep)} − ${p3(shouldE)}`} = <b>${sgn(R.misE)}</b>
+Linear misclosure = √(eN² + eE²) = √(${p3(R.misN)}² + ${p3(R.misE)}²) = <b>${f(R.lin, 3)} ${u}</b>
+Direction of the miss = atan2(eE, eN) = <b>${bearing(R.misAz)}</b>
+Perimeter P = ${R.dist.map((d) => f(d, 2)).join(' + ')} = <b>${f(R.P, 2)} ${u}</b>
+Precision = P ÷ misclosure = ${f(R.P, 2)} ÷ ${f(R.lin, 3)} = <b>1 : ${isFinite(R.prec) ? f(Math.round(R.prec), 0) : '∞'}</b>  (required 1 : ${f(S.req, 0)} → ${R.prec >= S.req ? 'meets it' : 'does not meet it'})</div>`);
+    if (S.rule === 'compass') {
+      out.push(`<h3>Step ${step++}. Compass (Bowditch) Rule corrections</h3><p>Each line takes a share of the error in proportion to its length: correction = −error × (line length ÷ perimeter).</p>`);
+      out.push(`<div class="eq">${R.dist.map((d, i) => `${esc(nm[i])}→${esc(to(i))}:  cLat = −${p3(R.misN)} × ${f(d, 2)} ÷ ${f(R.P, 2)} = <b>${sgn(R.cLat[i])}</b>
+${' '.repeat(esc(nm[i]).length + esc(to(i)).length + 3)}  cDep = −${p3(R.misE)} × ${f(d, 2)} ÷ ${f(R.P, 2)} = <b>${sgn(R.cDep[i])}</b>`).join('\n')}</div>`);
+    } else {
+      const aL = R.lat.reduce((a, b) => a + Math.abs(b), 0), aD = R.dep.reduce((a, b) => a + Math.abs(b), 0);
+      out.push(`<h3>Step ${step++}. Transit Rule corrections</h3><p>Each line takes a share in proportion to the size of its latitude (or departure): correction = −error × |Lat| ÷ Σ|Lat|, and the same for departures. Σ|Lat| = ${f(aL, 3)}, Σ|Dep| = ${f(aD, 3)}.</p>`);
+      out.push(`<div class="eq">${R.lat.map((l, i) => `${esc(nm[i])}→${esc(to(i))}:  cLat = −${p3(R.misN)} × ${f(Math.abs(l), 3)} ÷ ${f(aL, 3)} = <b>${sgn(R.cLat[i])}</b>
+${' '.repeat(esc(nm[i]).length + esc(to(i)).length + 3)}  cDep = −${p3(R.misE)} × ${f(Math.abs(R.dep[i]), 3)} ÷ ${f(aD, 3)} = <b>${sgn(R.cDep[i])}</b>`).join('\n')}</div>`);
+    }
+    out.push(`<h3>Step ${step++}. Adjusted latitudes and departures</h3>`);
+    out.push(`<div class="eq">${R.lat.map((l, i) => `${esc(nm[i])}→${esc(to(i))}:  ${f(l, 3)} ${s3(R.cLat[i])} = <b>${sgn(R.aLat[i])}</b>     ${f(R.dep[i], 3)} ${s3(R.cDep[i])} = <b>${sgn(R.aDep[i])}</b>`).join('\n')}
+Check: ΣadjLat = <b>${sgn(R.aLat.reduce((a, b) => a + b, 0))}</b>, ΣadjDep = <b>${sgn(R.aDep.reduce((a, b) => a + b, 0))}</b>${R.loop ? ' (both 0 ✓)' : ' (equal to known end − start ✓)'}</div>`);
+    out.push(`<h3>Step ${step++}. Coordinates</h3><p>Next point = this point + adjusted latitude (northing) and adjusted departure (easting).</p>`);
+    let co = `${esc(nm[0])}: N = <b>${f(R.aN[0], 3)}</b>   E = <b>${f(R.aE[0], 3)}</b>  (given)`;
+    for (let i = 0; i < R.n; i++) co += `\n${esc(i === R.n - 1 ? endName() : nm[i + 1])}: N = ${f(R.aN[i], 3)} ${s3(R.aLat[i])} = <b>${f(R.aN[i + 1], 3)}</b>   E = ${f(R.aE[i], 3)} ${s3(R.aDep[i])} = <b>${f(R.aE[i + 1], 3)}</b>`;
+    out.push(`<div class="eq">${co}</div>`);
+    out.push(`<h3>Step ${step++}. Adjusted lines (inverse)</h3><p>Distance = √(ΔN² + ΔE²). Azimuth = atan2(ΔE, ΔN).</p>`);
+    out.push(`<div class="eq">${R.adjDist.map((d, i) => `${esc(nm[i])}→${esc(to(i))}: √(${p3(R.aLat[i])}² + ${p3(R.aDep[i])}²) = <b>${f(d, 2)}</b>   ${bearing(R.adjAz[i])}`).join('\n')}</div>`);
+    if (R.loop) {
+      out.push(`<h3>Step ${step++}. Area by coordinates</h3><p>Multiply each northing by the next point's easting, and each easting by the next point's northing. Area = |Σ(E·Nnext) − Σ(N·Enext)| ÷ 2.</p>`);
+      let a1 = 0, a2 = 0, rows = '';
+      for (let i = 0; i < R.n; i++) {
+        const x1 = R.aE[i] * R.aN[i + 1], x2 = R.aN[i] * R.aE[i + 1]; a1 += x1; a2 += x2;
+        rows += `${esc(nm[i]).padEnd(4)} E×Nnext = ${f(R.aE[i], 3)} × ${f(R.aN[i + 1], 3)} = ${f(x1, 3)}     N×Enext = ${f(R.aN[i], 3)} × ${f(R.aE[i + 1], 3)} = ${f(x2, 3)}\n`;
+      }
+      out.push(`<div class="eq">${rows}Σ(E·Nnext) = ${f(a1, 3)}     Σ(N·Enext) = ${f(a2, 3)}
+Area = |${f(a1, 3)} − ${f(a2, 3)}| ÷ 2 = <b>${f(R.area, 2)} ${u === 'ft' ? 'sq ft' : 'm²'}</b>
+${u === 'ft' ? `= ${f(R.area, 2)} ÷ 43,560 = <b>${f(R.area / 43560, 4)} acres</b>` : `= ${f(R.area, 2)} ÷ 10,000 = <b>${f(R.area / 10000, 4)} hectares</b>`}</div>`);
+    }
+    $('math').innerHTML = out.join('');
+  }
+  function buildNotes() {   // field notes, printed at the top of the report
+    const nm = names(), ang = S.mode === 'angles';
+    $('notes').innerHTML = `<h2>Field notes${R ? ` · ${new Date().toLocaleDateString()}` : ''}</h2>
+      <p>Start N ${esc(S.n0)}, E ${esc(S.e0)} · ${S.units === 'ft' ? 'US feet' : 'meters'} · ${S.rule === 'compass' ? 'Compass Rule' : 'Transit Rule'}${ang ? ` · first course ${esc(S.az0)} · ${S.rot === 'ccw' ? 'counterclockwise' : 'clockwise'}` : ''}${!ang && S.close === 'known' ? ` · closes on N ${esc(S.n1)}, E ${esc(S.e1)}` : ''}</p>
+      <table><tr><th>${ang ? 'Station' : 'From'}</th><th>${ang ? 'Interior angle' : 'Direction'}</th><th>Distance</th></tr>${S.rows.map((r, i) => `<tr><td>${esc(nm[i])}</td><td>${esc(ang ? r.ang : r.dir)}</td><td>${esc(r.dist)}</td></tr>`).join('')}</table>`;
+  }
+  $('mathBtn').addEventListener('click', () => {
+    const open = $('math').classList.toggle('hide') === false;
+    $('mathBtn').textContent = open ? 'Hide the calculations' : 'Show every calculation'; $('mathBtn').setAttribute('aria-expanded', open);
+    if (open) $('math').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   /* ---------------- plot ---------------- */
   function drawPlot() {
