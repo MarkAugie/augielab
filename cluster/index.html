@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cluster Triage Simulator · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Run an on-call shift on a 256-GPU H100 cluster. A chaos monkey breaks hardware at random; find the fault with real diagnostics (nvidia-smi, dmesg Xid, dcgmi, ibstat, ipmitool), fix it, and keep the GPUs earning.">
+<meta property="og:title" content="Cluster Triage Simulator">
+<meta property="og:description" content="On-call for a 256-GPU H100 cluster: random hardware faults, real diagnostics, a stopwatch and a bill for every idle GPU-hour.">
+<meta property="og:url" content="https://augielab.dev/cluster/">
+<meta name="theme-color" content="#0A0E13">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E13; --panel: #111821; --panel2: #16202B; --line: #24313F; --ink: #E8EEF5; --dim: #93A3B6; --faint: #5E6E80;
+    --ok: #34D58A; --okd: #1B6B47; --warn: #FFB224; --bad: #FF5263; --info: #5AB8FF; --vio: #B48CFF; --idle: #2C3A49;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); font-size: 17px; -webkit-text-size-adjust: 100%; }
+  body { color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; min-height: 100vh; padding: 12px 14px 80px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  button { font: 600 .92rem "IBM Plex Sans", sans-serif; color: var(--ink); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: #3C5168; background: #1B2735; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+  .wrap { max-width: 1560px; margin: 0 auto; }
+
+  /* header */
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .brand a { color: var(--dim); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .brand h1 { font: 700 clamp(1.5rem, 3vw, 2.1rem)/1.1 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .01em; }
+  .brand h1 span { color: var(--ok); }
+  .brand .sub { color: var(--dim); font-size: .9rem; }
+  .hdr-ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; } .seg button { border-radius: 0; margin-left: -1px; } .seg button:first-child { border-radius: 8px 0 0 8px; } .seg button:last-child { border-radius: 0 8px 8px 0; }
+  .seg button.on, button.on { background: var(--ok); color: #06140D; border-color: var(--ok); }
+  .tabs { display: inline-flex; gap: 6px; }
+  .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .kpi .l { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .v { font: 600 1.55rem/1.15 "IBM Plex Mono", monospace; margin-top: 2px; white-space: nowrap; }
+  .kpi .v small { font-size: .62em; color: var(--dim); font-weight: 500; }
+  .kpi.good .v { color: var(--ok); } .kpi.warn .v { color: var(--warn); } .kpi.bad .v { color: var(--bad); }
+  .entropy { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--dim); font-size: .85rem; overflow: hidden; }
+  .entropy b { color: var(--vio); font-weight: 600; white-space: nowrap; }
+  .entropy .hex { font-family: "IBM Plex Mono", monospace; color: #7E6AAE; white-space: nowrap; overflow: hidden; flex: 1; }
+
+  /* main layout */
+  .main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+    .main > * { min-width: 0; }
+  .card h2 { flex-wrap: wrap; font: 700 1.05rem "IBM Plex Sans", sans-serif; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .card h2 .muted { font-weight: 500; font-size: .82rem; color: var(--dim); }
+
+  /* cluster map */
+  .racks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .rack { background: #0D131A; border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+  .rack .rh { font: 600 .72rem "IBM Plex Mono", monospace; color: var(--faint); letter-spacing: .1em; margin: 0 2px 6px; display: flex; justify-content: space-between; }
+  .node { display: block; width: 100%; text-align: left; padding: 6px 7px; margin-bottom: 6px; border-radius: 7px; background: var(--panel2); border: 1px solid var(--line); position: relative; }
+  .node:last-child { margin-bottom: 0; }
+  .node .nm { display: flex; justify-content: space-between; align-items: center; font: 600 .74rem "IBM Plex Mono", monospace; color: var(--dim); }
+  .node .st { font-size: .64rem; padding: 1px 5px; border-radius: 4px; letter-spacing: .04em; }
+  .st.alloc { background: rgba(52,213,138,.14); color: var(--ok); } .st.idle { background: rgba(90,184,255,.12); color: var(--info); }
+  .st.drain, .st.drng { background: rgba(255,178,36,.15); color: var(--warn); } .st.down { background: rgba(255,82,99,.16); color: var(--bad); }
+  .gpus { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 5px; }
+  .gpus i { display: block; height: 11px; border-radius: 2px; background: var(--idle); }
+  .ib { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 3px; }
+  .ib i { display: block; height: 4px; border-radius: 2px; background: #3E8FC4; }
+  .ib i.dn { background: var(--bad); } .ib i.dg { background: var(--warn); }
+  .node.sel { border-color: var(--info); box-shadow: 0 0 0 2px rgba(90,184,255,.35); }
+  .node.alert { border-color: var(--bad); animation: pulse 1.4s ease-in-out infinite; }
+  .node.alert.w { border-color: var(--warn); animation-name: pulsew; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 3px rgba(255,82,99,.35); } }
+  @keyframes pulsew { 50% { box-shadow: 0 0 0 3px rgba(255,178,36,.3); } }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .8rem; color: var(--dim); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+
+  /* incidents */
+  .queue { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; }
+  .inc { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 11px; border-radius: 9px; background: var(--panel2); border: 1px solid var(--line); text-align: left; width: 100%; }
+  .inc .sev { font: 700 .7rem "IBM Plex Mono", monospace; padding: 3px 6px; border-radius: 5px; }
+  .sev.p1 { background: var(--bad); color: #fff; } .sev.p2 { background: var(--warn); color: #241600; } .sev.p3 { background: var(--info); color: #04121F; }
+  .inc .tx { min-width: 0; } .inc .tx b { display: block; font-size: .92rem; } .inc .tx span { display: block; font-size: .8rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inc .age { font: 600 .82rem "IBM Plex Mono", monospace; color: var(--dim); }
+  .inc.sel { border-color: var(--info); }
+  .empty { color: var(--dim); font-size: .9rem; padding: 8px 2px; }
+
+  /* node detail */
+  .nodehead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .nodehead .nn { font: 700 1.2rem "IBM Plex Mono", monospace; }
+  .nodehead .meta { color: var(--dim); font-size: .82rem; }
+  table.gt { width: 100%; border-collapse: collapse; margin-top: 10px; font: 500 .8rem "IBM Plex Mono", monospace; }
+  table.gt th { text-align: left; color: var(--faint); font-weight: 600; padding: 3px 4px; border-bottom: 1px solid var(--line); }
+  table.gt td { padding: 3px 4px; border-bottom: 1px solid #1A2531; white-space: nowrap; }
+  table.gt td.bad { color: var(--bad); } table.gt td.warn { color: var(--warn); }
+  .sect { margin-top: 12px; font: 700 .74rem "IBM Plex Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  .cmds, .acts { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 6px; margin-top: 6px; }
+  .cmds button { font: 500 .78rem "IBM Plex Mono", monospace; text-align: left; padding: 8px 9px; color: #BFD3E6; word-break: break-word; }
+  .acts button { text-align: left; font-size: .84rem; }
+  .acts button.fix { border-left: 3px solid var(--ok); } .acts button.risk { border-left: 3px solid var(--warn); } .acts button.heavy { border-left: 3px solid var(--bad); }
+  .term { margin-top: 8px; background: #05080B; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; height: 300px; overflow: auto; font: 400 .78rem/1.45 "IBM Plex Mono", monospace; color: #C9D6E3; white-space: pre; }
+  .term .p { color: var(--ok); } .term .e { color: var(--bad); } .term .w { color: var(--warn); } .term .c { color: var(--faint); } .term .i { color: var(--info); }
+  .closebar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .closebar .go { background: var(--ok); color: #06140D; border-color: var(--ok); font-weight: 700; }
+  .hint { margin-top: 10px; padding: 10px 12px; border-radius: 9px; background: rgba(180,140,255,.08); border: 1px solid rgba(180,140,255,.3); font-size: .88rem; color: #D9CCFF; }
+  .hint b { color: var(--vio); }
+  .toast { margin-top: 10px; padding: 10px 12px; border-radius: 9px; font-size: .9rem; display: none; }
+  .toast.on { display: block; } .toast.ok { background: rgba(52,213,138,.1); border: 1px solid var(--okd); } .toast.bad { background: rgba(255,82,99,.1); border: 1px solid rgba(255,82,99,.5); }
+  .pick { color: var(--dim); padding: 30px 6px; text-align: center; font-size: .95rem; }
+
+  /* overlays */
+  .ov { position: fixed; inset: 0; z-index: 50; background: rgba(4,7,10,.82); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .ov[hidden] { display: none; }
+  .modal { width: min(860px, 100%); max-height: 92vh; overflow-y: auto; background: var(--panel); border: 1px solid #2E3E50; border-radius: 16px; padding: 26px 26px 22px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .modal h2 { font: 700 clamp(1.5rem, 3.4vw, 2.1rem)/1.15 "IBM Plex Sans Condensed", sans-serif; }
+  .modal h2 span { color: var(--ok); }
+  .modal p { color: #C8D4E2; margin-top: 10px; }
+  .modal ul { margin: 10px 0 0 1.2em; color: #C8D4E2; } .modal li { margin: 4px 0; }
+  .modal .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .modal .big { font-size: 1.05rem; padding: 13px 20px; }
+  .modal .go { background: var(--ok); color: #06140D; border-color: var(--ok); font-weight: 700; }
+  .by { margin-top: 16px; font-size: .82rem; color: var(--faint); }
+  .grade { font: 700 4.2rem/1 "IBM Plex Sans Condensed", sans-serif; color: var(--ok); }
+  .rep { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: .88rem; }
+  .rep th { text-align: left; color: var(--dim); font-weight: 600; border-bottom: 1px solid var(--line); padding: 6px 4px; }
+  .rep td { padding: 7px 4px; border-bottom: 1px solid #1C2733; vertical-align: top; }
+  .rep td.n { font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+  .totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+
+  /* runbooks */
+  #runbooks .rb { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-top: 12px; }
+  #runbooks h3 { font-size: 1.12rem; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  #runbooks h3 .x { font: 600 .78rem "IBM Plex Mono", monospace; color: var(--vio); }
+  #runbooks .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px; }
+  #runbooks h4 { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+  #runbooks p, #runbooks li { font-size: .9rem; color: #C8D4E2; }
+  #runbooks ol { margin-left: 1.2em; }
+  #runbooks code { font: 500 .82rem "IBM Plex Mono", monospace; color: #BFD3E6; background: #0B1118; padding: 1px 5px; border-radius: 4px; }
+  #runbooks .intro { color: var(--dim); max-width: 900px; margin-top: 6px; }
+
+  footer { margin-top: 18px; color: var(--faint); font-size: .8rem; line-height: 1.5; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 1180px) { .kpis { grid-template-columns: repeat(4, 1fr); } .main { grid-template-columns: 1fr; } .main > div:last-child { order: -1; } #runbooks .grid { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    html { font-size: 16px; } body { padding: 10px 10px 80px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); } .kpi .v { font-size: 1.3rem; } .entropy .hex { display: none; }
+    .racks { grid-template-columns: repeat(2, 1fr); }
+    .totals { grid-template-columns: repeat(2, 1fr); }
+    .modal { padding: 20px 16px; }
+    .term { height: 260px; font-size: .72rem; }
+    .cmds, .acts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cmds button { font-size: .72rem; }
+  }
+</style>
+</head>
+<body data-explain-bottom="16">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <a href="/">← AugieLab</a>
+      <h1>Cluster Triage <span>Simulator</span></h1>
+      <div class="sub">On call for a 256-GPU H100 cluster. A chaos monkey breaks things. You fix them.</div>
+    </div>
+    <div class="hdr-ctl">
+      <span class="tabs"><button id="tabSim" class="on">Simulator</button><button id="tabRb">Runbooks</button></span>
+      <span class="seg" aria-label="Mode"><button data-mode="train" class="on">Training</button><button data-mode="oncall">On-call</button></span>
+      <span class="seg" aria-label="Speed"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button></span>
+      <button id="pause">❚❚ Pause</button>
+    </div>
+  </header>
+
+  <section id="sim">
+    <div class="kpis">
+      <div class="kpi" id="kShift"><div class="l">Shift clock</div><div class="v">22:00</div></div>
+      <div class="kpi good" id="kGpu"><div class="l">GPUs in service</div><div class="v">256<small>/256</small></div></div>
+      <div class="kpi" id="kJobs"><div class="l">Running jobs</div><div class="v">0</div></div>
+      <div class="kpi" id="kUtil"><div class="l">Cluster util</div><div class="v">0%</div></div>
+      <div class="kpi" id="kOpen"><div class="l">Open incidents</div><div class="v">0</div></div>
+      <div class="kpi" id="kLost"><div class="l">Idle GPU-hours lost</div><div class="v">0.0</div></div>
+      <div class="kpi" id="kScore"><div class="l">Score</div><div class="v">0</div></div>
+    </div>
+    <div class="entropy"><b>⚛ Chaos source</b><span id="entSrc">browser crypto (demo) · quantum stick coming online</span><span class="hex" id="entHex"></span></div>
+
+    <div class="main">
+      <div class="card">
+        <h2>Cluster · 4 racks · 32 × HGX H100 (8 GPU, 8 × NDR 400G) <span class="muted" id="sinfoSum"></span></h2>
+        <div class="racks" id="racks"></div>
+        <div class="legend">
+          <span><i style="background:#1F8F5C"></i>GPU busy</span><span><i style="background:var(--idle)"></i>GPU idle</span>
+          <span><i style="background:var(--warn)"></i>Hot / throttling</span><span><i style="background:var(--bad)"></i>Faulted</span>
+          <span><i style="background:#3E8FC4;height:4px"></i>IB rail up</span><span><i style="background:var(--bad);height:4px"></i>IB rail down</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Incident queue <span class="muted"><button id="inject" title="Make the chaos monkey break something now">🐒 Inject fault now</button></span></h2>
+          <div class="queue" id="queue"><div class="empty">No open incidents. The cluster is humming.</div></div>
+        </div>
+        <div class="card" style="margin-top:14px" id="detail">
+          <div class="pick">Select a node on the map, or an incident, to start triage.</div>
+        </div>
+      </div>
+    </div>
+    <footer>
+      Simulated cluster. Command outputs are modeled on real <span class="mono">nvidia-smi</span>, <span class="mono">dmesg</span> Xid, <span class="mono">dcgmi</span>, <span class="mono">ibstat</span>, <span class="mono">ipmitool</span>, Slurm and systemd output, trimmed for the screen; times are compressed (1 second = 1 minute at 1×).
+      Idle GPU-hours are priced at an assumed $<span id="rateTxt">2.50</span> per GPU-hour.<br>
+      Built by Mark "Augie" Aughenbaugh: 20 years of Intel lab, HPC and AI-cluster hardware support.
+    </footer>
+  </section>
+
+  <section id="runbooks" hidden>
+    <p class="intro">Every fault the chaos monkey can throw, written the way an on-call runbook should be: what you see, what to run, what to do, how to prove it's fixed. Order matters: <b>drain before you disrupt</b>, <b>fix the cause, not the symptom</b>, and <b>verify before you resume</b>.</p>
+    <div id="rbList"></div>
+  </section>
+</div>
+
+<!-- start / report overlays -->
+<div class="ov" id="ovStart">
+  <div class="modal">
+    <h2>Cluster Triage <span>Simulator</span></h2>
+    <p>You're the night-shift support engineer for a 256-GPU H100 cluster: 32 HGX nodes, NVLink inside each node, eight 400G InfiniBand rails between them, Slurm on top. Customers are training models on it right now.</p>
+    <p>Over an 8-hour shift (8 minutes at 1×) a <b>chaos monkey</b> injects real-world faults at random: GPUs falling off the bus, ECC row remaps, NVLink and InfiniBand failures, a Fabric Manager version mismatch, fans, power supplies, full disks, and the classic "it's not the hardware, it's your code."</p>
+    <ul>
+      <li><b>Diagnose</b> with the commands you'd really run.</li>
+      <li><b>Act</b>: drain, reset, power-cycle, dispatch a tech, open an RMA, or tell the customer it's their code.</li>
+      <li><b>Verify</b> and return the node to service. Every idle GPU-hour costs money.</li>
+    </ul>
+    <p style="color:var(--dim);font-size:.9rem">Training mode shows hints. On-call mode doesn't. The randomness comes from a chaos source that will switch to a quantum random number generator when it's online.</p>
+    <div class="row"><button class="big go" id="startBtn">▶ Start shift</button><button class="big" id="rbBtn">Read the runbooks first</button></div>
+    <p class="by">Built by Mark "Augie" Aughenbaugh · <span id="bestTxt"></span></p>
+  </div>
+</div>
+<div class="ov" id="ovReport" hidden><div class="modal" id="report"></div></div>
+
+<template id="explain">
+  <h2>What's happening?</h2>
+  <h3>The cluster</h3>
+  <p>32 nodes in 4 racks, each an HGX H100 board: 8 GPUs linked by NVLink/NVSwitch, plus 8 InfiniBand NDR (400 Gb/s) adapters, one per "rail", so GPU 3 on every node talks to GPU 3 on every other node through rail 3. Slurm schedules customer jobs onto the nodes. Each square on the map is a GPU; the thin line under it is its IB rail.</p>
+  <h3>The chaos monkey</h3>
+  <p>The idea comes from Netflix's Chaos Monkey: break things on purpose, at random, so people and systems get good at recovering. Here a random source picks which fault, which node, which GPU and when. Right now it's your browser's cryptographic random generator; it will switch to a quantum random number generator (a USB device measuring quantum noise) once that's online.</p>
+  <h3>How you're scored</h3>
+  <p>Points for finding the real cause, draining before disruptive work, fixing it the right way, verifying, and resolving fast. Points off for unnecessary work, like replacing a GPU that only needed a reset, rebooting a healthy node because of a customer's bug, or putting a broken node back in service. The meter that matters to a GPU cloud is idle GPU-hours: every minute a node is broken or needlessly drained, 8 H100s earn nothing.</p>
+  <h3>Is this real?</h3>
+  <p>The faults and the order of operations are what real GPU cluster support looks like. The outputs are modeled on real tools and trimmed for a screen. Times are compressed: a DCGM level-3 diagnostic takes much longer than 8 minutes in real life.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  // ================= entropy (chaos source) =================
+  const recent = [];
+  function rand() {
+    const a = new Uint32Array(1); crypto.getRandomValues(a);
+    recent.push(a[0].toString(16).padStart(8, '0')); if (recent.length > 24) recent.shift();
+    return a[0] / 4294967296;
+  }
+  const ri = n => Math.floor(rand() * n), pick = a => a[ri(a.length)];
+
+  // ================= constants =================
+  const RATE = 2.5;                                    // $ per GPU-hour (assumption)
+  const BUS = ['18', '2a', '3a', '5d', '9a', 'ab', 'ba', 'db'];
+  const DRIVER = '550.90.07', CUDA = '12.4';
+  const NODES = [];
+  for (let r = 1; r <= 4; r++) for (let n = 1; n <= 8; n++) NODES.push({
+    id: `gpu-r${r}-n${String(n).padStart(2, '0')}`, rack: r, state: 'alloc',
+    gpus: Array.from({ length: 8 }, () => ({ util: 0, temp: 34, pow: 90, mem: 0, fault: null })),
+    ib: Array(8).fill('up'), job: null, inc: null, busy: 0,
+  });
+  const byId = id => NODES.find(n => n.id === id);
+
+  // ================= fault catalog =================
+  // fix: the action that resolves it. drain: disruptive fix needs a drain first. final: node state at close.
+  // cost: share of the node's 8 GPUs lost while broken (1 = whole node, 0 = none).
+  const F = {
+    xid79: { name: 'GPU fell off the bus', xid: 'Xid 79', sev: 'p1', cost: 1, drain: true, fix: 'cycle', final: 'resume', verify: ['dcgm', 'smi'],
+      alert: n => `Job ${n.job} FAILED on ${n.id}: CUDA error: unspecified launch failure`,
+      sees: 'Jobs crash on one node. nvidia-smi shows 7 GPUs, or errors out for one bus ID.',
+      run: ['dmesg -T | grep -i xid', 'nvidia-smi'],
+      todo: ['Drain the node so Slurm stops placing jobs on it.', 'Power-cycle through the BMC (a warm reboot often isn\'t enough to bring a GPU back onto PCIe).', 'Run a DCGM level-3 diagnostic.', 'Resume. If Xid 79 comes back on the same GPU, reseat it or open an RMA.'],
+      gotcha: 'Look at temperatures and power events too: overheating or a power glitch can knock a GPU off the bus.' },
+    rowpend: { name: 'Double-bit ECC, row remap pending', xid: 'Xid 48 + 63', sev: 'p1', cost: 1, drain: true, fix: 'reset', final: 'resume', verify: ['dcgm', 'remap'],
+      alert: n => `Job ${n.job} FAILED on ${n.id}: uncorrectable ECC error encountered`,
+      sees: 'A job dies with an uncorrectable ECC error. The GPU looks normal otherwise.',
+      run: ['dmesg -T | grep -i xid', 'nvidia-smi -q -d ROW_REMAPPER'],
+      todo: ['Drain the node and let it empty.', 'Reset the GPU (nvidia-smi -r -i <n>) so the pending row remap takes effect.', 'Confirm Pending: No and Remapping Failure: No.', 'Run DCGM, then resume.'],
+      gotcha: 'Row remapping is designed for this: a pending remap is a reset, not an RMA. Replacing the GPU here wastes a good part and days of capacity.' },
+    rowfail: { name: 'Row remapping failure', xid: 'Xid 64', sev: 'p1', cost: 1, drain: true, fix: 'rma', final: 'drain', verify: ['remap'],
+      alert: n => `Job ${n.job} FAILED on ${n.id}: uncorrectable ECC error encountered`,
+      sees: 'Uncorrectable ECC errors that come back. The row remapper reports a failure.',
+      run: ['dmesg -T | grep -i xid', 'nvidia-smi -q -d ROW_REMAPPER'],
+      todo: ['Drain the node.', 'Check the row remapper: "Remapping Failure Occurred: Yes" means the GPU has run out of spare rows.', 'Open an RMA for that GPU and leave the node drained with a clear reason.'],
+      gotcha: 'Don\'t resume this node: it will keep killing jobs. A drained node with a good reason beats a "healthy" one that fails at 3 a.m.' },
+    nvlink: { name: 'NVLink fatal error', xid: 'Xid 74', sev: 'p1', cost: 1, drain: true, fix: 'cycle', final: 'resume', verify: ['nvlink', 'dcgm'],
+      alert: n => `Job ${n.job} on ${n.id}: NCCL WARN NET/IB : Got completion with error; NVLink error, job aborted`,
+      sees: 'Multi-GPU jobs abort or crawl. One GPU shows inactive NVLink links.',
+      run: ['dmesg -T | grep -i xid', 'nvidia-smi nvlink --status'],
+      todo: ['Drain the node.', 'Power-cycle it so NVLink and the NVSwitch fabric re-train from scratch.', 'Check all 18 links per GPU are up, then run DCGM.', 'Resume. If it comes back, escalate to the vendor: the HGX baseboard may need replacing.'],
+      gotcha: 'Escalating first is slower and usually unnecessary; a clean power cycle clears most link-training errors.' },
+    fm: { name: 'Fabric Manager down after driver update', xid: 'CUDA 802', sev: 'p1', cost: 1, drain: true, fix: 'fm', final: 'resume', verify: ['fm', 'dcgm'],
+      alert: n => `Jobs failing on ${n.id}: cudaGetDeviceCount: system not yet initialized (error 802)`,
+      sees: 'nvidia-smi looks perfectly healthy, but every CUDA program fails to start.',
+      run: ['systemctl status nvidia-fabricmanager', 'nvidia-smi'],
+      todo: ['Drain the node.', 'On NVSwitch systems, CUDA won\'t start until Fabric Manager is running, and its version must exactly match the driver.', 'Install the Fabric Manager that matches the driver, start it, enable it at boot.', 'Run DCGM, then resume.'],
+      gotcha: 'Classic after a driver update that didn\'t update fabricmanager with it. Pin the two packages together.' },
+    ibdown: { name: 'InfiniBand rail down', xid: 'IB link', sev: 'p1', cost: 1, drain: true, fix: 'cable', final: 'resume', verify: ['ib'],
+      alert: n => `Job ${n.job} on ${n.id}: NCCL timeout: watchdog caught collective operation timeout`,
+      sees: 'Multi-node jobs hang and time out. Single-node jobs are fine.',
+      run: ['ibstat', 'ipmitool sel elist | tail'],
+      todo: ['Drain the node.', 'Find the dead port: State: Down, Physical state: Polling.', 'Dispatch a tech to reseat, then replace, the optic or cable for that rail.', 'Confirm Active / LinkUp / 400, then resume.'],
+      gotcha: 'One bad rail stalls every collective across the job, so the whole multi-node job hangs, not just this node.' },
+    thermal: { name: 'Fan failure, GPUs thermal-throttling', xid: 'Thermal', sev: 'p2', cost: .35, drain: true, fix: 'fan', final: 'resume', verify: ['perf', 'sel'],
+      alert: n => `Monitoring: ${n.id} GPU temperatures high, clocks reduced (job ${n.job} 35% slower)`,
+      sees: 'No crash, just a node running hot and slow, which slows every job it is part of.',
+      run: ['nvidia-smi -q -d PERFORMANCE', 'ipmitool sel elist | tail'],
+      todo: ['Confirm HW Thermal Slowdown is active.', 'Check the BMC event log for a failed fan.', 'Drain, dispatch a tech to replace the fan, confirm temperatures and clocks recover, resume.'],
+      gotcha: 'A slow node in a 32-node job makes all 32 nodes wait for it. Throttling is a real outage for distributed training.' },
+    psu: { name: 'Power supply failed (redundant)', xid: 'PSU', sev: 'p2', cost: 0, drain: false, fix: 'psu', final: 'resume', verify: ['sel'],
+      alert: n => `BMC alert: ${n.id} power supply PS3 failure, running on redundant supplies`,
+      sees: 'A BMC alert. Jobs are still running normally.',
+      run: ['ipmitool sel elist | tail'],
+      todo: ['Confirm in the BMC log which supply failed and that the node is still redundant.', 'Hot-swap the power supply. No drain needed.', 'Confirm the failure is de-asserted.'],
+      gotcha: 'Draining here throws away 8 working GPUs for nothing. That\'s what redundant, hot-swappable supplies are for.' },
+    disk: { name: 'Root disk full (container cache)', xid: 'Disk', sev: 'p2', cost: 1, drain: false, fix: 'prune', final: 'resume', verify: ['df'],
+      alert: n => `Jobs failing on ${n.id}: enroot import: write error: No space left on device`,
+      sees: 'Every new job fails at container start-up. Hardware is fine.',
+      run: ['df -h /', 'nvidia-smi'],
+      todo: ['Check disk usage: the root filesystem is 100% full.', 'Prune unused container images and cached layers.', 'Confirm free space, check jobs start again.'],
+      gotcha: 'Not a hardware problem: no drain, no reboot, no RMA. Then fix the cleanup job so it doesn\'t fill again.' },
+    usercode: { name: 'Customer code bug (not hardware)', xid: 'Xid 31', sev: 'p3', cost: 0, drain: false, fix: 'reply', final: 'resume', verify: ['dcgm'],
+      alert: n => `Customer ticket: "job ${n.job} keeps crashing on ${n.id}, is your GPU broken?"`,
+      sees: 'One customer\'s job crashes over and over. Other jobs on the cluster are fine.',
+      run: ['dmesg -T | grep -i xid', 'dcgmi diag -r 3'],
+      todo: ['Read the Xid: 31 is a GPU memory page fault (MMU fault) tied to the customer\'s process.', 'Prove the hardware is healthy: a clean DCGM diagnostic.', 'Reply to the customer: it\'s an out-of-bounds or illegal memory access in their code, with how to find it (compute-sanitizer, CUDA_LAUNCH_BLOCKING=1).'],
+      gotcha: 'Level-3 judgment: draining, rebooting or RMA\'ing a healthy node costs real capacity and doesn\'t fix the customer\'s bug.' },
+  };
+  const FAULTS = Object.keys(F);
+
+  // ================= actions =================
+  const ACT = {
+    drain:  { label: 'Drain node (Slurm)', cls: '', mins: 1, cmd: n => `scontrol update nodename=${n.id} state=drain reason="triage: ${n.inc ? F[n.inc.f].xid : 'maintenance'}"` },
+    resume: { label: 'Resume node (Slurm)', cls: 'fix', mins: 1, cmd: n => `scontrol update nodename=${n.id} state=resume` },
+    reset:  { label: 'Reset GPU', cls: 'risk', mins: 2, cmd: n => `nvidia-smi -r -i ${n.inc ? n.inc.g : 0}` },
+    cycle:  { label: 'Power-cycle node (BMC)', cls: 'risk', mins: 7, cmd: n => `ipmitool -I lanplus -H ${n.id}-bmc chassis power cycle` },
+    fm:     { label: 'Fix Fabric Manager version', cls: 'risk', mins: 4, cmd: () => `apt-get install -y nvidia-fabricmanager-550=${DRIVER}-1 && systemctl enable --now nvidia-fabricmanager` },
+    prune:  { label: 'Prune container cache', cls: 'fix', mins: 3, cmd: () => `enroot remove -f $(enroot list | grep -v active) && docker system prune -af` },
+    cable:  { label: 'Dispatch tech: IB optic/cable', cls: 'risk', mins: 25, cmd: n => `ticket: reseat/replace OSFP optic + cable, ${n.id} rail ${n.inc ? n.inc.g : '?'}` },
+    fan:    { label: 'Dispatch tech: replace fan', cls: 'risk', mins: 20, cmd: n => `ticket: replace failed fan module, ${n.id}` },
+    psu:    { label: 'Hot-swap power supply', cls: 'fix', mins: 10, cmd: n => `ticket: hot-swap PS3, ${n.id} (node stays in service)` },
+    rma:    { label: 'Open GPU RMA', cls: 'heavy', mins: 5, cmd: n => `rma open --node ${n.id} --gpu ${n.inc ? n.inc.g : 0} --bus 0000:${BUS[n.inc ? n.inc.g : 0]}:00.0` },
+    escal:  { label: 'Escalate to vendor (baseboard)', cls: 'heavy', mins: 5, cmd: n => `case open: NVIDIA enterprise support, ${n.id} HGX baseboard` },
+    reply:  { label: 'Reply: it\'s the customer\'s code', cls: 'fix', mins: 3, cmd: n => `ticket reply: Xid 31 MMU fault in your process; node passed DCGM. Try compute-sanitizer.` },
+  };
+
+  // ================= commands =================
+  const CMD = [
+    ['sinfo', 'sinfo -R'], ['smi', 'nvidia-smi'], ['xid', 'dmesg -T | grep -i xid'], ['remap', 'nvidia-smi -q -d ROW_REMAPPER'],
+    ['perf', 'nvidia-smi -q -d PERFORMANCE'], ['nvlink', 'nvidia-smi nvlink --status'], ['fm', 'systemctl status nvidia-fabricmanager'],
+    ['ib', 'ibstat'], ['sel', 'ipmitool sel elist | tail'], ['df', 'df -h /'], ['dcgm', 'dcgmi diag -r 3'],
+  ];
+
+  // ================= simulation state =================
+  let mode = 'train', speed = 1, paused = true, simMin = 0, started = false, ended = false;
+  let incidents = [], schedule = [], score = 0, lostGpuH = 0, sel = null, termLog = {}, toastMsg = null;
+  const SHIFT = 480, T0 = 22 * 60;
+  const clockTxt = m => { const t = (T0 + Math.floor(m)) % 1440; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+  let jobSeq = 48200;
+
+  function newShift() {
+    incidents = []; score = 0; lostGpuH = 0; simMin = 0; ended = false; sel = null; termLog = {}; toastMsg = null;
+    NODES.forEach(n => { n.state = 'alloc'; n.inc = null; n.ib.fill('up'); n.busy = 0; n.job = ++jobSeq;
+      n.gpus.forEach(g => { g.fault = null; g.util = 85 + ri(15); g.temp = 55 + ri(18); g.pow = 520 + ri(150); g.mem = 60000 + ri(18000); }); });
+    for (let i = 0; i < 4; i++) { const n = NODES[ri(32)]; n.state = 'idle'; n.gpus.forEach(g => { g.util = 0; g.temp = 33 + ri(5); g.pow = 70 + ri(30); g.mem = 0; }); n.job = null; }
+    // chaos monkey schedule: 6 faults, no repeats, first one early
+    const pool = FAULTS.slice(); schedule = [];
+    let t = 8 + ri(8);
+    for (let i = 0; i < 6; i++) { const f = pool.splice(ri(pool.length), 1)[0]; schedule.push({ t, f }); t += 45 + ri(35); }
+    started = true; paused = false; setPause(false);
+    window.labTrack && labTrack('shift', 1);
+    render(); renderDetail();
+  }
+
+  function inject(fk) {
+    const free = NODES.filter(n => !n.inc && n.state === 'alloc');
+    if (!free.length) return;
+    const n = pick(free), g = ri(8), f = fk || pick(FAULTS.filter(k => !incidents.some(i => i.open && i.f === k)));
+    const inc = { id: incidents.length + 1, f, node: n.id, g, t: simMin, open: true, log: [], did: {}, order: [], ran: {}, ranAfterFix: false, fixedAt: null, pts: 0, notes: [] };
+    n.inc = inc; incidents.push(inc);
+    const G = n.gpus[g];
+    if (f === 'xid79') { G.fault = 'gone'; }
+    if (f === 'rowpend' || f === 'rowfail') G.fault = 'ecc';
+    if (f === 'nvlink') G.fault = 'nvlink';
+    if (f === 'fm') n.gpus.forEach(x => { x.util = 0; x.mem = 0; x.pow = 72; });
+    if (f === 'ibdown') n.ib[g] = 'down';
+    if (f === 'thermal') n.gpus.forEach((x, i) => { if (i >= 4) x.fault = 'hot'; });
+    if (f === 'usercode') G.fault = null;
+    if (f !== 'psu' && f !== 'usercode' && f !== 'thermal') { n.gpus.forEach(x => { if (x.fault !== 'gone') { x.util = 0; x.mem = 0; x.pow = 75; } }); }
+    inc.alertTxt = F[f].alert(n);
+    render(); if (!sel) select(n.id); else renderDetail();
+  }
+
+  // ================= outputs =================
+  const line = (s, c) => c ? `<span class="${c}">${esc(s)}</span>` : esc(s);
+  function out(key, n) {
+    const inc = n.inc && n.inc.open ? n.inc : null, f = inc && inc.f, g = inc ? inc.g : 0, bus = BUS[g], fixed = inc && inc.fixedAt !== null;
+    const L = [];
+    const ts = () => new Date(Date.UTC(2026, 10, 26, 6 + Math.floor((T0 + simMin) / 60) % 24, Math.floor(simMin) % 60, ri(60))).toUTCString().replace(' GMT', '').replace(/^\w+, /, '');
+    switch (key) {
+      case 'sinfo': {
+        L.push('REASON                                  USER      TIMESTAMP           NODELIST');
+        NODES.filter(x => x.state === 'drain' || x.state === 'down').forEach(x => L.push(`${('triage: ' + (x.inc ? F[x.inc.f].xid : 'maint')).padEnd(40)}augie     2026-11-26T${clockTxt(simMin)}:00 ${x.id}`));
+        if (L.length === 1) L.push(line('(no drained or down nodes)', 'c'));
+        L.push(''); L.push(line(`${n.id}: State=${n.state.toUpperCase()}  CPUAlloc=${n.state === 'alloc' ? 224 : 0}/224  Gres=gpu:h100:8`, 'i'));
+        break; }
+      case 'smi': {
+        L.push(`NVIDIA-SMI ${DRIVER}        Driver Version: ${DRIVER}      CUDA Version: ${CUDA}`);
+        if (f === 'xid79' && !fixed) L.push(line(`Unable to determine the device handle for GPU0000:${bus}:00.0: Unknown Error`, 'e'));
+        L.push('GPU  Name                   Bus-Id            Temp  Perf  Pwr:Usage/Cap  Memory-Usage          Util  Uncorr.ECC');
+        n.gpus.forEach((x, i) => {
+          if (x.fault === 'gone') return;
+          const hot = x.fault === 'hot', ecc = (x.fault === 'ecc') ? 1 : 0;
+          const r = `${String(i).padEnd(5)}NVIDIA H100 80GB HBM3  00000000:${BUS[i]}:00.0  ${String(Math.round(x.temp)).padStart(3)}C  P0   ${String(Math.round(x.pow)).padStart(3)}W / 700W  ${String(Math.round(x.mem)).padStart(5)}MiB / 81559MiB  ${String(Math.round(x.util)).padStart(3)}%  ${ecc}`;
+          L.push(hot || ecc ? line(r, hot ? 'w' : 'e') : r);
+        });
+        if (f === 'disk' && !fixed) L.push(line('No running processes found', 'c'));
+        break; }
+      case 'xid': {
+        const tsS = ts();
+        if (f === 'xid79') { L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 79, pid='<unknown>', name=<unknown>, GPU has fallen off the bus.`, 'e')); L.push(line(`[${tsS}] NVRM: GPU 0000:${bus}:00.0: GPU has fallen off the bus.`, 'e')); }
+        else if (f === 'rowpend') { L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 48, pid=${1840000 + ri(90000)}, name=python3, DBE (double bit error) ECC error`, 'e')); L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 63, pid=${1840000 + ri(90000)}, name=python3, Row Remapper: New row marked for remapping, reset gpu to activate.`, 'w')); }
+        else if (f === 'rowfail') { L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 48, pid=${1840000 + ri(90000)}, name=python3, DBE (double bit error) ECC error`, 'e')); L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 64, pid=${1840000 + ri(90000)}, name=python3, Row Remapper: Failed to remap row, no spare rows remaining.`, 'e')); }
+        else if (f === 'nvlink') { L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 74, pid=${1840000 + ri(90000)}, name=python3, NVLink: fatal error detected on link 11(0x0, 0x0, 0x10000, 0x0, 0x0, 0x0, 0x0)`, 'e')); }
+        else if (f === 'usercode') { L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 31, pid=${2384000 + ri(900)}, name=python3, Ch 00000008, intr 00000000. MMU Fault: ENGINE GRAPHICS GPCCLIENT_T1_0 faulted @ 0x7f2a_1c000000. Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_READ`, 'w')); L.push(line(`[${tsS}] NVRM: Xid (PCI:0000:${bus}:00): 31, pid=${2384000 + ri(900)}, name=python3, Ch 00000008, intr 00000000. MMU Fault: ENGINE GRAPHICS GPCCLIENT_T1_0 faulted @ 0x7f2a_1c004000. Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_READ`, 'w')); }
+        if (fixed && f !== 'usercode') L.push(line('(no new Xid events since the fix)', 'p'));
+        if (!L.length) L.push(line('(no Xid events)', 'c'));
+        break; }
+      case 'remap': {
+        L.push('==============NVSMI LOG==============   (healthy GPUs shown one per line)');
+        n.gpus.forEach((x, i) => {
+          if (x.fault === 'gone') return;
+          const bad = i === g && (f === 'rowpend' || f === 'rowfail') && !fixed, was = i === g && f === 'rowpend' && fixed;
+          if (!bad) { L.push(`GPU 00000000:${BUS[i]}:00.0  Remapped Rows: Correctable 0  Uncorrectable ${was ? 1 : 0}  Pending No  Failure No`); return; }
+          L.push(line(`GPU 00000000:${BUS[i]}:00.0`, 'e'));
+          L.push(`    Remapped Rows`);
+          L.push(`        Correctable Error                 : 0`);
+          L.push(line(`        Uncorrectable Error               : ${f === 'rowfail' ? 8 : 1}`, 'e'));
+          L.push(f === 'rowpend' ? line('        Pending                           : Yes', 'w') : '        Pending                           : No');
+          L.push(f === 'rowfail' ? line('        Remapping Failure Occurred        : Yes', 'e') : '        Remapping Failure Occurred        : No');
+        });
+        break; }
+      case 'perf': {
+        L.push('Clocks Event Reasons   (GPUs with nothing active shown one per line)');
+        n.gpus.forEach((x, i) => {
+          if (x.fault === 'gone') return;
+          if (x.fault !== 'hot') { L.push(`GPU 00000000:${BUS[i]}:00.0  ${x.util < 5 ? 'Idle: Active' : 'Idle: Not Active'}  HW Slowdown: Not Active  SW Thermal Slowdown: Not Active`); return; }
+          L.push(line(`GPU 00000000:${BUS[i]}:00.0   Temp ${Math.round(x.temp)} C`, 'w'));
+          L.push('    Clocks Event Reasons');
+          L.push('        Idle                              : Not Active');
+          L.push(line('        HW Slowdown                       : Active', 'w'));
+          L.push(line('            HW Thermal Slowdown           : Active', 'w'));
+          L.push('            HW Power Brake Slowdown       : Not Active');
+          L.push(line('        SW Thermal Slowdown               : Active', 'w'));
+        });
+        break; }
+      case 'nvlink': {
+        n.gpus.forEach((x, i) => {
+          if (x.fault === 'gone') { L.push(line(`GPU ${i}: Unable to query (GPU not found)`, 'e')); return; }
+          const bad = x.fault === 'nvlink';
+          L.push(`GPU ${i}: NVIDIA H100 80GB HBM3`);
+          L.push(bad ? line(`\t Link 0-10: 26.562 GB/s x17 active   Link 11: <inactive>`, 'e') : `\t Link 0-17: 26.562 GB/s (18/18 active)`);
+        });
+        break; }
+      case 'fm': {
+        if (f === 'fm' && !fixed) {
+          L.push(line('× nvidia-fabricmanager.service - NVIDIA fabric manager service', 'e'));
+          L.push('     Loaded: loaded (/lib/systemd/system/nvidia-fabricmanager.service; enabled)');
+          L.push(line(`     Active: failed (Result: exit-code) since ${clockTxt(n.inc.t)}`, 'e'));
+          L.push(line(`  nv-fabricmanager: fabric manager NVIDIA GPU driver interface version 550.54.15 doesn't match with driver version ${DRIVER}`, 'e'));
+          L.push(line('  nv-fabricmanager: request to query NVIDIA GPU driver information failed with error:failed to open GPU driver interface', 'e'));
+        } else {
+          L.push(line('● nvidia-fabricmanager.service - NVIDIA fabric manager service', 'p'));
+          L.push('     Loaded: loaded (/lib/systemd/system/nvidia-fabricmanager.service; enabled)');
+          L.push(line('     Active: active (running)', 'p'));
+          L.push(`  nv-fabricmanager: version ${DRIVER}; successfully configured all the available NVSwitches`);
+        }
+        break; }
+      case 'ib': {
+        n.ib.forEach((s, i) => {
+          const down = s === 'down';
+          L.push(`CA 'mlx5_${i}'  CA type: MT4129  Firmware version: 28.39.1002`);
+          L.push(down ? line('    Port 1: State: Down    Physical state: Polling   Rate: 10   Link layer: InfiniBand', 'e')
+                      : '    Port 1: State: Active  Physical state: LinkUp    Rate: 400  Link layer: InfiniBand');
+        });
+        break; }
+      case 'sel': {
+        const tsS = clockTxt(Math.max(0, simMin - 3));
+        L.push('  ID | Date       | Time     | Sensor                 | Event');
+        L.push('  4c | 11/26/2026 | 21:02:11 | System Event           | Timestamp Clock Sync | Asserted');
+        if (f === 'thermal' && !fixed) { L.push(line(`  4d | 11/26/2026 | ${tsS}:07 | Fan FAN_GPU_4          | Lower Critical going low  | Asserted`, 'e')); L.push(line(`  4e | 11/26/2026 | ${tsS}:31 | Temp GPU_ZONE_B        | Upper Non-critical going high | Asserted`, 'w')); }
+        if (f === 'psu' && !fixed) { L.push(line(`  4d | 11/26/2026 | ${tsS}:52 | Power Supply PS3       | Failure detected | Asserted`, 'e')); L.push(line(`  4e | 11/26/2026 | ${tsS}:52 | Power Unit PWR_REDUND  | Redundancy Degraded | Asserted`, 'w')); }
+        if (f === 'ibdown' && !fixed) L.push(line(`  4d | 11/26/2026 | ${tsS}:14 | OSFP Module RAIL${g}       | Module fault / LOS | Asserted`, 'w'));
+        if (fixed && (f === 'thermal' || f === 'psu' || f === 'ibdown')) L.push(line(`  4f | 11/26/2026 | ${clockTxt(simMin)}:02 | ${f === 'psu' ? 'Power Supply PS3      ' : f === 'thermal' ? 'Fan FAN_GPU_4         ' : 'OSFP Module RAIL' + g + '      '} | ${f === 'psu' ? 'Failure detected' : 'Fault'} | Deasserted`, 'p'));
+        break; }
+      case 'df': {
+        L.push('Filesystem      Size  Used Avail Use% Mounted on');
+        L.push(f === 'disk' && !fixed ? line('/dev/nvme0n1p2  3.5T  3.5T     0 100% /', 'e') : `/dev/nvme0n1p2  3.5T  ${f === 'disk' ? '0.9' : '1.2'}T  ${f === 'disk' ? '2.6' : '2.3'}T  ${f === 'disk' ? 26 : 34}% /`);
+        break; }
+      case 'dcgm': {
+        L.push('Successfully ran diagnostic for group.');
+        L.push('+---------------------------+------------------------------------------------+');
+        L.push('| Diagnostic                | Result                                         |');
+        L.push('+===========================+================================================+');
+        const failG = !fixed && ['xid79', 'rowpend', 'rowfail', 'nvlink'].includes(f);
+        const fmDown = f === 'fm' && !fixed;
+        const row = (k, v, c) => L.push(c ? line(`| ${k.padEnd(25)} | ${v.padEnd(46)} |`, c) : `| ${k.padEnd(25)} | ${v.padEnd(46)} |`);
+        if (fmDown) { row('Deployment', 'Fail: CUDA initialization failed (error 802)', 'e'); }
+        else {
+          row('Deployment', 'Pass');
+          row('PCIe', f === 'xid79' && !fixed ? `Fail - GPU: ${g} not found on bus` : 'Pass - All', f === 'xid79' && !fixed ? 'e' : '');
+          row('NVLink', f === 'nvlink' && !fixed ? `Fail - GPU: ${g} link 11 inactive` : 'Pass - All', f === 'nvlink' && !fixed ? 'e' : '');
+          row('Memory', (f === 'rowpend' || f === 'rowfail') && !fixed ? `Fail - GPU: ${g} uncorrectable ECC` : 'Pass - All', (f === 'rowpend' || f === 'rowfail') && !fixed ? 'e' : '');
+          row('Diagnostic (stress)', failG ? 'Skip - prerequisite failed' : 'Pass - All', failG ? 'w' : '');
+          row('Targeted Power', f === 'thermal' && !fixed ? 'Warn - GPU 4-7 thermal throttling' : 'Pass - All', f === 'thermal' && !fixed ? 'w' : '');
+        }
+        L.push('+---------------------------+------------------------------------------------+');
+        break; }
+    }
+    return L.join('\n');
+  }
+
+  // ================= running commands & actions =================
+  const busy = n => n.busy > simMin;
+  function say(n, html) { (termLog[n.id] = termLog[n.id] || []).push(html); if (termLog[n.id].length > 40) termLog[n.id].shift(); }
+  function runCmd(n, key, text) {
+    if (busy(n)) return;
+    say(n, `<span class="p">augie@${n.id}:~$</span> ${esc(text)}`);
+    if (n.inc && n.inc.open) { const inc = n.inc; inc.ran[key] = true; if (inc.fixedAt !== null) inc.ranAfterFix = inc.ranAfterFix || F[inc.f].verify.includes(key); }
+    if (key === 'dcgm') { n.busy = simMin + 8; say(n, line('Running level 3 diagnostic (shortened for the sim)... ', 'c')); pendingOut.push({ n, at: simMin + 8, key }); }
+    else say(n, out(key, n));
+    renderDetail(true);
+  }
+  const pendingOut = [];
+  function doAct(n, a) {
+    if (busy(n)) return;
+    const inc = n.inc && n.inc.open ? n.inc : null, A = ACT[a];
+    say(n, `<span class="p">augie@ops:~$</span> ${esc(A.cmd(n))}`);
+    if (inc) { inc.did[a] = (inc.did[a] || 0) + 1; inc.order.push(a); }
+    const disruptive = ['reset', 'cycle', 'fm', 'cable', 'fan', 'rma', 'escal'].includes(a);
+    if (a === 'drain') { n.state = n.state === 'alloc' ? 'drng' : 'drain'; if (n.state === 'drng') setTimeout0(n, 2, () => { n.state = 'drain'; n.job = null; n.gpus.forEach(g => { if (g.fault !== 'gone') { g.util = 0; g.mem = 0; } }); }); say(n, line(`${n.id}: state ${n.state.toUpperCase()}, jobs will not be scheduled here`, 'w')); }
+    else if (a === 'resume') {
+      n.state = 'alloc'; n.job = ++jobSeq;
+      say(n, line(`${n.id}: state ALLOC, job ${n.job} started`, 'p'));
+      if (inc && inc.fixedAt === null && F[inc.f].cost > 0) { say(n, line(`Job ${n.job} FAILED on ${n.id} after 40s: the fault is still there.`, 'e')); n.state = 'alloc'; inc.notes.push('Resumed before the fault was fixed: the next job failed.'); inc.pts -= 40; }
+      else n.gpus.forEach(g => { g.util = 85 + ri(15); g.mem = 60000 + ri(18000); g.pow = 520 + ri(150); });
+    }
+    else if (a === 'reset' && (n.state === 'alloc' || n.state === 'drng')) { say(n, line(`GPU 00000000:${BUS[inc ? inc.g : 0]}:00.0 is currently in use by another process.\nGPU reset couldn't run because GPU is in use. Drain the node first.`, 'e')); if (inc) { inc.notes.push('Tried a GPU reset before draining (−10).'); inc.pts -= 10; } }
+    else {
+      if (inc && disruptive && F[inc.f].drain && n.state === 'alloc') { inc.notes.push(`Did "${A.label}" without draining first: running jobs were killed.`); inc.pts -= 25; }
+      n.busy = simMin + A.mins;
+      say(n, line(`... ${A.mins} min`, 'c'));
+      setTimeout0(n, A.mins, () => applyFix(n, a));
+    }
+    renderDetail(true); render();
+  }
+  const timers = [];
+  function setTimeout0(n, mins, fn) { timers.push({ at: simMin + mins, fn }); }
+
+  function applyFix(n, a) {
+    const inc = n.inc && n.inc.open ? n.inc : null;
+    const f = inc && inc.f, ok = inc && F[f].fix === a;
+    if (a === 'cycle') { n.state = n.state === 'alloc' ? 'alloc' : n.state; say(n, line(`${n.id}: power cycle complete, node back up, driver ${DRIVER} loaded`, 'i')); }
+    if (a === 'rma') say(n, line(`RMA opened for GPU ${inc ? inc.g : 0} (${n.id}). Keep the node drained until the part arrives.`, 'i'));
+    if (a === 'escal') say(n, line('Vendor case opened. They ask: did you power-cycle and re-run diagnostics first?', 'w'));
+    if (a === 'reply') say(n, line('Customer: "Found it, an off-by-one in our attention kernel. Thanks!"', 'i'));
+    if (!inc) { say(n, line('Done. (No active fault on this node.)', 'c')); renderDetail(true); return; }
+    if (ok) {
+      inc.fixedAt = simMin;
+      const G = n.gpus[inc.g];
+      if (['xid79', 'rowpend', 'nvlink'].includes(f)) G.fault = null;
+      if (f === 'rowfail') G.fault = 'rma';
+      if (f === 'ibdown') n.ib[inc.g] = 'up';
+      if (f === 'thermal') n.gpus.forEach(x => { x.fault = null; x.temp = 40; });
+      if (f === 'disk' || f === 'fm' || f === 'psu' || f === 'usercode') {}
+      if (f === 'disk') { n.gpus.forEach(x => { x.util = 85 + ri(15); x.mem = 60000 + ri(18000); }); }
+      say(n, line(a === 'rma' ? 'Fault isolated. Node stays drained for the replacement.' : 'Change applied. Verify, then decide the node\'s state.', 'p'));
+    } else {
+      const pen = { rma: 60, escal: 15, cycle: 20, reset: 15, fm: 15, cable: 20, fan: 20, psu: 10, prune: 5, reply: 30 }[a] || 10;
+      inc.pts -= pen; inc.notes.push(`"${ACT[a].label}" didn't address this fault (−${pen}).`);
+      if (f === 'xid79' && a === 'reset') say(n, line(`Unable to reset GPU 00000000:${BUS[inc.g]}:00.0: GPU is lost. A full power cycle is required.`, 'e'));
+      else if (f === 'nvlink' && a === 'escal') { inc.pts += 10; inc.notes[inc.notes.length - 1] = 'Escalated before power-cycling: slower than needed (−5).'; }
+      else say(n, line('That didn\'t change anything. Check the evidence again.', 'w'));
+    }
+    renderDetail(true); render();
+  }
+
+  function closeInc(n) {
+    const inc = n.inc; if (!inc || !inc.open) return;
+    const D = F[inc.f];
+    if (inc.fixedAt === null) { toast('bad', 'Not fixed yet. The evidence still points at a fault on this node.'); inc.pts -= 10; return; }
+    if (D.final === 'resume' && n.state !== 'alloc') { toast('bad', 'Fixed, but the node is still out of service. Verify and resume it before closing.'); return; }
+    if (D.final === 'drain' && n.state !== 'drain') { toast('bad', 'This node should stay drained until the replacement part arrives.'); inc.pts -= 20; return; }
+    let pts = 100 + inc.pts;
+    if (D.drain && inc.did.drain) pts += 15;
+    if (!D.drain && inc.did.drain) { pts -= 15; inc.notes.push('Drained a node that didn\'t need it: 8 healthy GPUs sat idle.'); }
+    if (inc.f === 'usercode' && inc.ran.dcgm) inc.ranAfterFix = true;
+    if (inc.ranAfterFix) pts += 15; else inc.notes.push('Closed without verifying the fix.');
+    if (D.run.some(t => inc.ran[keyOf(t)])) pts += 10;
+    const mins = Math.round(simMin - inc.t);
+    pts -= Math.max(0, mins - 30);
+    inc.pts = Math.round(Math.max(0, pts)); inc.open = false; inc.mins = mins;
+    score += inc.pts; n.inc = null;
+    if (inc.f === 'rowfail') { /* stays drained */ }
+    toast('ok', `Incident #${inc.id} closed in ${mins} min: +${inc.pts} points.${inc.notes.length ? ' Notes: ' + inc.notes.join(' ') : ''}`);
+    render(); renderDetail();
+  }
+  const keyOf = cmdText => (CMD.find(c => c[1] === cmdText) || [cmdText])[0];
+
+  function toast(kind, msg) { toastMsg = { kind, msg }; renderDetail(true); }
+
+  // ================= tick =================
+  let lastT = 0;
+  function tick(now) {
+    const dt = Math.min(.25, (now - (lastT || now)) / 1000); lastT = now;
+    if (started && !paused && !ended) {
+      simMin += dt * speed;
+      while (schedule.length && schedule[0].t <= simMin) inject(schedule.shift().f);
+      for (let i = timers.length - 1; i >= 0; i--) if (timers[i].at <= simMin) { const t = timers.splice(i, 1)[0]; t.fn(); render(); }
+      for (let i = pendingOut.length - 1; i >= 0; i--) if (pendingOut[i].at <= simMin) { const p = pendingOut.splice(i, 1)[0]; p.n.busy = 0; say(p.n, out(p.key, p.n)); if (p.n.inc && p.n.inc.open && p.n.inc.fixedAt !== null) p.n.inc.ranAfterFix = true; if (sel === p.n.id) renderDetail(true); }
+      // lost capacity
+      NODES.forEach(n => {
+        const inc = n.inc && n.inc.open ? n.inc : null;
+        let lost = 0;
+        if (n.state === 'drain' || n.state === 'drng' || n.state === 'down') lost = 8;
+        else if (inc && inc.fixedAt === null) lost = 8 * F[inc.f].cost;
+        lostGpuH += lost * dt * speed / 60;
+        // telemetry drift
+        n.gpus.forEach(g => {
+          const busyN = n.state === 'alloc' && n.job && !(inc && inc.fixedAt === null && F[inc.f].cost === 1);
+          const tu = g.fault === 'gone' ? 0 : busyN ? 88 + rand() * 12 : 0;
+          g.util += (tu - g.util) * .15;
+          const tt = g.fault === 'hot' ? 88 + rand() * 3 : busyN ? 62 + rand() * 10 : 34 + rand() * 3;
+          g.temp += (tt - g.temp) * .05;
+          g.pow += ((busyN ? 560 + rand() * 120 : 72) * (g.fault === 'hot' ? .7 : 1) - g.pow) * .1;
+          if (!busyN) g.mem += (0 - g.mem) * .2;
+        });
+      });
+      if (simMin >= SHIFT) endShift();
+    }
+    if (started) renderKpis();
+    requestAnimationFrame(tick);
+  }
+
+  // ================= rendering =================
+  const gpuColor = (n, g) => {
+    if (g.fault === 'gone' || g.fault === 'rma') return 'var(--bad)';
+    const inc = n.inc && n.inc.open && n.inc.fixedAt === null ? n.inc : null;
+    if (inc && (g.fault === 'ecc' || g.fault === 'nvlink')) return 'var(--bad)';
+    if (g.fault === 'hot') return 'var(--warn)';
+    if (n.state === 'drain' || n.state === 'drng') return '#3A3322';
+    if (g.util > 50) { const k = Math.min(1, (g.util - 50) / 50); return `rgb(${Math.round(24 + 10 * k)},${Math.round(110 + 50 * k)},${Math.round(70 + 20 * k)})`; }
+    return 'var(--idle)';
+  };
+  function render() {
+    const R = $('racks');
+    if (!R.children.length) {
+      R.innerHTML = [1, 2, 3, 4].map(r => `<div class="rack"><div class="rh"><span>RACK ${r}</span><span>8 × HGX</span></div>${NODES.filter(n => n.rack === r).map(n => `<button class="node" data-n="${n.id}"><div class="nm"><span>${n.id.slice(4)}</span><span class="st"></span></div><div class="gpus">${'<i></i>'.repeat(8)}</div><div class="ib">${'<i></i>'.repeat(8)}</div></button>`).join('')}</div>`).join('');
+      R.querySelectorAll('.node').forEach(b => b.onclick = () => { select(b.dataset.n); if (innerWidth < 1180) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    }
+    NODES.forEach(n => {
+      const b = R.querySelector(`[data-n="${n.id}"]`);
+      const st = b.querySelector('.st'); st.className = 'st ' + n.state; st.textContent = n.state.toUpperCase();
+      b.querySelectorAll('.gpus i').forEach((el, i) => el.style.background = gpuColor(n, n.gpus[i]));
+      b.querySelectorAll('.ib i').forEach((el, i) => el.className = n.ib[i] === 'down' ? 'dn' : '');
+      const inc = n.inc && n.inc.open;
+      b.classList.toggle('alert', !!inc); b.classList.toggle('w', !!inc && F[n.inc.f].sev !== 'p1'); b.classList.toggle('sel', sel === n.id);
+    });
+    const open = incidents.filter(i => i.open);
+    const sig = open.map(i => i.id).join(',') + '|' + sel;
+    if (sig !== render.qsig) { render.qsig = sig;
+    $('queue').innerHTML = open.length ? open.map(i => `<button class="inc ${sel === i.node ? 'sel' : ''}" data-n="${i.node}"><span class="sev ${F[i.f].sev}">${F[i.f].sev.toUpperCase()}</span><span class="tx"><b>${i.node}</b><span>${esc(i.alertTxt)}</span></span><span class="age" data-age="${i.t}"></span></button>`).join('')
+      : '<div class="empty">No open incidents. The cluster is humming.</div>';
+    $('queue').querySelectorAll('.inc').forEach(b => b.onclick = () => select(b.dataset.n)); }
+    const cnt = s => NODES.filter(n => n.state === s).length;
+    $('sinfoSum').textContent = `alloc ${cnt('alloc')} · idle ${cnt('idle')} · drain ${cnt('drain') + cnt('drng')}`;
+  }
+  function renderKpis() {
+    const inSvc = NODES.reduce((s, n) => s + ((n.state === 'alloc' || n.state === 'idle') ? n.gpus.filter(g => g.fault !== 'gone' && g.fault !== 'rma').length : 0), 0);
+    const util = NODES.reduce((s, n) => s + n.gpus.reduce((a, g) => a + g.util, 0), 0) / 256;
+    const open = incidents.filter(i => i.open).length;
+    const set = (id, v, cls) => { const k = $(id); k.querySelector('.v').innerHTML = v; if (cls !== undefined) k.className = 'kpi ' + cls; };
+    set('kShift', `${clockTxt(simMin)}<small> / 06:00</small>`);
+    set('kGpu', `${inSvc}<small>/256</small>`, inSvc === 256 ? 'good' : inSvc > 240 ? 'warn' : 'bad');
+    set('kJobs', NODES.filter(n => n.state === 'alloc' && n.job).length);
+    set('kUtil', `${Math.round(util)}%`);
+    set('kOpen', open, open ? (incidents.some(i => i.open && F[i.f].sev === 'p1') ? 'bad' : 'warn') : '');
+    set('kLost', `${lostGpuH.toFixed(1)}<small> $${Math.round(lostGpuH * RATE).toLocaleString('en-US')}</small>`, lostGpuH > 40 ? 'bad' : lostGpuH > 10 ? 'warn' : '');
+    set('kScore', score);
+    document.querySelectorAll('[data-age]').forEach(el => el.textContent = `${Math.floor(simMin - +el.dataset.age)}m`);
+    $('entHex').textContent = recent.slice(-16).join(' ');
+    if (Math.random() < .2) render();
+  }
+
+  function select(id) { sel = id; toastMsg = null; render(); renderDetail(); }
+  function renderDetail(keepScroll) {
+    const D = $('detail');
+    if (!sel) { D.innerHTML = '<div class="pick">Select a node on the map, or an incident, to start triage.</div>'; return; }
+    const n = byId(sel), inc = n.inc && n.inc.open ? n.inc : null;
+    const termEl = D.querySelector('.term'), oldScroll = termEl ? termEl.scrollTop : 0, atBottom = termEl ? termEl.scrollTop + termEl.clientHeight >= termEl.scrollHeight - 20 : true;
+    const hint = inc && mode === 'train' ? hintFor(n, inc) : '';
+    D.innerHTML = `
+      <div class="nodehead"><div><div class="nn">${n.id}</div><div class="meta">HGX H100 · 8 × H100 80GB · driver ${DRIVER} · Slurm <b>${n.state.toUpperCase()}</b>${n.job && n.state === 'alloc' ? ` · job ${n.job}` : ''}</div></div>
+        ${inc ? `<span class="sev ${F[inc.f].sev}" style="font:700 .8rem 'IBM Plex Mono',monospace;padding:4px 8px;border-radius:6px">${F[inc.f].sev.toUpperCase()} · #${inc.id} · <span data-age="${inc.t}">${Math.floor(simMin - inc.t)}m</span></span>` : '<span class="meta">no open incident</span>'}</div>
+      ${inc ? `<p style="margin-top:8px;font-size:.92rem;color:#FFC6CC">⚠ ${esc(inc.alertTxt)}</p>` : ''}
+      <div class="sect">Diagnose</div>
+      <div class="cmds">${CMD.map(([k, t]) => `<button data-c="${k}" ${busy(n) ? 'disabled' : ''} title="${esc(t)}">$ ${esc(t)}</button>`).join('')}</div>
+      <div class="term" id="term">${(termLog[n.id] || [line(`Connected to ${n.id}. Run a command above.`, 'c')]).join('\n')}${busy(n) ? '\n' + line('… working', 'c') : ''}</div>
+      <div class="sect">Act</div>
+      <div class="acts">${Object.entries(ACT).map(([k, a]) => `<button data-a="${k}" class="${a.cls}" ${busy(n) ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}</div>
+      <div class="closebar">${inc ? `<button class="go" id="closeInc">✓ Close incident #${inc.id}</button>` : ''}<span class="meta" style="color:var(--dim);font-size:.82rem">Order matters: drain → fix → verify → resume.</span></div>
+      ${hint ? `<div class="hint"><b>Hint:</b> ${hint}</div>` : ''}
+      <div class="toast ${toastMsg ? 'on ' + toastMsg.kind : ''}">${toastMsg ? esc(toastMsg.msg) : ''}</div>`;
+    D.querySelectorAll('[data-c]').forEach(b => b.onclick = () => runCmd(n, b.dataset.c, CMD.find(c => c[0] === b.dataset.c)[1]));
+    D.querySelectorAll('[data-a]').forEach(b => b.onclick = () => doAct(n, b.dataset.a));
+    if ($('closeInc')) $('closeInc').onclick = () => closeInc(n);
+    const t2 = D.querySelector('.term'); t2.scrollTop = keepScroll && !atBottom ? oldScroll : t2.scrollHeight;
+  }
+  function hintFor(n, inc) {
+    const D = F[inc.f], ranAny = Object.keys(inc.ran).length;
+    if (!ranAny) return `Start with the evidence. For this alert try <code>${esc(D.run[0])}</code>.`;
+    const missing = D.run.find(t => !inc.ran[keyOf(t)]);
+    if (inc.fixedAt === null && missing && !D.run.some(t => inc.ran[keyOf(t)])) return `Look closer: <code>${esc(missing)}</code> will show the cause.`;
+    if (inc.fixedAt === null && !inc.did.drain && D.drain && n.state === 'alloc') return `The evidence says <b>${esc(D.name)}</b> (${esc(D.xid)}). The fix is disruptive, so <b>drain the node first</b>.`;
+    if (inc.fixedAt === null && n.state === 'drng') return 'Draining: wait a moment for the running job to clear.';
+    if (inc.fixedAt === null) return `<b>${esc(D.name)}</b>. Next: <b>${esc(ACT[D.fix].label)}</b>. ${esc(D.gotcha)}`;
+    if (!inc.ranAfterFix) return `Fixed? Prove it: re-run <code>${esc(CMD.find(c => c[0] === D.verify[0])[1])}</code>.`;
+    if (D.final === 'resume' && n.state !== 'alloc') return 'Verified. Resume the node so it can earn again, then close the incident.';
+    return 'Close the incident.';
+  }
+
+  function setPause(p) { paused = p; $('pause').textContent = p ? '▶ Resume' : '❚❚ Pause'; }
+
+  function endShift() {
+    ended = true; setPause(true);
+    const done = incidents.filter(i => !i.open), open = incidents.filter(i => i.open);
+    open.forEach(i => { i.pts = 0; i.notes.push('Still open at shift end.'); });
+    const max = incidents.length * 140 || 1, pct = score / max;
+    const grade = pct > .82 ? 'A+' : pct > .7 ? 'A' : pct > .58 ? 'B' : pct > .42 ? 'C' : 'D';
+    let best = 0; try { best = +localStorage.getItem('cluster-best') || 0; if (score > best) localStorage.setItem('cluster-best', score); } catch (e) {}
+    $('report').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap"><div><h2>Shift <span>report</span></h2><p style="margin-top:4px">22:00 – 06:00 · ${mode === 'train' ? 'Training' : 'On-call'} mode${score > best ? ' · <b style="color:var(--ok)">New personal best!</b>' : ''}</p></div><div class="grade">${grade}</div></div>
+      <div class="totals">
+        <div class="kpi good"><div class="l">Score</div><div class="v">${score}</div></div>
+        <div class="kpi"><div class="l">Resolved</div><div class="v">${done.length}<small>/${incidents.length}</small></div></div>
+        <div class="kpi"><div class="l">Mean time to resolve</div><div class="v">${done.length ? Math.round(done.reduce((s, i) => s + i.mins, 0) / done.length) : '–'}<small> min</small></div></div>
+        <div class="kpi ${lostGpuH > 40 ? 'bad' : 'warn'}"><div class="l">Idle GPU-hours</div><div class="v">${lostGpuH.toFixed(0)}<small> $${Math.round(lostGpuH * RATE).toLocaleString('en-US')}</small></div></div>
+      </div>
+      <table class="rep"><thead><tr><th>#</th><th>Node</th><th>Fault</th><th>Time</th><th>Points</th><th>What a senior engineer would do</th></tr></thead><tbody>
+      ${incidents.map(i => `<tr><td class="n">${i.id}</td><td class="n">${i.node}</td><td><b>${F[i.f].name}</b><br><span style="color:var(--dim);font-size:.82rem">${F[i.f].xid}${i.notes.length ? ' · ' + esc(i.notes.join(' ')) : ''}</span></td><td class="n">${i.open ? 'open' : i.mins + 'm'}</td><td class="n">${i.pts}</td><td style="font-size:.84rem;color:#C8D4E2">${esc(F[i.f].todo.join(' '))}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="row"><button class="big go" id="again">▶ New shift</button><button class="big" id="toRb">Runbooks</button><button class="big" id="closeRep">Look at the cluster</button></div>`;
+    $('ovReport').hidden = false;
+    $('again').onclick = () => { $('ovReport').hidden = true; newShift(); };
+    $('toRb').onclick = () => { $('ovReport').hidden = true; showTab('rb'); };
+    $('closeRep').onclick = () => { $('ovReport').hidden = true; };
+  }
+
+  // ================= runbooks =================
+  $('rbList').innerHTML = FAULTS.map(k => { const D = F[k]; return `<div class="rb"><h3>${esc(D.name)} <span class="x">${esc(D.xid)} · ${D.sev.toUpperCase()}</span></h3>
+    <div class="grid"><div><h4>What you see</h4><p>${esc(D.sees)}</p><h4 style="margin-top:10px">Run</h4><p>${D.run.map(c => `<code>${esc(c)}</code>`).join(' ')}</p></div>
+    <div><h4>Do</h4><ol>${D.todo.map(t => `<li>${esc(t)}</li>`).join('')}</ol></div>
+    <div><h4>Gotcha</h4><p>${esc(D.gotcha)}</p><h4 style="margin-top:10px">Node at the end</h4><p>${D.final === 'resume' ? 'Back in service (resumed)' : 'Drained, with a clear reason, until the part arrives'}</p></div></div></div>`; }).join('');
+
+  // ================= controls =================
+  function showTab(t) { $('tabSim').classList.toggle('on', t === 'sim'); $('tabRb').classList.toggle('on', t === 'rb'); $('sim').hidden = t !== 'sim'; $('runbooks').hidden = t !== 'rb'; if (t === 'rb') { $('ovStart').hidden = true; if (started && !ended) setPause(true); } }
+  $('tabSim').onclick = () => { showTab('sim'); if (!started) $('ovStart').hidden = false; };
+  $('tabRb').onclick = () => showTab('rb');
+  document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { mode = b.dataset.mode; document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === b)); renderDetail(true); });
+  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; document.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', x === b)); });
+  $('pause').onclick = () => { if (!started || ended) return; setPause(!paused); };
+  $('inject').onclick = () => { if (!started) { $('ovStart').hidden = true; newShift(); } inject(); };
+  $('startBtn').onclick = () => { $('ovStart').hidden = true; newShift(); };
+  $('rbBtn').onclick = () => showTab('rb');
+  try { const b = +localStorage.getItem('cluster-best') || 0; $('bestTxt').textContent = b ? `Your best shift: ${b} points` : 'Your first shift'; } catch (e) {}
+  $('rateTxt').textContent = RATE.toFixed(2);
+
+  // idle cluster behind the start screen
+  NODES.forEach(n => { n.job = ++jobSeq; n.gpus.forEach(g => { g.util = 80 + ri(20); g.temp = 58 + ri(14); g.pow = 520 + ri(150); g.mem = 60000; }); });
+  render(); renderKpis(); requestAnimationFrame(tick);
+  window.__sim = { inject, NODES, get simMin() { return simMin; }, set simMin(v) { simMin = v; }, endShift, get incidents() { return incidents; } };
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
