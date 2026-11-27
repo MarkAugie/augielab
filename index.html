@@ -789,6 +789,7 @@
 <script>
 (() => {
   const { SECTIONS, APPS } = window.LAB;
+  const DEFAULT_VIEW = 'records';   // what a first-time visitor sees: 'records', 'rack' or 'shelf'
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const rack = document.querySelector('main.rack'), shelfV = $('shelfView'), recV = $('recView');
@@ -871,7 +872,7 @@
   /* ---- switching ---- */
   let built = {};
   function show(v) {
-    if (!['rack', 'shelf', 'records'].includes(v)) v = 'rack';
+    if (!['rack', 'shelf', 'records'].includes(v)) v = DEFAULT_VIEW;
     if (v === 'shelf' && !built.shelf) { buildShelf(); built.shelf = 1; }
     if (v === 'records' && !built.records) { buildRecords(); built.records = 1; }
     rack.hidden = v !== 'rack'; shelfV.hidden = v !== 'shelf'; recV.hidden = v !== 'records';
@@ -879,13 +880,13 @@
     document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
     try { localStorage.setItem('lab-view', v); } catch (e) {}
     const u = new URL(location.href);
-    if (v === 'rack') u.searchParams.delete('view'); else u.searchParams.set('view', v);
+    if (v === DEFAULT_VIEW) u.searchParams.delete('view'); else u.searchParams.set('view', v);
     history.replaceState(null, '', u.pathname + u.search + u.hash);
   }
-  document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => { show(b.dataset.view); if (window.labTrack && b.dataset.view !== 'rack') labTrack('look'); }));
+  document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => { show(b.dataset.view); if (window.labTrack) labTrack('look'); }));
   let start = new URLSearchParams(location.search).get('view');
   if (!start) { try { start = localStorage.getItem('lab-view'); } catch (e) {} }
-  show(start || 'rack');
+  show(start || DEFAULT_VIEW);
 })();
 </script>
 <script src="/lab/track.js" defer></script>
