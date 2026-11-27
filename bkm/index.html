@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ticket to BKM · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Turn a messy troubleshooting thread into a clean Best Known Method (BKM) for GPU cluster support, with a built-in quiz that trains the next new hire.">
+<meta property="og:title" content="Ticket → BKM">
+<meta property="og:description" content="Messy ticket notes in, a clean Best Known Method and a new-hire quiz out. Built for GPU cluster support teams.">
+<meta property="og:url" content="https://augielab.dev/bkm/">
+<meta name="theme-color" content="#0A0E13">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0A0E13; --panel: #111821; --panel2: #16202B; --line: #24313F; --ink: #E8EEF5; --dim: #93A3B6; --faint: #5E6E80;
+    --ok: #34D58A; --warn: #FFB224; --bad: #FF5263; --info: #5AB8FF; --vio: #B48CFF; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); font-size: 17px; -webkit-text-size-adjust: 100%; }
+  body { color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; min-height: 100vh; padding: 12px 14px 90px; }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  button, select, input { font: 600 .92rem "IBM Plex Sans", sans-serif; color: var(--ink); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+  button { cursor: pointer; } button:hover:not(:disabled) { border-color: #3C5168; background: #1B2735; } button:disabled { opacity: .5; cursor: wait; }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+  button.go { background: var(--ok); color: #06140D; border-color: var(--ok); font-weight: 700; }
+  button.vio { background: var(--vio); color: #170C2E; border-color: var(--vio); font-weight: 700; }
+  input { font-weight: 500; }
+
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .brand a { color: var(--dim); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .brand h1 { font: 700 clamp(1.6rem, 3.2vw, 2.2rem)/1.1 "IBM Plex Sans Condensed", sans-serif; }
+  .brand h1 span { color: var(--vio); }
+  .brand .sub { color: var(--dim); font-size: .95rem; max-width: 66ch; }
+  .tabs { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .main { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .main > * { min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h2 { font: 700 1.02rem "IBM Plex Sans", sans-serif; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .card h2 .muted { font-weight: 500; font-size: .82rem; color: var(--dim); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar select { max-width: 100%; min-width: 0; flex: 1 1 220px; }
+  textarea { width: 100%; min-height: 360px; margin-top: 10px; resize: vertical; background: #05080B; color: #D3DFEB; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: 400 .8rem/1.55 "IBM Plex Mono", monospace; }
+  .note { color: var(--faint); font-size: .82rem; margin-top: 8px; }
+  .msg { margin-top: 10px; font-weight: 600; min-height: 1.4em; }
+  .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); } .msg.work { color: var(--vio); }
+
+  /* BKM view */
+  .bkm { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+  .bkm .badge { display: inline-block; font: 700 .7rem "IBM Plex Mono", monospace; letter-spacing: .08em; padding: 3px 7px; border-radius: 5px; background: rgba(180,140,255,.16); color: var(--vio); }
+  .bkm h3.t { font: 700 clamp(1.3rem, 2.4vw, 1.65rem)/1.2 "IBM Plex Sans Condensed", sans-serif; margin-top: 8px; }
+  .bkm .sum { color: #C8D4E2; margin-top: 8px; }
+  .tagrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag { font: 600 .74rem "IBM Plex Mono", monospace; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: #C8D4E2; }
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .sec { margin-top: 18px; }
+  .sec h4 { font: 700 .76rem "IBM Plex Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .sec h4 i { font-style: normal; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line); font-size: .7rem; color: var(--ink); }
+  .sec ul, .sec ol { margin-left: 1.25em; } .sec li { margin: 4px 0; color: #D3DFEB; }
+  .sec p { color: #D3DFEB; }
+  .cmd { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; background: #05080B; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+  .cmd code { white-space: pre-wrap; word-break: break-all; font-size: .82rem; color: #CFE3F5; }
+  .cmd small { display: block; color: var(--faint); font-family: "IBM Plex Sans", sans-serif; font-size: .8rem; word-break: normal; margin-top: 2px; }
+  .cmd button { font-size: .74rem; padding: 4px 8px; }
+  .step { margin: 8px 0; }
+  .gaps { background: rgba(255,178,36,.07); border: 1px solid rgba(255,178,36,.35); border-radius: 10px; padding: 10px 14px; }
+  .gaps h4 { color: var(--warn); }
+  .cust { background: rgba(52,213,138,.06); border: 1px solid rgba(52,213,138,.3); border-radius: 10px; padding: 10px 14px; }
+  .empty { color: var(--dim); text-align: center; padding: 50px 10px; }
+  .empty b { color: var(--ink); }
+
+  /* library */
+  .lib { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .lib > * { min-width: 0; }
+  .items { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; max-height: 70vh; overflow-y: auto; }
+  .item { text-align: left; width: 100%; padding: 11px 13px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); }
+  .item.on { border-color: var(--vio); }
+  .item b { display: block; font-size: .95rem; } .item span { color: var(--dim); font-size: .8rem; font-weight: 500; }
+  .item .own { color: var(--vio); font-weight: 700; }
+  #search { width: 100%; }
+
+  /* quiz */
+  .ov { position: fixed; inset: 0; z-index: 50; background: rgba(4,7,10,.84); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 14px; }
+  .ov[hidden] { display: none; }
+  .quiz { width: min(760px, 100%); max-height: 94vh; overflow-y: auto; background: var(--panel); border: 1px solid #2E3E50; border-radius: 16px; padding: 24px; }
+  .qhead { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: var(--dim); font-size: .85rem; font-weight: 600; }
+  .qprog { height: 6px; border-radius: 4px; background: var(--panel2); margin-top: 8px; overflow: hidden; } .qprog i { display: block; height: 100%; background: var(--vio); }
+  .qctx { margin-top: 14px; color: var(--vio); font-size: .82rem; font-weight: 600; }
+  .qq { font: 700 1.3rem/1.35 "IBM Plex Sans", sans-serif; margin-top: 6px; }
+  .opts { display: grid; gap: 8px; margin-top: 14px; }
+  .opts button { text-align: left; font-size: 1.02rem; font-weight: 500; padding: 13px 15px; }
+  .opts button.right { border-color: var(--ok); background: rgba(52,213,138,.14); }
+  .opts button.wrong { border-color: var(--bad); background: rgba(255,82,99,.12); }
+  .why { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--panel2); color: #D3DFEB; }
+  .qfoot { display: flex; justify-content: space-between; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .score { font: 700 3.4rem/1 "IBM Plex Sans Condensed", sans-serif; color: var(--vio); }
+  footer { margin-top: 18px; color: var(--faint); font-size: .8rem; line-height: 1.55; } footer a { color: var(--dim); }
+  [hidden] { display: none !important; }
+  @media (max-width: 1050px) { .main, .lib { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { html { font-size: 16px; } textarea { min-height: 240px; font-size: .74rem; } .bkm { padding: 16px; } .qq { font-size: 1.12rem; } .quiz { padding: 18px; } }
+</style>
+</head>
+<body data-explain-bottom="16">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <a href="/">← AugieLab</a>
+      <h1>Ticket <span>→ BKM</span></h1>
+      <div class="sub">Turn a messy troubleshooting thread into a clean Best Known Method the next engineer can follow at 3 a.m., plus a quiz that trains the next new hire.</div>
+    </div>
+    <span class="tabs"><button data-tab="make" class="on">Create</button><button data-tab="lib">Library <span id="libCount"></span></button><button data-tab="drill">🎯 Drill</button></span>
+  </header>
+
+  <!-- CREATE -->
+  <section id="tab-make">
+    <div class="main">
+      <div class="card">
+        <h2>1 · Paste the messy notes <span class="muted" id="chars">0 characters</span></h2>
+        <div class="bar">
+          <select id="sample" aria-label="Load an example thread"><option value="">Load an example thread…</option></select>
+          <button id="redact">Redact</button>
+          <button id="clear">Clear</button>
+          <button class="vio" id="gen">✨ Write the BKM</button>
+        </div>
+        <textarea id="notes" spellcheck="false" placeholder="Paste a Slack thread, ticket notes, or terminal history from a solved problem.
+
+The messier the better: half sentences, commands, wrong turns, the fix, what you checked afterwards."></textarea>
+        <div class="msg" id="msg" aria-live="polite"></div>
+        <p class="note">IPs, MACs, emails, serials, UUIDs and passwords are redacted before the text is sent to Claude (Anthropic's AI) to structure it. Don't paste customer secrets. Examples load instantly from a cache. Saved BKMs stay on this device.</p>
+      </div>
+      <div id="view"><div class="bkm empty"><b>Your BKM appears here.</b><br>Load an example thread to see one right away, or paste your own notes.</div></div>
+    </div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section id="tab-lib" hidden>
+    <div class="lib">
+      <div class="card">
+        <h2>BKM library <span class="muted">built-in examples + yours</span></h2>
+        <input id="search" placeholder="Search: Xid 79, optic, fabric manager…" autocomplete="off">
+        <div class="items" id="items"></div>
+        <div class="bar" style="margin-top:10px"><button id="exportAll">⬇ Export all as Markdown</button></div>
+      </div>
+      <div id="libView"><div class="bkm empty">Pick a BKM from the list.</div></div>
+    </div>
+  </section>
+
+  <!-- DRILL -->
+  <section id="tab-drill" hidden>
+    <div class="card" style="margin-top:14px;max-width:900px">
+      <h2>🎯 New-hire drill</h2>
+      <p style="color:#C8D4E2">Ten questions pulled at random from every BKM in the library: what to run next, what a log line means, when to RMA, when it's the customer's code. It's how a support team turns tribal knowledge into training.</p>
+      <div class="bar" style="margin-top:14px"><button class="vio" id="drillGo" style="font-size:1.05rem;padding:13px 20px">Start a 10-question drill</button><span style="color:var(--dim)" id="drillInfo"></span></div>
+      <p class="note" id="bestDrill"></p>
+    </div>
+  </section>
+
+  <footer>
+    Pairs with the <a href="/triage/">Log Triage Buddy</a> (its ticket note feeds straight in) and the <a href="/cluster/">Cluster Triage Simulator</a>.
+    BKM structure: symptom signature → quick checks → root cause → fix steps → verify → escalation triggers → prevention.<br>
+    Built by Mark "Augie" Aughenbaugh: 20 years of Intel lab, HPC and AI-cluster hardware support.
+  </footer>
+</div>
+
+<div class="ov" id="ov" hidden><div class="quiz" id="quiz"></div></div>
+
+<template id="explain">
+  <h2>Why this exists</h2>
+  <p>On a fast-growing support team, the hardest problems get solved in Slack threads and ticket comments, and the fix never makes it into the wiki. The next engineer solves it again from scratch, and new hires have nothing to learn from.</p>
+  <h3>What it does</h3>
+  <p>You paste the messy thread. Claude (Anthropic's AI) structures it into a Best Known Method: the symptom signature, quick checks with expected output, root cause, ordered fix steps (drain before disruptive work), how to verify, when to escalate or RMA, prevention, and a short note for the customer. It also lists <strong>gaps</strong>: things the thread never established, so a reviewer knows what to confirm.</p>
+  <h3>The quiz</h3>
+  <p>Every BKM comes with five questions, mostly "what would you run or do next", where the wrong answers are realistic junior mistakes. The Drill tab mixes questions from the whole library into a 10-question session.</p>
+  <h3>Privacy</h3>
+  <p>Before your text leaves the page, IP and MAC addresses, emails, serial numbers, UUIDs and passwords are masked. Only the BKM-writing step uses the network; your saved library lives in this browser. The examples are cached, so they cost nothing to load.</p>
+</template>
+
+<script src="seed.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get(k, d) { try { const v = localStorage.getItem('bkm-' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('bkm-' + k, JSON.stringify(v)); } catch (e) {} } };
+  const SEED = (window.BKM_SEED || []).map((s, i) => Object.assign({}, s.bkm, { id: 'seed' + i, builtin: true, thread: s.thread }));
+  let mine = store.get('lib', []);
+  const all = () => [...mine, ...SEED];
+  let current = null;
+
+  const redact = s => s
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '<ip>').replace(/\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b/gi, '<mac>')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>').replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+    .replace(/(Serial Number\s*:\s*)\S+/gi, '$1<serial>').replace(/(password|passwd|token|apikey|api_key|secret)(\s*[=:]\s*)\S+/gi, '$1$2<redacted>');
+
+  // ============ rendering a BKM ============
+  const cmdBox = (c, e) => `<div class="cmd"><code>${esc(c)}${e ? `<small>Expect: ${esc(e)}</small>` : ''}</code><button data-cp="${esc(c)}">Copy</button></div>`;
+  function renderBKM(b, where, opts = {}) {
+    const el = $(where);
+    el.innerHTML = `<article class="bkm">
+      <span class="badge">${b.builtin ? 'BUILT-IN EXAMPLE' : opts.fresh ? 'NEW · NOT SAVED YET' : 'BKM'}${opts.cached ? ' · CACHED' : ''}</span>
+      <h3 class="t">${esc(b.title)}</h3>
+      <p class="sum">${esc(b.summary)}</p>
+      <div class="tagrow">${b.platform ? `<span class="tag">⚙ ${esc(b.platform)}</span>` : ''}${(b.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+      <div class="acts">
+        ${!b.builtin && opts.fresh ? '<button class="go" data-a="save">💾 Save to library</button>' : ''}
+        <button class="vio" data-a="quiz">🎯 Quiz me (${(b.quiz || []).length})</button>
+        <button data-a="md">Copy Markdown</button><button data-a="dl">⬇ .md</button>
+        ${!b.builtin && !opts.fresh ? '<button data-a="del">Delete</button>' : ''}
+      </div>
+      <div class="sec"><h4><i>1</i>Symptoms</h4><ul>${(b.symptoms || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>
+      <div class="sec"><h4><i>2</i>Quick checks</h4>${(b.quick_checks || []).map(c => cmdBox(c.cmd, c.expect)).join('')}</div>
+      <div class="sec"><h4><i>3</i>Root cause</h4><p>${esc(b.root_cause)}</p></div>
+      <div class="sec"><h4><i>4</i>Fix</h4><ol>${(b.fix_steps || []).map(s => `<li class="step">${esc(s.step)}${s.cmd ? cmdBox(s.cmd) : ''}</li>`).join('')}</ol></div>
+      <div class="sec"><h4><i>5</i>Verify before returning to service</h4>${(b.verify || []).map(c => cmdBox(c.cmd, c.expect)).join('')}</div>
+      <div class="sec"><h4><i>6</i>Escalate / RMA when</h4><ul>${(b.escalate_when || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>
+      <div class="sec"><h4><i>7</i>Prevention</h4><ul>${(b.prevention || []).map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>
+      ${b.customer_note ? `<div class="sec cust"><h4>Customer note</h4><p>${esc(b.customer_note)}</p></div>` : ''}
+      ${(b.gaps || []).length ? `<div class="sec gaps"><h4>⚠ Gaps to confirm before publishing</h4><ul>${b.gaps.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+      ${b.thread ? `<details class="sec"><summary style="cursor:pointer;color:var(--dim);font-weight:600">Show the original thread</summary><pre style="white-space:pre-wrap;font:400 .78rem/1.5 'IBM Plex Mono',monospace;color:#9FB3C8;margin-top:8px">${esc(b.thread)}</pre></details>` : ''}
+    </article>`;
+    el.querySelectorAll('[data-cp]').forEach(btn => btn.onclick = () => copy(btn, btn.dataset.cp));
+    el.querySelectorAll('[data-a]').forEach(btn => btn.onclick = () => {
+      const a = btn.dataset.a;
+      if (a === 'save') { const s = Object.assign({}, b, { id: 'my' + Date.now(), saved: new Date().toISOString().slice(0, 10) }); mine.unshift(s); store.set('lib', mine); current = s; renderBKM(s, where); refreshLib(); flash('Saved to your library on this device.'); window.labTrack && labTrack('bkmsave', 1); }
+      if (a === 'quiz') startQuiz((b.quiz || []).map(q => Object.assign({ ctx: b.title }, q)), b.title);
+      if (a === 'md') copy(btn, md(b));
+      if (a === 'dl') download(slug(b.title) + '.md', md(b));
+      if (a === 'del') { mine = mine.filter(x => x.id !== b.id); store.set('lib', mine); refreshLib(); $(where).innerHTML = '<div class="bkm empty">Deleted.</div>'; }
+    });
+  }
+  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'bkm';
+  function md(b) {
+    const L = [`# ${b.title}`, '', b.summary, '', `**Applies to:** ${b.platform || 'n/a'}  `, `**Tags:** ${(b.tags || []).join(', ')}`, '', '## Symptoms', ...(b.symptoms || []).map(s => `- ${s}`), '', '## Quick checks'];
+    (b.quick_checks || []).forEach(c => L.push('```', c.cmd, '```', `Expect: ${c.expect}`, ''));
+    L.push('## Root cause', b.root_cause, '', '## Fix');
+    (b.fix_steps || []).forEach((s, i) => { L.push(`${i + 1}. ${s.step}`); if (s.cmd) L.push('   ```', '   ' + s.cmd, '   ```'); });
+    L.push('', '## Verify before returning to service'); (b.verify || []).forEach(c => L.push('```', c.cmd, '```', `Expect: ${c.expect}`, ''));
+    L.push('## Escalate / RMA when', ...(b.escalate_when || []).map(s => `- ${s}`), '', '## Prevention', ...(b.prevention || []).map(s => `- ${s}`));
+    if (b.customer_note) L.push('', '## Customer note', b.customer_note);
+    if ((b.gaps || []).length) L.push('', '## Gaps to confirm', ...b.gaps.map(s => `- ${s}`));
+    if ((b.quiz || []).length) { L.push('', '## Quiz'); b.quiz.forEach((q, i) => { L.push(`${i + 1}. ${q.q}`); q.options.forEach((o, k) => L.push(`   ${'ABCD'[k]}. ${o}${k === q.answer ? '  ✅' : ''}`)); L.push(`   _${q.why}_`); }); }
+    return L.join('\n');
+  }
+  function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+  function copy(btn, text) {
+    const done = () => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1200); };
+    try { navigator.clipboard.writeText(text).then(done, fb); } catch (e) { fb(); }
+    function fb() { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) {} t.remove(); }
+  }
+  function flash(t, cls = 'ok') { const m = $('msg'); m.textContent = t; m.className = 'msg ' + cls; }
+
+  // ============ create ============
+  const sel = $('sample');
+  sel.innerHTML += SEED.map((s, i) => `<option value="${i}">${esc(s.title.split(':')[0])}</option>`).join('');
+  sel.onchange = () => { if (sel.value === '') return; const s = SEED[+sel.value]; $('notes').value = s.thread; count(); current = s; renderBKM(s, 'view', { cached: true }); flash('Example loaded: this BKM was written from the thread on the left.', 'ok'); sel.value = ''; };
+  const count = () => $('chars').textContent = `${$('notes').value.length.toLocaleString('en-US')} characters`;
+  $('notes').addEventListener('input', count);
+  $('redact').onclick = () => { $('notes').value = redact($('notes').value); count(); flash('Redacted.', 'ok'); };
+  $('clear').onclick = () => { $('notes').value = ''; count(); flash('', ''); };
+  const ERR = { setup: 'The AI writer isn\'t switched on yet. Try one of the examples.', cap: 'The AI writer has reached its daily limit. Try again tomorrow, or open an example.', short: 'That\'s too short to make a BKM from. Paste the whole thread.', long: 'That\'s too long (24,000 characters max). Trim it to the relevant part.', key: 'The AI writer isn\'t working right now.', credit: 'The AI writer is out of credit right now.' };
+  $('gen').onclick = async () => {
+    const text = $('notes').value.trim();
+    const seed = SEED.find(s => s.thread.trim() === text);
+    if (seed) { current = seed; renderBKM(seed, 'view', { cached: true }); flash('That\'s an example thread, so here\'s its cached BKM (no AI call needed).', 'ok'); return; }
+    if (text.length < 80) { flash(ERR.short, 'bad'); return; }
+    const btn = $('gen'); btn.disabled = true; btn.textContent = '✨ Writing…';
+    const steps = ['Reading the thread…', 'Separating the fix from the wrong turns…', 'Ordering the steps: drain, fix, verify, resume…', 'Writing quiz questions…'];
+    let k = 0; flash(steps[0], 'work'); const tm = setInterval(() => flash(steps[Math.min(++k, steps.length - 1)], 'work'), 6000);
+    $('view').innerHTML = '<div class="bkm empty"><b>Writing your BKM…</b><br>This usually takes 20 to 60 seconds.</div>';
+    try {
+      const r = await fetch('/api/bkm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: redact(text) }) });
+      const d = await r.json().catch(() => ({}));
+      if (!d.ok) { flash(ERR[d.error] || 'Couldn\'t write the BKM this time. Try again in a moment.', 'bad'); $('view').innerHTML = '<div class="bkm empty">No BKM this time.</div>'; return; }
+      current = Object.assign(d.bkm, { thread: redact(text) });
+      renderBKM(current, 'view', { fresh: true }); flash('Done. Review the gaps, then save it to your library.', 'ok');
+      window.labTrack && labTrack('bkm', 1);
+    } catch (e) { flash('Couldn\'t reach the AI writer. Check your connection.', 'bad'); }
+    finally { clearInterval(tm); btn.disabled = false; btn.textContent = '✨ Write the BKM'; }
+  };
+
+  // ============ library ============
+  function refreshLib() {
+    $('libCount').textContent = `(${all().length})`;
+    const q = $('search').value.trim().toLowerCase();
+    const list = all().filter(b => !q || [b.title, b.summary, (b.tags || []).join(' '), (b.symptoms || []).join(' ')].join(' ').toLowerCase().includes(q));
+    $('items').innerHTML = list.length ? list.map(b => `<button class="item ${libSel === b.id ? 'on' : ''}" data-id="${b.id}"><b>${esc(b.title)}</b><span>${b.builtin ? 'Built-in example' : `<span class="own">Yours</span> · saved ${esc(b.saved || '')}`} · ${(b.tags || []).slice(0, 4).map(esc).join(' · ')}</span></button>`).join('') : '<div class="empty">Nothing matches.</div>';
+    $('items').querySelectorAll('.item').forEach(btn => btn.onclick = () => { libSel = btn.dataset.id; renderBKM(all().find(b => b.id === libSel), 'libView'); refreshLib(); if (innerWidth < 1050) $('libView').scrollIntoView({ behavior: 'smooth' }); });
+    const nq = all().reduce((s, b) => s + (b.quiz || []).length, 0);
+    $('drillInfo').textContent = `${nq} questions from ${all().length} BKMs`;
+  }
+  let libSel = null;
+  $('search').addEventListener('input', refreshLib);
+  $('exportAll').onclick = () => download('bkm-library.md', all().map(md).join('\n\n---\n\n'));
+
+  // ============ quiz ============
+  let Q = null;
+  function rnd(n) { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+  function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function startQuiz(qs, title, drill) {
+    if (!qs.length) return;
+    // shuffle options too, so the right answer isn't always in the same place
+    Q = { title, drill, i: 0, right: 0, items: qs.map(q => { const order = shuffle(q.options.map((_, k) => k)); return Object.assign({}, q, { options: order.map(k => q.options[k]), answer: order.indexOf(q.answer) }); }), picked: null };
+    $('ov').hidden = false; drawQ(); window.labTrack && labTrack('quiz', 1);
+  }
+  function drawQ() {
+    const z = $('quiz');
+    if (Q.i >= Q.items.length) {
+      const pct = Math.round(Q.right / Q.items.length * 100);
+      if (Q.drill) { const best = store.get('drillbest', 0); if (Q.right > best) store.set('drillbest', Q.right); }
+      z.innerHTML = `<div class="qhead"><span>${esc(Q.drill ? 'Drill complete' : Q.title)}</span><button id="qx">✕</button></div>
+        <div style="text-align:center;margin-top:20px"><div class="score">${Q.right}/${Q.items.length}</div><p style="margin-top:8px;color:#C8D4E2">${pct >= 90 ? 'Ready for on-call.' : pct >= 70 ? 'Solid. Review the ones you missed.' : 'Read the BKMs once more and run it again.'}</p></div>
+        <div class="qfoot" style="justify-content:center"><button class="vio" id="again">Again</button><button id="qx2">Close</button></div>`;
+      $('qx').onclick = $('qx2').onclick = close; $('again').onclick = () => Q.drill ? startDrill() : startQuiz(Q.items, Q.title);
+      updateBest(); return;
+    }
+    const q = Q.items[Q.i], ans = Q.picked !== null;
+    z.innerHTML = `<div class="qhead"><span>${Q.drill ? '🎯 Drill' : 'Quiz'} · question ${Q.i + 1} of ${Q.items.length} · ${Q.right} right</span><button id="qx" aria-label="Close">✕</button></div>
+      <div class="qprog"><i style="width:${Q.i / Q.items.length * 100}%"></i></div>
+      ${q.ctx ? `<div class="qctx">From: ${esc(q.ctx)}</div>` : ''}
+      <div class="qq">${esc(q.q)}</div>
+      <div class="opts">${q.options.map((o, k) => `<button data-k="${k}" ${ans ? 'disabled' : ''} class="${ans ? (k === q.answer ? 'right' : k === Q.picked ? 'wrong' : '') : ''}">${'ABCD'[k] || k + 1}. ${esc(o)}</button>`).join('')}</div>
+      ${ans ? `<div class="why"><b style="color:${Q.picked === q.answer ? 'var(--ok)' : 'var(--bad)'}">${Q.picked === q.answer ? 'Right.' : 'Not quite.'}</b> ${esc(q.why)}</div>` : ''}
+      <div class="qfoot"><span></span>${ans ? `<button class="vio" id="next">${Q.i + 1 < Q.items.length ? 'Next →' : 'See score'}</button>` : ''}</div>`;
+    $('qx').onclick = close;
+    z.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { Q.picked = +b.dataset.k; if (Q.picked === q.answer) Q.right++; drawQ(); });
+    if (ans) { $('next').onclick = () => { Q.i++; Q.picked = null; drawQ(); }; $('next').focus(); }
+  }
+  function close() { $('ov').hidden = true; }
+  $('ov').addEventListener('click', e => { if (e.target === $('ov')) close(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !$('ov').hidden) close(); });
+  function startDrill() { const pool = all().flatMap(b => (b.quiz || []).map(q => Object.assign({ ctx: b.title }, q))); startQuiz(shuffle(pool).slice(0, 10), 'Drill', true); }
+  $('drillGo').onclick = startDrill;
+  function updateBest() { const b = store.get('drillbest', 0); $('bestDrill').textContent = b ? `Your best drill: ${b}/10` : ''; }
+
+  // ============ tabs ============
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === b));
+    ['make', 'lib', 'drill'].forEach(t => $('tab-' + t).hidden = t !== b.dataset.tab);
+    if (b.dataset.tab === 'lib') { refreshLib(); if (!libSel && all().length) { libSel = all()[0].id; renderBKM(all()[0], 'libView'); refreshLib(); } }
+  });
+
+  // ============ hand-off from Log Triage Buddy ============
+  try {
+    const imp = localStorage.getItem('bkm-import');
+    if (imp && /from=triage/.test(location.search)) { $('notes').value = imp; localStorage.removeItem('bkm-import'); flash('Imported the ticket note from the Log Triage Buddy. Add what you did and what fixed it, then write the BKM.', 'ok'); }
+  } catch (e) {}
+  count(); refreshLib(); updateBest();
+  window.__bkm = { renderBKM, SEED, md };
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>

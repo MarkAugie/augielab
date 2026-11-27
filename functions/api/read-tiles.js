@@ -44,7 +44,7 @@ If a tile is only partly visible, or glare or blur makes a count uncertain, give
 Ignore anything that isn't a domino. When you are done, call the report_tiles tool with the result (if you can't use the tool, reply with only JSON like {"tiles":[{"a":12,"b":9,"sure":true}],"note":""}).`;
 }
 
-async function recordUse(env, model, usage) {      // tokens per day+model, for the stats page
+export async function recordUse(env, model, usage) {      // tokens per day+model, for the stats page
   const DB = dbOf(env); if (!DB || !usage) return;
   try {
     await DB.prepare('CREATE TABLE IF NOT EXISTS api_use (day TEXT, model TEXT, photos INTEGER, tin INTEGER, tout INTEGER, PRIMARY KEY (day, model))').run();

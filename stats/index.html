@@ -73,15 +73,15 @@
     </div>
 
     <section class="card">
-      <h2>Photo reading (Claude API, Mexican Train Helper)</h2>
+      <h2>Claude API use (Mexican Train photos + Ticket-to-BKM)</h2>
       <div class="grid">
-        <div><div class="label">Photos today</div><div class="big" id="pToday">0</div></div>
+        <div><div class="label">AI calls today</div><div class="big" id="pToday">0</div></div>
         <div><div class="label">Cost today</div><div class="big" id="cToday">$0.00</div></div>
-        <div><div class="label">Photos all time</div><div class="big" id="pAll">0</div></div>
+        <div><div class="label">AI calls all time</div><div class="big" id="pAll">0</div></div>
         <div><div class="label">Cost all time</div><div class="big" id="cAll">$0.00</div></div>
-        <div><div class="label">Average per photo</div><div class="big" id="cAvg">–</div></div>
+        <div><div class="label">Average per call</div><div class="big" id="cAvg">–</div></div>
       </div>
-      <p class="label" style="margin-top:12px" id="apiNote">Worked out from the token counts Claude reports for each photo. Your exact bill is at console.anthropic.com under Usage and Cost. Counting started Nov 26, 2026.</p>
+      <p class="label" style="margin-top:12px" id="apiNote">Worked out from the token counts Claude reports for each call. Your exact bill is at console.anthropic.com under Usage and Cost. Counting started Nov 26, 2026.</p>
     </section>
 
     <section class="card">
@@ -128,6 +128,7 @@
     '/norad/':     { name: 'Strategic display', color: '#39FF6A', acts: { run: ['scenario run', 'scenarios run'] } },
     '/cluster/':   { name: 'Cluster triage sim', color: '#34D58A', acts: { shift: ['shift played', 'shifts played'] } },
     '/triage/':    { name: 'Log triage buddy', color: '#5AB8FF', acts: { analyze: ['log analyzed', 'logs analyzed'] } },
+    '/bkm/':       { name: 'Ticket to BKM', color: '#B48CFF', acts: { bkm: ['BKM written', 'BKMs written'], bkmsave: ['BKM saved', 'BKMs saved'], quiz: ['quiz taken', 'quizzes taken'] } },
     '/triplets/':  { name: 'Triplet trainer', color: '#B0457B', acts: { minute: ['minute', 'minutes practiced'] } },
     '/ss/':        { name: 'Early or late? (Social Security)', color: '#2E9E6A', acts: { klives: ['thousand lives rolled', 'thousand lives rolled'] } },
     '/bridge/':    { name: 'The quantum dealer (bridge)', color: '#D9B45A', acts: { deal: ['deal', 'deals'] } },

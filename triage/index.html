@@ -550,8 +550,9 @@ BKM candidate:  ${t.name} → ${t.why.split('.')[0]}.`;
     } else {
       const txt = tab === 'reply' ? reply(r) : note(r);
       A.className = 'out' + (tab === 'reply' ? ' prose' : '');
-      A.innerHTML = `<button class="copy" id="cp">Copy</button>${esc(txt)}`;
+      A.innerHTML = `<button class="copy" id="cp">Copy</button>${tab === 'note' ? '<button class="copy" id="tobkm" style="margin-right:6px">Make a BKM →</button>' : ''}${esc(txt)}`;
       $('cp').onclick = () => copy($('cp'), redactText(txt));
+      if ($('tobkm')) $('tobkm').onclick = () => { try { localStorage.setItem('bkm-import', redactText(txt) + '\n\n--- what we did / what fixed it ---\n'); } catch (e) {} location.href = '/bkm/?from=triage'; };
     }
   }
   function renderLog() {
