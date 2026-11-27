@@ -97,9 +97,83 @@
     .live .led { animation: none; }
     .unit { transition: none; }
   }
+
+  /* ---------- the Guide ---------- */
+  .guide-btn { position: fixed; top: 16px; right: 16px; z-index: 20; display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 20px 12px 16px; border: 0; border-radius: 999px; cursor: pointer;
+    font: 700 1.05rem/1 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+    color: #FFF; background: linear-gradient(180deg, #C81A35, var(--tape)); 
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 0 rgba(0,0,0,.25), 0 8px 20px -6px rgba(120,10,30,.6);
+    transition: transform .2s, box-shadow .2s; }
+  .guide-btn svg { width: 22px; height: 22px; flex: none; }
+  .guide-btn:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -2px 0 rgba(0,0,0,.25), 0 12px 26px -6px rgba(120,10,30,.7); }
+  .guide-btn:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 3px; }
+
+  dialog.guide { border: 0; padding: 0; margin: auto; width: min(860px, 100% - 24px); max-height: calc(100% - 32px);
+    background: #F3F5F7; color: var(--page-ink); border-radius: 10px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); overflow: hidden; }
+  dialog.guide[open] { display: flex; flex-direction: column; animation: guideIn .28s cubic-bezier(.2,.8,.2,1); }
+  dialog.guide::backdrop { background: rgba(18,22,27,.72); backdrop-filter: blur(3px); }
+  @keyframes guideIn { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
+
+  .g-head { background: var(--rack); color: var(--ink); padding: 22px 26px 18px; position: relative; flex: none; }
+  .g-head h2 { font: 700 1.7rem/1.1 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .01em; padding-right: 56px; }
+  .g-head p { color: var(--ink-dim); font-size: 1rem; margin-top: 6px; max-width: 60ch; }
+  .g-close { position: absolute; top: 16px; right: 16px; width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer;
+    background: #3B434C; color: #FFF; font-size: 1.6rem; line-height: 1; }
+  .g-close:hover { background: #4A535D; }
+  .g-close:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 2px; }
+  .g-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip { border: 1px solid #56606B; background: transparent; color: var(--ink); border-radius: 999px; padding: 8px 14px; cursor: pointer;
+    font: 600 .95rem/1 "IBM Plex Sans", sans-serif; }
+  .chip:hover { border-color: #9AA5B1; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--rack); border-color: var(--ink); }
+  .chip:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 2px; }
+  .g-search { flex: 1 1 220px; min-width: 0; border: 1px solid #56606B; background: #1E2328; color: var(--ink); border-radius: 999px;
+    padding: 8px 16px; font: 400 1rem "IBM Plex Sans", sans-serif; }
+  .g-search::placeholder { color: #8D98A4; }
+
+  .g-body { overflow-y: auto; padding: 8px 26px 30px; overscroll-behavior: contain; }
+  .g-sec { font: 700 .95rem/1 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #5A6573;
+    margin: 26px 0 10px; padding-bottom: 8px; border-bottom: 2px solid #D5DBE1; }
+  .g-item { background: #FFF; border-radius: 8px; padding: 18px 20px; margin-bottom: 12px; border-left: 6px solid var(--accent, #3B434C);
+    box-shadow: 0 1px 2px rgba(20,30,40,.08); }
+  .g-item h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 1rem; margin-bottom: 8px; }
+  .g-item h3 .tape { font-size: 1rem; }
+  .g-why { font-weight: 600; font-size: 1.05rem; color: #1E242B; margin-bottom: 6px; }
+  .g-item p.g-text { font-size: 1.02rem; color: #333C46; }
+  .g-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .tag { font-size: .82rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #E6EAEE; color: #3D4651; }
+  .g-open { margin-left: auto; font: 700 1rem/1 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .05em; text-transform: uppercase;
+    color: #FFF; background: #262B31; padding: 11px 18px; border-radius: 6px; text-decoration: none; white-space: nowrap; }
+  .g-open:hover, .g-open:focus-visible { background: var(--tape); }
+  .g-open:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 2px; }
+  .g-empty { padding: 30px 0; color: #5A6573; font-size: 1.05rem; }
+  .g-count { color: #8D98A4; font-size: .9rem; margin-top: 10px; }
+
+  @media (max-width: 720px) {
+    .guide-btn { top: 10px; right: 10px; padding: 10px 16px 10px 13px; font-size: .95rem; }
+    body { padding-top: 70px; }
+    dialog.guide { width: 100%; max-width: 100%; max-height: 100%; height: 100%; border-radius: 0; }
+    .g-head { padding: 16px 16px 12px; }
+    .g-head h2 { font-size: 1.5rem; }
+    .g-head p { display: none; }
+    .g-tools { flex-wrap: nowrap; overflow-x: auto; margin: 14px -16px 0; padding: 0 16px 4px; scrollbar-width: none; }
+    .g-tools::-webkit-scrollbar { display: none; }
+    .chip { flex: none; }
+    .g-search { order: -1; flex: 0 0 11rem; }
+    .g-body { padding: 4px 12px 30px; }
+    .g-item { padding: 16px 16px; }
+    .g-open { margin-left: 0; width: 100%; text-align: center; padding: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { dialog.guide[open] { animation: none; } .guide-btn { transition: none; } }
 </style>
 </head>
 <body>
+
+<button class="guide-btn" id="guideBtn" type="button" aria-haspopup="dialog" aria-controls="guide">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5.5C4.5 4 8 4 12 6c4-2 7.5-2 10-.5V19c-2.5-1.5-6-1.5-10 .5-4-2-7.5-2-10-.5z"/><path d="M12 6v13.5"/></svg>
+  Guide
+</button>
 
 <header>
   <h1><svg class="mark" viewBox="0 0 320 300" aria-hidden="true">
@@ -369,6 +443,194 @@
   <div class="key"><span class="k-live">Live</span><span class="k-build">In the works</span></div>
   <div>Built by Mark Aughenbaugh</div>
 </footer>
+
+<dialog class="guide" id="guide" aria-labelledby="guideTitle">
+  <div class="g-head">
+    <h2 id="guideTitle">Guide to the rack</h2>
+    <p>What each project does and why it's worth a few minutes. Tap a topic to narrow the list, or search for anything you like: dominoes, Einstein, GPUs.</p>
+    <button class="g-close" id="guideClose" type="button" aria-label="Close the guide">×</button>
+    <div class="g-tools" role="group" aria-label="Filter by topic">
+      <input class="g-search" id="guideSearch" type="search" placeholder="Search the guide…" aria-label="Search the guide">
+    </div>
+  </div>
+  <div class="g-body" id="guideBody"></div>
+</dialog>
+
+<script>
+(() => {
+  const SECTIONS = [
+    { name: 'AI infrastructure', accent: '#159BD0' },
+    { name: 'Quantum experiments', accent: '#7A4FD6' },
+    { name: 'Game night', accent: '#25B85C' },
+    { name: 'Everyday tools and fun', accent: '#D98A0B' },
+  ];
+  const TOPICS = ['GPU clusters', 'Uses AI', 'Quantum', 'Physics', 'Math & patterns', 'Dominoes', 'Cards', 'Art & music', 'Everyday'];
+  const APPS = [
+    // ---------- AI infrastructure ----------
+    { s: 0, href: '/cluster/', name: 'Cluster triage sim', tags: ['GPU clusters'],
+      why: 'Be the on-call engineer for a 256-GPU H100 cluster.',
+      text: 'A chaos monkey quietly breaks things: a GPU throws an Xid error, an InfiniBand link flaps, a fan dies, memory starts failing. You run real diagnostic commands (nvidia-smi, ibstat, dcgmi, ipmitool), read the output, pick the right fix, and keep the cluster earning money. You get scored at the end of your shift, and a Runbooks tab explains every fault. A training tool for new support techs, with the feel of a real night on call.' },
+    { s: 0, href: '/triage/', name: 'Log triage buddy', tags: ['GPU clusters'],
+      why: 'Paste scary logs from a GPU server; get a plain answer.',
+      text: 'It knows about 70 failure signatures: GPU Xid codes, memory (ECC) errors, NVLink and NVSwitch faults, InfiniBand, NCCL, and BMC hardware events. It tells you what is probably wrong, which commands to run next, a ready-to-send customer reply and a ticket note. Everything runs right in your browser, so the logs never leave your computer, and a Redact button scrubs host names and IP addresses. Try one of the 12 built-in sample logs.' },
+    { s: 0, href: '/bkm/', name: 'Ticket to BKM', tags: ['GPU clusters', 'Uses AI'],
+      why: 'Turns a messy troubleshooting chat into a clean how-to.',
+      text: 'Every support team has fixes that live only in someone\'s Slack history. Paste the thread, and Claude AI writes a Best Known Method: symptoms, root cause, step-by-step fix, and how to check it worked. It even makes a short quiz so new hires can learn it. Names and addresses are scrubbed first. Keep a library on your own device and export to Markdown. Three finished examples are ready to look at without typing anything.' },
+    { s: 0, href: '/redfish/', name: 'Out-of-band commands', tags: ['GPU clusters'],
+      why: 'Talk to a dead server through its back door.',
+      text: 'Every big server has a tiny side computer (the BMC) that works even when the server is frozen or off. This tool writes the exact commands to power-cycle it, read its hardware logs and sensors, check inventory, change the boot order, or mount a rescue disk, in Redfish, ipmitool, Python and more. It knows each vendor\'s quirks and has recovery playbooks. Press a ▶ Demo button to try it on a pretend broken server with six hidden problems.' },
+    // ---------- Quantum ----------
+    { s: 1, href: '/split/', name: 'Split the universe', tags: ['Quantum', 'Physics'],
+      why: 'Can\'t decide? Do both.',
+      text: 'Type two choices. A real quantum measurement picks one. Under the many-worlds idea in physics, every quantum outcome happens somewhere, so in another universe, another you takes the other path. It is a fun way to make a decision, with a friendly explanation of the strangest idea in physics.' },
+    { s: 1, href: '/glitch/', name: 'Simulation detector', tags: ['Quantum', 'Physics'],
+      why: 'Is reality a computer simulation? Let\'s watch.',
+      text: 'Two quantum random sources sit about 12,600 km apart, too far for anything to link them. If our world were a simulation, maybe its dice would slip now and then and the two would line up when they shouldn\'t. A live chart watches every bit for a glitch. So far, the universe looks fair.' },
+    { s: 1, href: '/showdown/', name: 'Randomness showdown', tags: ['Quantum', 'Math & patterns'],
+      why: 'Four random-number sources. One is cheating.',
+      text: 'A Geiger counter timing radioactive decay, a quantum chip reading light, the formula your browser uses, and a broken formula all go through the same randomness tests, live, side by side. Can the tests catch the cheater, and how fast? Turn on the Geiger clicks and speed it up 10,000 times.' },
+    { s: 1, href: '/refinery/', name: 'Randomness refinery', tags: ['Quantum', 'Math & patterns'],
+      why: 'See how raw, lumpy noise becomes perfect randomness.',
+      text: 'Real sensors have flaws: some values come up too often, and each reading leans toward the last. On the left you see the raw readings. A SHA-256 mixer (the same math behind secure websites) refines them, and on the right the output is perfectly flat. Turn the flaws up, even jam the sensor, and watch what the mixer can and cannot fix.' },
+    { s: 1, href: '/future/', name: 'Feel the future', tags: ['Quantum'],
+      why: 'Can you guess better than chance?',
+      text: 'A coin flip or ESP card is picked and sealed before you guess. You can prove it was not changed afterward: the sealed answer has a digital fingerprint you can check. Your score is charted against where luck alone usually lands. Lots of people feel they are on a streak. See what the numbers say.' },
+    { s: 1, href: '/muons/', name: 'Muon rain', tags: ['Quantum', 'Physics'],
+      why: 'Einstein, proven by particles falling on you right now.',
+      text: 'Cosmic rays make muons 15 km up. They only live about 2 millionths of a second, much too short to reach the ground, yet they do. Quantum chance decides when each one dies, and Einstein\'s slow-moving clocks decide whether it makes it. Flip relativity off and watch the rain stop. One of the clearest real-world proofs of relativity, as a game.' },
+    { s: 1, href: '/darts/', name: 'Quantum darts', tags: ['Quantum', 'Math & patterns'],
+      why: 'Find π by throwing random darts.',
+      text: 'Throw darts at random at a square with a circle inside it. The share that land in the circle, times four, closes in on π (3.14159…). Throw 10,000 at once and watch the estimate settle. It runs on your browser\'s randomness today and will switch to a quantum generator once the lab\'s USB quantum stick is connected.' },
+    { s: 1, href: '/dice/', name: 'Quantum dice', tags: ['Quantum'],
+      why: 'Dice and coin flips, done by physics.',
+      text: 'Roll any number of dice with any number of sides, flip a coin, or get a lottery quick pick. Same odds as anywhere else, but a better story, because once the lab\'s quantum generator is connected each result will come from measuring particles of light. Handy for board games and settling arguments.' },
+    { s: 1, href: '/passwords/', name: 'Quantum passwords', tags: ['Quantum', 'Everyday'],
+      why: 'Strong passwords you can actually type.',
+      text: 'Make a random password, or a passphrase of real words that is long, strong and easy to remember. Choose the length and whether to skip look-alike letters such as l, 1 and O, 0. It is made right in your browser and never sent or saved anywhere, and it is printed on red label tape just for fun.' },
+    { s: 1, href: '/benford/', name: 'Benford\'s law', tags: ['Quantum', 'Math & patterns'],
+      why: 'Why do a third of real-world numbers start with 1?',
+      text: 'Populations, prices, river lengths: in real data, about 30% of numbers start with 1 and only about 5% start with 9. Truly random numbers don\'t do that. Watch both side by side, then paste in your own numbers to test them. Auditors use this pattern to catch made-up figures.' },
+    { s: 1, href: '/fibonacci/', name: 'Coincidence hunter', tags: ['Quantum', 'Math & patterns'],
+      why: 'How often does pure chance fake a pattern?',
+      text: 'Random digits pour into a sunflower while a hunter looks for Fibonacci runs, where each digit is the two before it added up, such as 2 3 5 8. Every find lights up the flower. Then it compares what it found with what the math predicts. Great for anyone who has seen a "sign" in the numbers.' },
+    { s: 1, href: '/chaos/', name: 'The chaos game', tags: ['Quantum', 'Math & patterns', 'Art & music'],
+      why: 'Random dots make a perfect picture.',
+      text: 'Roll a die, jump halfway to a corner, make a dot. Do it a million times, and a perfect Sierpinski triangle appears out of pure chance. It also draws a fern. Load the dice and see the picture break. Then switch to Flames, where random numbers design glowing fractal art that nobody has ever seen, out of four billion possible designs. Save your favorites.' },
+    { s: 1, href: '/coast/', name: 'How long is the coast?', tags: ['Quantum', 'Math & patterns'],
+      why: 'A question with no answer, and why that matters.',
+      text: 'Measure a randomly shaped island with a ruler, then a shorter ruler. The coastline keeps getting longer. That is Mandelbrot\'s famous coastline paradox. See how it leads to a fractal dimension, and why surveyors always have to say how they measured. Choose a smooth beach, rocky Britain, or fjords.' },
+    { s: 1, href: '/lightning/', name: 'Lightning & frost', tags: ['Quantum', 'Physics', 'Art & music'],
+      why: 'Grow lightning bolts out of random walks.',
+      text: 'One particle at a time staggers around at random until it touches the growth and sticks. Nobody plans the shape, yet thousands of random walks later you get lightning, coral or frost on a window, and no two are alike. Watch one particle walk, or let it grow at full speed and save the picture.' },
+    { s: 1, href: '/jukebox/', name: 'Schrödinger\'s jukebox', tags: ['Quantum', 'Art & music'],
+      why: 'A song that has never played before and never will again.',
+      text: 'Every note, chord and rhythm is picked by chance as it plays, yet it still sounds like music. Pick a mood, set the tempo, and let it run in the background. Once the quantum generator is connected, the music will come from measuring light.' },
+    { s: 1, href: '/monkeys/', name: 'Infinite monkeys', tags: ['Quantum', 'Math & patterns'],
+      why: 'Can monkeys at typewriters write Shakespeare?',
+      text: 'Six monkeys hit keys completely at random, forever. Give them your name or a line of Shakespeare and watch how close they get. A shelf collects the longest real words they type by accident, and the page works out how long the whole job would really take. Hint: much longer than the universe has existed.' },
+    { s: 1, href: '/gps/', name: 'Where am I, really?', tags: ['Physics', 'Everyday'],
+      why: 'Why your phone\'s blue dot wanders.',
+      text: 'Watch a phone, a free-corrections receiver and a surveyor\'s RTK rover all try to find one brass survey marker. The phone wanders a few meters; the surveyor stays within a centimeter. Learn how that works, and what Einstein really does to GPS (it is not quite what you have heard). You can even plot your own phone\'s readings, which stay on your device.' },
+    // ---------- Game night ----------
+    { s: 2, href: '/mt/', name: 'Mexican train helper', tags: ['Dominoes', 'Uses AI'],
+      why: 'Your game-night sidekick for real dominoes.',
+      text: 'Snap a photo of your dominoes and Claude AI reads them for you, or tap them in. It finds your best opening train, counts your leftover points, and keeps score for all 13 rounds. A "Check my set" tab even finds missing tiles in your box. Built for an actual family game table.' },
+    { s: 2, href: '/mexican/', name: 'Mexican train', tags: ['Dominoes'],
+      why: 'Play Mexican Train against the computer.',
+      text: 'Double-12 dominoes against computer players. Every time you have to draw, a coach shows your odds of pulling a domino that fits, and a "Lucky draws?" panel compares what the odds predicted with what really happened. Play a single round or a full game.' },
+    { s: 2, href: '/train/', name: 'The miracle train', tags: ['Dominoes', 'Math & patterns'],
+      why: 'Someone went out on the first play. How rare is that?',
+      text: 'At a real game with six players, one person laid down their whole hand in one train on the very first play. An AI guessed it was about as rare as a royal flush. This page shuffles millions of hands to find the true odds for your table\'s rules, and shows you miracle hands as it finds them.' },
+    { s: 2, href: '/dominoes/', name: 'Dominoes', tags: ['Dominoes'],
+      why: 'The classic game, with the odds shown.',
+      text: 'Draw or Block dominoes with a double-12 set against the computer. Highest double starts, and you can choose whether doubles open up their sides. A coach shows which numbers are open and your chance of drawing a fit. Good practice, or just a relaxing game.' },
+    { s: 2, href: '/nopeek/', name: 'Seven card no peek', tags: ['Cards'],
+      why: 'The family card game, with a live odds coach.',
+      text: 'Everyone gets seven cards face down, and you flip until you beat the best hand showing. Queens are wild, so five of a kind is possible. While anyone is flipping, the coach shows what they need to beat, their odds, and what their cards could still turn into.' },
+    { s: 2, href: '/bridge/', name: 'The quantum dealer', tags: ['Cards', 'Quantum'],
+      why: 'Bridge deals worth talking about.',
+      text: 'Truly shuffled bridge deals with a full hand record: high-card points, shape, losing tricks, and the odds of anything unusual. Ask for slam hands, freak distributions or a Yarborough. Print the record, copy it in PBN, or open the deal in Bridge Base Online.' },
+    { s: 2, href: '/puzzle/', name: 'Picture shuffle', tags: ['Everyday'],
+      why: 'Your own photo, cut up and scrambled.',
+      text: 'Pick a photo, or use one made for you, and choose 12, 20 or 30 pieces. Swap them back into place against the clock. Pieces that fit together join up and move as a group. Your photo stays on your phone. Fun with grandkids.' },
+    // ---------- Everyday ----------
+    { s: 3, href: '/pomodoro/', name: 'Pomodoro timer', tags: ['Everyday'],
+      why: 'Get things done, 25 minutes at a time.',
+      text: 'Focus for 25 minutes, then take a 5-minute break. The countdown glows on old-style Nixie tubes. You can change the times, and the space bar starts and pauses it. The page tells the story of the tomato-shaped kitchen timer that gave the method its name.' },
+    { s: 3, href: '/triplets/', name: 'Triplet trainer', tags: ['Art & music'],
+      why: 'Finally feel quarter-note triplets.',
+      text: 'Three even notes in the space of two beats trip up a lot of musicians. Hear them over a steady beat in four steps, from counting all six parts to playing on your own. Then tap along, or play your flute into the microphone, and get scored on your timing.' },
+    { s: 3, href: '/feelings/', name: 'Name that feeling', tags: ['Everyday'],
+      why: 'Find the word for what you actually feel.',
+      text: 'A feelings wheel for your phone. Start with the everyday word you would use, like "mad," and follow it inward to the more precise feeling underneath. It includes a private journal that stays on your device. A tool for noticing, not a diagnosis.' },
+    { s: 3, href: '/ss/', name: 'Early or late?', tags: ['Everyday', 'Math & patterns'],
+      why: 'Social Security: claim early, or wait until 70?',
+      text: 'Nobody knows how long they will live, so this rolls 10,000 random lifetimes from the official life tables and counts who collects more. It handles couples and survivor benefits, and you can add investment growth. A clear picture of the bet, not financial advice.' },
+    { s: 3, href: '/norad/', name: 'Strategic display', tags: ['Everyday'],
+      why: 'A Cold War command-center big board.',
+      text: 'A glowing green NORAD-style display. Watch the 72-minute timeline from the book Nuclear War: A Scenario unfold, or relive the night in 1983 when Soviet officer Stanislav Petrov saw five "incoming missiles" on his screen and decided they were a false alarm.' },
+    { s: 3, href: '/opscon/', name: 'Opscon', tags: ['Everyday', 'Art & music'],
+      why: 'A movie-style hacker screen for your spare monitor.',
+      text: 'Matrix rain, glowing world maps, spinning satellites and a fake break-in that always ends in ACCESS GRANTED. None of it is real; it is a screensaver dressed up like the movies. Press F for full screen and leave it running on a spare monitor.' },
+  ];
+
+  const dlg = document.getElementById('guide');
+  const body = document.getElementById('guideBody');
+  const tools = dlg.querySelector('.g-tools');
+  const search = document.getElementById('guideSearch');
+  let topic = 'All';
+
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  ['All', ...TOPICS].forEach((t) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = t;
+    b.setAttribute('aria-pressed', t === 'All');
+    b.onclick = () => { topic = t; tools.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', c === b)); render(); body.scrollTop = 0; };
+    tools.insertBefore(b, search);
+  });
+
+  function render() {
+    const q = search.value.trim().toLowerCase();
+    const hits = APPS.filter((a) => (topic === 'All' || a.tags.includes(topic)) &&
+      (!q || (a.name + ' ' + a.why + ' ' + a.text + ' ' + a.tags.join(' ')).toLowerCase().includes(q)));
+    let out = '';
+    SECTIONS.forEach((sec, i) => {
+      const list = hits.filter((a) => a.s === i);
+      if (!list.length) return;
+      out += `<h3 class="g-sec">${esc(sec.name)}</h3>`;
+      list.forEach((a) => {
+        out += `<article class="g-item" style="--accent:${sec.accent}">
+          <h3><span class="tape">${esc(a.name)}</span></h3>
+          <p class="g-why">${esc(a.why)}</p>
+          <p class="g-text">${esc(a.text)}</p>
+          <div class="g-foot">${a.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}
+            <a class="g-open" href="${a.href}">Open ${esc(a.name)} →</a></div>
+        </article>`;
+      });
+    });
+    body.innerHTML = (out || '<p class="g-empty">Nothing matches that. Try another word, or tap All.</p>') +
+      `<p class="g-count">${hits.length} of ${APPS.length} projects shown.</p>`;
+  }
+  search.addEventListener('input', () => {
+    if (search.value && topic !== 'All') { topic = 'All'; tools.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', c.textContent === 'All')); }
+    render();
+  });
+
+  function open() {
+    render();
+    if (!dlg.open) dlg.showModal();
+    if (location.hash !== '#guide') history.replaceState(null, '', '#guide');
+    if (window.labTrack) labTrack('guide');
+  }
+  function close() { if (dlg.open) dlg.close(); }
+  dlg.addEventListener('close', () => { if (location.hash === '#guide') history.replaceState(null, '', location.pathname); });
+  document.getElementById('guideBtn').onclick = open;
+  document.getElementById('guideClose').onclick = close;
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+  if (location.hash === '#guide') open();
+  addEventListener('hashchange', () => { if (location.hash === '#guide') open(); });
+})();
+</script>
 
 <script src="/lab/track.js" defer></script>
 </body>
