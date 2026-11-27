@@ -37,7 +37,7 @@
   h1 { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 700; font-size: clamp(3rem, 9vw, 5.2rem); line-height: .9; letter-spacing: -.01em; display: flex; align-items: center; gap: .25em; }
   h1 .mark { height: 1.15em; width: auto; flex: none; overflow: visible; }
   h1 span { font-family: Orbitron, "IBM Plex Sans Condensed", sans-serif; font-weight: 900; font-size: .62em; letter-spacing: .12em; }
-  .intro { max-width: 30ch; font-size: 1.05rem; color: #3D4651; }
+  .intro { max-width: 44ch; font-size: 1.05rem; color: #3D4651; }
 
   /* ---------- the rack ---------- */
   .rack { max-width: 980px; margin: 0 auto; background: var(--rack); border-radius: 6px; padding: 14px 0;
@@ -109,13 +109,12 @@
 <path d="M160 22 L262 272 M160 22 L58 272" stroke="url(#lg)" stroke-width="30" stroke-linecap="round" fill="none"/>
 <circle cx="300" cy="148" r="9" fill="#7FE3FF" filter="url(#lgl)"/><circle cx="300" cy="148" r="8" fill="#159BD0"/>
 </svg><span>AUGIELAB</span></h1>
-  <p class="intro">Small things Mark builds, mostly for fun. Pick a unit off the rack.</p>
+  <p class="intro"><b>Mark “Augie” Aughenbaugh</b><br>HPC and AI-cluster support · 20 years in Intel labs.<br>GPU-cluster tools up top; quantum experiments and game-night fun below.</p>
 </header>
 
 <main class="rack" aria-label="Projects">
   <div class="rail" aria-hidden="true"></div>
   <div class="bay">
-
     <div class="blank" role="heading" aria-level="2">AI infrastructure</div>
 
     <a class="unit live" href="/cluster/">
@@ -134,6 +133,27 @@
       <span class="state">Live</span>
     </a>
 
+    <a class="unit live" href="/glitch/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Simulation detector</span>
+      <span class="desc">Two quantum sources on opposite sides of the planet, watched live for any sign that reality is glitching.</span>
+      <span class="state">Live (demo)</span>
+    </a>
+
+    <a class="unit live" href="/showdown/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Randomness showdown</span>
+      <span class="desc">A Geiger counter, a quantum chip, your browser and a cheater: same randomness tests, live, side by side.</span>
+      <span class="state">Live (demo)</span>
+    </a>
+
+    <a class="unit live" href="/refinery/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Randomness refinery</span>
+      <span class="desc">Raw quantum noise in, perfect randomness out. Watch the generator's raw readings and its SHA-256 refined output side by side.</span>
+      <span class="state">Live (demo)</span>
+    </a>
+
     <a class="unit live" href="/future/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Feel the future</span>
@@ -141,10 +161,10 @@
       <span class="state">Live (demo)</span>
     </a>
 
-    <a class="unit live" href="/glitch/">
+    <a class="unit live" href="/muons/">
       <span class="led" aria-hidden="true"></span>
-      <span class="tape">Simulation detector</span>
-      <span class="desc">Two quantum sources on opposite sides of the planet, watched live for any sign that reality is glitching.</span>
+      <span class="tape">Muon rain</span>
+      <span class="desc">Quantum dice decide when each muon dies. Einstein's slow clocks decide if it reaches the ground. Flip relativity off and watch the rain stop.</span>
       <span class="state">Live (demo)</span>
     </a>
 
@@ -155,17 +175,17 @@
       <span class="state">Live (demo)</span>
     </a>
 
-    <a class="unit live" href="/passwords/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Quantum passwords</span>
-      <span class="desc">Strong passwords and passphrases, punched out on label tape. Made in your browser, never sent anywhere.</span>
-      <span class="state">Live (demo)</span>
-    </a>
-
     <a class="unit live" href="/dice/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Quantum dice</span>
       <span class="desc">Dice, coin flips and a photon-picked lottery line. Same odds, better story.</span>
+      <span class="state">Live (demo)</span>
+    </a>
+
+    <a class="unit live" href="/passwords/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Quantum passwords</span>
+      <span class="desc">Strong passwords and passphrases, punched out on label tape. Made in your browser, never sent anywhere.</span>
       <span class="state">Live (demo)</span>
     </a>
 
@@ -180,27 +200,6 @@
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Coincidence hunter</span>
       <span class="desc">Random digits stream into a sunflower while it hunts for Fibonacci runs like 2-3-5-8. How often does chance fake a pattern?</span>
-      <span class="state">Live (demo)</span>
-    </a>
-
-    <a class="unit live" href="/refinery/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Randomness refinery</span>
-      <span class="desc">Raw quantum noise in, perfect randomness out. Watch the generator's raw readings and its SHA-256 refined output side by side.</span>
-      <span class="state">Live (demo)</span>
-    </a>
-
-    <a class="unit live" href="/muons/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Muon rain</span>
-      <span class="desc">Quantum dice decide when each muon dies. Einstein's slow clocks decide if it reaches the ground. Flip relativity off and watch the rain stop.</span>
-      <span class="state">Live (demo)</span>
-    </a>
-
-    <a class="unit live" href="/gps/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Where am I, really?</span>
-      <span class="desc">Why your phone's GPS dot wanders a few meters, how surveyors pin it to a centimeter, and what Einstein really does to GPS.</span>
       <span class="state">Live (demo)</span>
     </a>
 
@@ -225,13 +224,6 @@
       <span class="state">Live (demo)</span>
     </a>
 
-    <a class="unit live" href="/showdown/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Randomness showdown</span>
-      <span class="desc">A Geiger counter, a quantum chip, your browser and a cheater: same randomness tests, live, side by side.</span>
-      <span class="state">Live (demo)</span>
-    </a>
-
     <a class="unit live" href="/jukebox/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Schrödinger's jukebox</span>
@@ -246,17 +238,33 @@
       <span class="state">Live (demo)</span>
     </a>
 
-    <a class="unit live" href="/train/">
+    <a class="unit live" href="/gps/">
       <span class="led" aria-hidden="true"></span>
-      <span class="tape">The miracle train</span>
-      <span class="desc">How rare is going out on your very first play in Mexican Train? Millions of shuffled dominoes find out.</span>
+      <span class="tape">Where am I, really?</span>
+      <span class="desc">Why your phone's GPS dot wanders a few meters, how surveyors pin it to a centimeter, and what Einstein really does to GPS.</span>
       <span class="state">Live (demo)</span>
+    </a>
+
+    <div class="blank" role="heading" aria-level="2">Game night</div>
+
+    <a class="unit live" href="/mt/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Mexican train helper</span>
+      <span class="desc">Game night: tap in your tiles to find your best opening train, count your leftovers, and keep score for all 13 rounds.</span>
+      <span class="state">Live</span>
     </a>
 
     <a class="unit live" href="/mexican/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Mexican train</span>
       <span class="desc">Double-12 dominoes against the computer. Every time you draw, the coach shows your odds of pulling one that fits.</span>
+      <span class="state">Live (demo)</span>
+    </a>
+
+    <a class="unit live" href="/train/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">The miracle train</span>
+      <span class="desc">How rare is going out on your very first play in Mexican Train? Millions of shuffled dominoes find out.</span>
       <span class="state">Live (demo)</span>
     </a>
 
@@ -274,13 +282,6 @@
       <span class="state">Live (demo)</span>
     </a>
 
-    <a class="unit live" href="/puzzle/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Picture shuffle</span>
-      <span class="desc">A picture cut up and shuffled. Swap the pieces back against the clock. Use your own photo.</span>
-      <span class="state">Live (demo)</span>
-    </a>
-
     <a class="unit live" href="/bridge/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">The quantum dealer</span>
@@ -288,26 +289,19 @@
       <span class="state">Live (demo)</span>
     </a>
 
-    <a class="unit live" href="/ss/">
+    <a class="unit live" href="/puzzle/">
       <span class="led" aria-hidden="true"></span>
-      <span class="tape">Early or late?</span>
-      <span class="desc">The Social Security bet: claim at 66 or wait for 70? Roll 10,000 lifetimes from the real life tables and see who wins.</span>
+      <span class="tape">Picture shuffle</span>
+      <span class="desc">A picture cut up and shuffled. Swap the pieces back against the clock. Use your own photo.</span>
       <span class="state">Live (demo)</span>
     </a>
 
-    <div class="blank" role="heading" aria-level="2">Everyday tools</div>
+    <div class="blank" role="heading" aria-level="2">Everyday tools and fun</div>
 
     <a class="unit live" href="/pomodoro/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Pomodoro timer</span>
       <span class="desc">Glowing Nixie tubes count down 25 minutes of focus, then a 5-minute break.</span>
-      <span class="state">Live</span>
-    </a>
-
-    <a class="unit live" href="/mt/">
-      <span class="led" aria-hidden="true"></span>
-      <span class="tape">Mexican train helper</span>
-      <span class="desc">Game night: tap in your tiles to find your best opening train, count your leftovers, and keep score for all 13 rounds.</span>
       <span class="state">Live</span>
     </a>
 
@@ -325,6 +319,13 @@
       <span class="state">Live</span>
     </a>
 
+    <a class="unit live" href="/ss/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Early or late?</span>
+      <span class="desc">The Social Security bet: claim at 66 or wait for 70? Roll 10,000 lifetimes from the real life tables and see who wins.</span>
+      <span class="state">Live (demo)</span>
+    </a>
+
     <a class="unit live" href="/norad/">
       <span class="led" aria-hidden="true"></span>
       <span class="tape">Strategic display</span>
@@ -338,7 +339,6 @@
       <span class="desc">A make-believe operations console for a spare monitor: satellites, intrusions, maps and matrix rain.</span>
       <span class="state">Live</span>
     </a>
-
 
   </div>
   <div class="rail" aria-hidden="true"></div>
