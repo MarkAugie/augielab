@@ -67,6 +67,10 @@
   .cmd .c { color: var(--faint); }
   .cmd .lbl { display: block; color: var(--dim); font: 600 .78rem "IBM Plex Sans", sans-serif; margin-bottom: 3px; word-break: normal; }
   .cmd button { font-size: .76rem; padding: 5px 9px; }
+  .cmd .btns { display: flex; flex-direction: column; gap: 6px; }
+  .cmd .run { border-color: rgba(63,214,224,.5); color: var(--cyan); }
+  .cmd pre.out { tab-size: 22; grid-column: 1 / -1; margin-top: 4px; padding: 10px 12px; border-radius: 8px; background: #0B1A14; border: 1px solid #1E5A3D; color: #B8F0CF; font-size: .8rem; max-height: 340px; overflow: auto; word-break: normal; white-space: pre-wrap; }
+  .demobar { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(63,214,224,.07); border: 1px solid rgba(63,214,224,.35); color: #BDEFF3; font-size: .92rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
   .exp { margin-top: 8px; color: var(--dim); font-size: .86rem; }
   .exp code { color: #9FB3C8; font-size: .8rem; }
   .gotchas { margin-top: 14px; }
@@ -112,6 +116,7 @@
     </div>
     <div id="fleetBox" hidden><label style="font-size:.74rem;color:var(--dim);font-weight:700;letter-spacing:.06em;text-transform:uppercase">BMC hosts, one per line (saved as bmcs.txt in the commands)</label><textarea id="hosts" placeholder="gpu-r1-n01-bmc&#10;gpu-r1-n02-bmc&#10;gpu-r1-n03-bmc"></textarea></div>
     <p class="vnote" id="vnote"></p>
+    <div class="demobar"><span>🧪 <b>Just looking?</b> Every command has a <b>▶ Demo</b> button that shows what a demo HGX H100 BMC would return (it has a failed fan, a failed power supply and a GPU missing from the OS for you to find). Nothing is actually sent anywhere.</span><button id="demoTarget">Fill in a demo target</button></div>
   </section>
 
   <div class="main">
@@ -299,6 +304,45 @@ ${body}`;
     { id: 'pb-bmc', t: 'BMC not answering', d: 'Get the BMC back without taking the host down.', steps: [['From the host: is the BMC alive in-band?', 'host', c => [['', 'sudo ipmitool mc info && sudo ipmitool lan print 1']]], ['Reset it (host keeps running)', 'bmcreset'], ['Still dead: last resort', 'host', c => [['', '# Drain the node, then on site: pull all AC cords ~60 s, reconnect. Resets BMC and host together.']]]] },
   ];
 
+  // ============ demo BMC (simulated responses) ============
+  const J = o => JSON.stringify(o, null, 2);
+  function demoOut(id, iface, c, idx) {
+    const sys = c.sys, mgr = c.mgr, chs = c.chs, ts = '2026-11-26T03:14:05+00:00';
+    const rf = iface === 'rf' || iface === 'py';
+    const S = {
+      discover: () => rf ? (idx === 0 ? J({ RedfishVersion: '1.17.0', Vendor: c.v.name.split(' ')[0], Product: 'HGX H100 8-GPU', Systems: { '@odata.id': '/redfish/v1/Systems' }, Managers: { '@odata.id': '/redfish/v1/Managers' }, Chassis: { '@odata.id': '/redfish/v1/Chassis' } }) : `"/redfish/v1/Systems/${sys}"\n"/redfish/v1/Managers/${mgr}"\n"/redfish/v1/Chassis/${chs}"\n"/redfish/v1/Chassis/HGX_Baseboard_0"`)
+        : iface === 'ip' ? (idx === 0 ? 'Device ID                 : 32\nFirmware Revision         : 12.60\nIPMI Version              : 2.0\nManufacturer Name         : Demo Systems\nProduct Name              : HGX H100 Server' : 'IP Address Source       : DHCP Address\nIP Address              : 10.20.0.57\nMAC Address             : 3c:ec:ef:12:34:56\nDefault Gateway IP      : 10.20.0.1')
+        : 'IP Address              : 10.20.0.57\nMAC Address             : 3c:ec:ef:12:34:56',
+      token: () => idx === 0 ? '(no output; $TOKEN now holds the session token)\n$ echo ${#TOKEN}\n32' : 'HTTP/1.1 204 No Content',
+      pstate: () => rf ? J({ PowerState: 'On', Status: { State: 'Enabled', Health: 'OK', HealthRollup: 'Warning' } }) : idx === 0 ? 'Chassis Power is on' : 'System Power         : on\nPower Overload       : false\nMain Power Fault     : false\nLast Power Event     : \nChassis Intrusion    : inactive\nCooling/Fan Fault    : true',
+      allow: () => J({ target: `/redfish/v1/Systems/${sys}/Actions/ComputerSystem.Reset`, 'ResetType@Redfish.AllowableValues': ['On', 'ForceOff', 'GracefulShutdown', 'GracefulRestart', 'ForceRestart', 'PowerCycle', 'Nmi'] }),
+      pon: () => rf ? 'HTTP/1.1 204 No Content' : 'Chassis Power Control: Up/On',
+      psoft: () => rf ? 'HTTP/1.1 204 No Content\n(60 s later, PowerState: "Off")' : 'Chassis Power Control: Soft',
+      poff: () => rf ? 'HTTP/1.1 204 No Content' : 'Chassis Power Control: Down/Off',
+      pcycle: () => rf ? 'HTTP/1.1 204 No Content\n(power off ~10 s, then on; host POSTs in ~3 min)' : 'Chassis Power Control: Cycle',
+      preset: () => rf ? 'HTTP/1.1 204 No Content' : 'Chassis Power Control: Reset',
+      sel: () => rf ? (idx === 0 ? `"/redfish/v1/Systems/${sys}/LogServices/${c.v.sel}"\n"/redfish/v1/Managers/${mgr}/LogServices/${c.v.sel === 'Sel' ? 'Sel' : 'Journal'}"` : `2026-11-26T02:10:44+00:00\tCritical\tFan FAN_GPU_4 Lower Critical going low\n2026-11-26T02:11:31+00:00\tWarning\tTemperature GPU_ZONE_B Upper Non-critical going high\n2026-11-26T02:11:31+00:00\tWarning\tFan redundancy lost\n${ts}\tCritical\tPCIe: GPU at slot 4 link down`)
+        : idx === 0 || iface === 'host' ? '  4c | 11/26/2026 | 02:10:44 | Fan FAN_GPU_4          | Lower Critical going low      | Asserted\n  4d | 11/26/2026 | 02:11:31 | Temperature GPU_ZONE_B | Upper Non-critical going high | Asserted\n  4e | 11/26/2026 | 02:11:31 | Fan Redundancy         | Redundancy Lost               | Asserted\n  4f | 11/26/2026 | 03:14:05 | Slot / Connector SLOT4 | Fault Status                  | Asserted' : 'SEL Information\nVersion          : 1.5 (v1.5, v2 compliant)\nEntries          : 80\nPercent Used     : 15%\nOverflow         : false',
+      selclear: () => idx === 0 ? '(saved to sel-' + (c.host.replace('$', '') || 'bmc') + '-2026-11-26.' + (rf ? 'json' : 'txt') + ', 80 entries)' : rf ? 'HTTP/1.1 204 No Content' : 'Clearing SEL.  Please allow a few seconds to erase.',
+      health: () => rf ? J({ PowerState: 'On', Health: 'OK', HealthRollup: 'Warning', Bios: '2.3.5', Model: 'HGX H100 8-GPU', SerialNumber: 'DEMO1234567' }) : idx === 0 ? 'System Power         : on\nCooling/Fan Fault    : true\nDrive Fault          : false' : 'FAN_GPU_4        | 41h | cr  | 29.4 | 1200 RPM\nGPU_ZONE_B Temp  | 52h | nc  | 41.3 | 79 degrees C',
+      thermal: () => rf ? (idx === 0 ? 'FAN_CPU_1\t11800\tOK\nFAN_CPU_2\t11900\tOK\nFAN_GPU_3\t15200\tOK\nFAN_GPU_4\t1200\tCritical\nFAN_GPU_5\t15400\tOK' : 'Inlet_Temp\t24\t45\tOK\nGPU_ZONE_A\t61\t95\tOK\nGPU_ZONE_B\t79\t95\tWarning\nCPU0_Temp\t58\t100\tOK\nFAN_GPU_4\t1200\tRPM\tCritical\nFAN_GPU_5\t15400\tRPM\tOK')
+        : iface === 'host' ? 'GPU 00000000:BA:00.0\n        Current Temp                      : 86 C\n        HW Slowdown                       : Active\n            HW Thermal Slowdown           : Active' : idx === 0 ? 'Inlet_Temp       | 01h | ok  | 64.1 | 24 degrees C\nGPU_ZONE_A       | 0Ah | ok  | 41.1 | 61 degrees C\nGPU_ZONE_B       | 0Bh | nc  | 41.2 | 79 degrees C' : 'FAN_GPU_3        | 33h | ok  | 29.3 | 15200 RPM\nFAN_GPU_4        | 34h | cr  | 29.4 | 1200 RPM\nFAN_GPU_5        | 35h | ok  | 29.5 | 15400 RPM',
+      psu: () => rf ? 'PSU1\tEnabled\tOK\t3000\nPSU2\tEnabled\tOK\t3000\nPSU3\tUnavailableOffline\tCritical\t3000\nPSU4\tEnabled\tOK\t3000\nPSU5\tEnabled\tOK\t3000\nPSU6\tEnabled\tOK\t3000' : idx === 0 ? 'PSU1 Status      | 60h | ok  | 10.1 | Presence detected\nPSU3 Status      | 62h | cr  | 10.3 | Presence detected, Failure detected\nPSU Redundancy   | 66h | ok  | 10.7 | Redundancy Degraded' : '    Instantaneous power reading:                  7840 Watts\n    Average power reading over sample period:     7612 Watts',
+      fw: () => rf ? 'BIOS\t2.3.5\nBMC\t12.60.21\nCPLD_MB\t3.1\nHGX_FW_GPU_SXM_1\t96.00.89.00.01\nHGX_FW_NVSwitch_0\t96.10.6D.00.01\nNIC_CX7_1\t28.39.1002\nPSU_FW\t1.4' : iface === 'ip' ? 'Firmware Revision         : 12.60' : '2.3.5\nindex, vbios_version\n0, 96.00.89.00.01\n...\nfirmware-version: 28.39.1002 (MT_0000000838)',
+      gpus: () => rf ? (idx === 0 ? 'GPU_SXM_1\tNVIDIA H100 80GB HBM3\tOK\nGPU_SXM_2\tNVIDIA H100 80GB HBM3\tOK\nGPU_SXM_3\tNVIDIA H100 80GB HBM3\tOK\nGPU_SXM_4\tNVIDIA H100 80GB HBM3\tOK\nGPU_SXM_5\tNVIDIA H100 80GB HBM3\tCritical\nGPU_SXM_6\tNVIDIA H100 80GB HBM3\tOK\nGPU_SXM_7\tNVIDIA H100 80GB HBM3\tOK\nGPU_SXM_8\tNVIDIA H100 80GB HBM3\tOK' : `"/redfish/v1/Systems/${sys}/PCIeDevices/GPU_SXM_1"\n...  (24 devices)`) : iface === 'ip' ? 'FRU Device Description : Builtin FRU Device (ID 0)\n Board Mfg             : Demo Systems\n Board Serial          : DEMO-BRD-001\n Product Name          : HGX H100 Server' : 'GPU 0: NVIDIA H100 80GB HBM3 (UUID: GPU-<uuid>)\n...\nGPU 6: NVIDIA H100 80GB HBM3 (UUID: GPU-<uuid>)\n(7 GPUs: one is missing from the OS but the BMC still sees it)',
+      mem: () => rf ? (idx === 0 ? 'DIMM_A1\t65536\tOK\nDIMM_A2\t65536\tOK\n...\nDIMM_B7\t65536\tWarning\nDIMM_B8\t65536\tOK\n(32 DIMMs, 2 TB)' : 'CPU0\tIntel(R) Xeon(R) Platinum 8480+\tOK\nCPU1\tIntel(R) Xeon(R) Platinum 8480+\tOK') : iface === 'ip' ? 'DIMM_B7 ECC      | 8Ah | ok  | 32.1 | Correctable ECC' : '\tLocator: DIMM_B7\n\tSize: 64 GB\nmc0: 12 Corrected errors, csrow 7',
+      nic: () => rf ? (idx === 0 ? `"/redfish/v1/Chassis/${chs}/NetworkAdapters/CX7_1"\n... (8 × ConnectX-7 for the IB rails, 2 × front-end)` : `"/redfish/v1/Systems/${sys}/EthernetInterfaces/eth0"`) : "CA 'mlx5_0'\n\tState: Active\n\tRate: 400\n...\nCA 'mlx5_3'\n\tState: Down\n\tRate: 10\nmlx5_3 port 1 ==> ibp195s0 (Down)",
+      pxe: () => rf ? 'HTTP/1.1 204 No Content' : iface === 'host' ? 'BootNext: 0004\nBoot0004* UEFI PXEv4 (MAC:3CECEF123456)' : idx === 0 ? 'Set Boot Device to pxe' : 'Chassis Power Control: Reset',
+      bios: () => rf ? 'HTTP/1.1 204 No Content' : 'Set Boot Device to bios',
+      sol: () => idx === 0 ? '[SOL Session operational.  Use ~? for help]\n\nUbuntu 22.04.4 LTS gpu-r2-n07 ttyS0\n\ngpu-r2-n07 login: _' : iface === 'host' ? '(add to GRUB_CMDLINE_LINUX, then update-grub and reboot)' : '(session deactivated)',
+      vm: () => idx === 0 ? `"/redfish/v1/Managers/${mgr}/VirtualMedia/${c.v.cd.startsWith('<') ? 'CD1' : c.v.cd}"\n"/redfish/v1/Managers/${mgr}/VirtualMedia/USB1"` : 'HTTP/1.1 204 No Content',
+      bmcreset: () => rf ? 'HTTP/1.1 204 No Content\n(BMC offline ~2 min; host keeps running)' : 'Sent cold reset command to MC',
+      bmcfw: () => rf ? J({ FirmwareVersion: '12.60.21', Model: 'AST2600', DateTime: '2026-11-26T03:20:11+00:00', Status: { State: 'Enabled', Health: 'OK' } }) : 'Firmware Revision         : 12.60\nManufacturer Name         : Demo Systems',
+      users: () => rf ? '2\tadmin\tAdministrator\ttrue\n3\topsbot\tOperator\ttrue\n4\tADMIN\tAdministrator\ttrue    <- vendor default account still enabled!' : 'ID  Name       Callin  Link Auth  IPMI Msg   Channel Priv Limit\n2   admin      true    true       true       ADMINISTRATOR\n4   ADMIN      true    true       true       ADMINISTRATOR',
+    };
+    const f = S[id]; return f ? f() : '(demo output not available for this step)';
+  }
+
   // ============ UI ============
   let cur = store.get('task', 'discover'), iface = store.get('iface', 'rf');
   const IF = [['rf', 'Redfish curl'], ['ip', 'ipmitool'], ['py', 'Python'], ['host', 'On the host']];
@@ -326,9 +370,9 @@ ${body}`;
     const out = /\$BMC/.test(cmd) ? cmd : cmd;
     return `printf '%s\\n' ${($('hosts').value.trim().split(/\s+/).filter(Boolean).join(' ') || '<bmc1> <bmc2>')} > bmcs.txt\nwhile read -r BMC; do\n  echo "== $BMC"\n  ${out.replace(/\n/g, '\n  ')}\ndone < bmcs.txt`;
   };
-  function cmdBlock(c, label, cmd, i) {
+  function cmdBlock(c, label, cmd, i, sim) {
     const full = wrapFleet(c, cmd);
-    return `<div class="cmd"><pre>${label ? `<span class="lbl">${esc(label)}</span>` : ''}${esc(full)}</pre><button data-cp="${i}">Copy</button></div>`;
+    return `<div class="cmd"><pre>${label ? `<span class="lbl">${esc(label)}</span>` : ''}${esc(full)}</pre><span class="btns"><button data-cp="${i}">Copy</button>${sim ? `<button class="run" data-run="${esc(sim)}">▶ Demo</button>` : ''}</span><pre class="out" hidden></pre></div>`;
   }
   function setupBlock(c) {
     const lines = [];
@@ -348,8 +392,9 @@ ${body}`;
       let n = 0;
       D.innerHTML = `<div class="th">📋 Playbook: ${esc(pb.t)}</div><p class="tdesc">${esc(pb.d)}</p>${setupBlock(c)}` + pb.steps.map(([title, ref, fn], si) => {
         const t = T.find(x => x.id === ref);
-        let rows = fn ? fn(c) : (t[iface] && t[iface](c).length ? t[iface](c) : t.rf(c).length ? t.rf(c) : t.ip(c));
-        const body = rows.map(([l, cmd]) => { copyables[n] = wrapFleet(c, cmd); return cmdBlock(c, l, cmd, n++); }).join('');
+        const used = fn ? (ref === 'selclear' ? (iface === 'ip' ? 'ip' : 'rf') : 'host') : (t[iface] && t[iface](c).length ? iface : t.rf(c).length ? 'rf' : 'ip');
+        let rows = fn ? fn(c) : t[used](c);
+        const body = rows.map(([l, cmd], ri) => { copyables[n] = wrapFleet(c, cmd); return cmdBlock(c, l, cmd, n++, t ? `${ref}|${used}|${ri}` : ''); }).join('');
         return `<div class="pbstep"><h4><span>${si + 1}</span>${esc(title)}${t && t.risk ? ' <span class="risk" style="float:none;margin-left:6px;font:700 .64rem IBM Plex Mono,monospace;padding:2px 6px;border-radius:4px;background:rgba(255,82,99,.18);color:#FFB3BC">DISRUPTIVE</span>' : ''}</h4>${body}${t && t.got[0] ? `<div class="got"><b>Gotcha:</b> ${t.got[0]}</div>` : ''}</div>`;
       }).join('') + `<p class="exp" style="margin-top:14px">Tabs above each task choose Redfish / ipmitool / Python; playbook steps use your current choice where it exists.</p>`;
     } else {
@@ -361,7 +406,7 @@ ${body}`;
         <div class="tabs">${IF.map(([k, l]) => `<button data-if="${k}" class="${k === use ? 'on' : ''}" ${t[k](c).length ? '' : 'disabled style="opacity:.35"'}>${l}</button>`).join('')}</div></div>
         ${t.risk ? '<div class="danger">⚠ Disruptive: this affects the running host. Drain it in the scheduler first unless you mean to interrupt jobs.</div>' : ''}
         ${setupBlock(c)}
-        ${rows.map(([l, cmd], i) => { copyables[i] = wrapFleet(c, cmd); return cmdBlock(c, l, cmd, i); }).join('')}
+        ${rows.map(([l, cmd], i) => { copyables[i] = wrapFleet(c, cmd); return cmdBlock(c, l, cmd, i, `${t.id}|${use}|${i}`); }).join('')}
         ${rows.length > 1 ? `<div style="margin-top:8px;text-align:right"><button data-cp="all">Copy all</button></div>` : ''}
         ${t.exp ? `<p class="exp"><b>Expect:</b> ${t.exp}</p>` : ''}
         ${t.got.length ? `<div class="gotchas">${t.got.map(g => `<div class="got"><b>Gotcha:</b> ${g}</div>`).join('')}</div>` : ''}`;
@@ -370,12 +415,20 @@ ${body}`;
     }
     copyables.setup = D.querySelector('.setup pre') ? D.querySelector('.setup pre').textContent : '';
     D.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => copy(b, copyables[b.dataset.cp]));
+    D.querySelectorAll('[data-run]').forEach(b => b.onclick = () => {
+      const [id, ifc, i] = b.dataset.run.split('|'), o = b.closest('.cmd').querySelector('.out');
+      if (!o.hidden) { o.hidden = true; b.textContent = '▶ Demo'; return; }
+      o.textContent = '…'; o.hidden = false; b.textContent = 'Hide';
+      setTimeout(() => { o.textContent = demoOut(id, ifc, C(), +i); }, 250 + Math.random() * 350);
+      window.labTrack && labTrack('demo', 1);
+    });
   }
   function copy(btn, text) {
     const done = () => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1200); };
     try { navigator.clipboard.writeText(text).then(done, fb); } catch (e) { fb(); }
     function fb() { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) {} t.remove(); }
   }
+  $('demoTarget').onclick = () => { $('bmc').value = 'gpu-r2-n07-bmc'; $('user').value = 'admin'; $('vendor').value = 'dgx'; setIDs(true); $('fleet').checked = false; save(); cur = 'thermal'; list(); draw(); $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   setIDs(false); save(); list(); draw();
   window.__rf = { T, PB, C };
 })();
