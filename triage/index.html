@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Log Triage Buddy · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Paste logs from a GPU node (dmesg, nvidia-smi, ipmitool SEL, ibstat, lspci, NCCL, Slurm). Get the probable root cause, the next commands, and a customer reply in seconds. Runs entirely in your browser.">
+<meta property="og:title" content="Log Triage Buddy">
+<meta property="og:description" content="GPU node logs in, root cause + next commands + customer reply out. Xid, SXid, ECC, NVLink, InfiniBand, NCCL, Fabric Manager, PCIe, BMC. Nothing leaves your browser.">
+<meta property="og:url" content="https://augielab.dev/triage/">
+<meta name="theme-color" content="#0A0E13">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0A0E13; --panel: #111821; --panel2: #16202B; --line: #24313F; --ink: #E8EEF5; --dim: #93A3B6; --faint: #5E6E80;
+    --ok: #34D58A; --warn: #FFB224; --bad: #FF5263; --crit: #FF3B5C; --info: #5AB8FF; --vio: #B48CFF; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); font-size: 17px; -webkit-text-size-adjust: 100%; }
+  body { color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; min-height: 100vh; padding: 12px 14px 90px; }
+  .wrap { max-width: 1560px; margin: 0 auto; }
+  .mono, code { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  button, select, input { font: 600 .92rem "IBM Plex Sans", sans-serif; color: var(--ink); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+  button { cursor: pointer; } button:hover { border-color: #3C5168; background: #1B2735; }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+  button.go { background: var(--ok); color: #06140D; border-color: var(--ok); font-weight: 700; }
+  input { font-weight: 500; }
+
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .brand a { color: var(--dim); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .brand h1 { font: 700 clamp(1.6rem, 3.2vw, 2.2rem)/1.1 "IBM Plex Sans Condensed", sans-serif; }
+  .brand h1 span { color: var(--ok); }
+  .brand .sub { color: var(--dim); font-size: .95rem; max-width: 62ch; }
+  .priv { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid #1E5A3D; background: rgba(52,213,138,.07); color: #A9EBC9; font-size: .85rem; }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .main > * { min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card + .card { margin-top: 14px; }
+  .card h2 { font: 700 1.02rem "IBM Plex Sans", sans-serif; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .card h2 .muted { font-weight: 500; font-size: .82rem; color: var(--dim); }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar select { max-width: 100%; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .fields label { font-size: .75rem; color: var(--dim); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; display: block; }
+  .fields input { width: 100%; margin-top: 3px; }
+  textarea { width: 100%; min-height: 330px; margin-top: 10px; resize: vertical; background: #05080B; color: #D3DFEB; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: 400 .8rem/1.5 "IBM Plex Mono", monospace; white-space: pre; }
+  .hintline { color: var(--faint); font-size: .8rem; margin-top: 6px; }
+
+  /* verdict */
+  .verdict { border-radius: 12px; padding: 16px 18px; border: 1px solid var(--line); background: var(--panel); }
+  .verdict.crit { border-color: rgba(255,59,92,.7); background: linear-gradient(180deg, rgba(255,59,92,.14), rgba(255,59,92,.04)); }
+  .verdict.high { border-color: rgba(255,178,36,.6); background: linear-gradient(180deg, rgba(255,178,36,.12), rgba(255,178,36,.03)); }
+  .verdict.warn { border-color: rgba(90,184,255,.5); background: linear-gradient(180deg, rgba(90,184,255,.1), rgba(90,184,255,.02)); }
+  .verdict.ok { border-color: rgba(52,213,138,.5); background: linear-gradient(180deg, rgba(52,213,138,.1), rgba(52,213,138,.02)); }
+  .vtop { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+  .vcat { font: 700 .74rem "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  .vhead { font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.2 "IBM Plex Sans Condensed", sans-serif; margin-top: 4px; }
+  .vsub { color: #C8D4E2; margin-top: 6px; font-size: .95rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { font: 600 .76rem "IBM Plex Mono", monospace; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: #C8D4E2; }
+  .chip b { color: var(--ink); }
+  .conf { font: 700 .8rem "IBM Plex Mono", monospace; padding: 5px 9px; border-radius: 7px; white-space: nowrap; }
+  .conf.hi { background: rgba(52,213,138,.15); color: var(--ok); } .conf.md { background: rgba(255,178,36,.15); color: var(--warn); }
+
+  /* findings */
+  .finds { display: flex; flex-direction: column; gap: 8px; }
+  .find { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); text-align: left; width: 100%; }
+  .find:hover { border-color: #3C5168; }
+  .find > span:last-child { min-width: 0; } .find p, .find .ev { font-weight: 400; } .find b { font-weight: 700; }
+  .sev { font: 700 .68rem "IBM Plex Mono", monospace; padding: 3px 6px; border-radius: 5px; height: fit-content; letter-spacing: .04em; }
+  .sev.crit { background: var(--crit); color: #fff; } .sev.high { background: var(--warn); color: #241600; } .sev.warn { background: var(--info); color: #04121F; } .sev.info { background: #34404D; color: #C8D4E2; }
+  .find b { font-size: .95rem; } .find .cat { color: var(--dim); font-size: .78rem; font-weight: 600; margin-left: 6px; }
+  .find p { color: #C8D4E2; font-size: .86rem; margin-top: 3px; }
+  .find .ev { font: 400 .74rem/1.4 "IBM Plex Mono", monospace; color: #9FB3C8; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .find .cnt { color: var(--faint); font: 600 .74rem "IBM Plex Mono", monospace; }
+  .find.cons { opacity: .72; }
+
+  /* action tabs */
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .out { position: relative; margin-top: 10px; background: #05080B; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font: 400 .82rem/1.55 "IBM Plex Mono", monospace; white-space: pre-wrap; color: #D3DFEB; max-height: 420px; overflow: auto; }
+  .out.prose { font: 400 .95rem/1.6 "IBM Plex Sans", sans-serif; }
+  .out .c { color: var(--faint); }
+  .copy { position: sticky; float: right; top: 0; font-size: .8rem; padding: 6px 10px; }
+  .cmdrow { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid #141D27; }
+  .cmdrow:last-child { border-bottom: 0; }
+  .cmdrow code { flex: 1; white-space: pre-wrap; word-break: break-all; color: #CFE3F5; }
+  .cmdrow .why { word-break: normal; display: block; color: var(--faint); font-family: "IBM Plex Sans", sans-serif; font-size: .8rem; }
+  .cmdrow button { font-size: .75rem; padding: 4px 8px; }
+
+  /* annotated log */
+  .logv { font: 400 .76rem/1.5 "IBM Plex Mono", monospace; background: #05080B; border: 1px solid var(--line); border-radius: 10px; max-height: 420px; overflow: auto; padding: 6px 0; }
+  .logv div { white-space: pre; padding: 0 12px 0 0; display: flex; }
+  .logv .ln { color: #3A4A5B; width: 3.6em; text-align: right; padding-right: 10px; flex: none; user-select: none; }
+  .logv .crit { background: rgba(255,59,92,.16); color: #FFC2CC; } .logv .high { background: rgba(255,178,36,.12); color: #FFE2A8; }
+  .logv .warn { background: rgba(90,184,255,.1); color: #CDE8FF; } .logv .info { background: rgba(255,255,255,.04); }
+  .logv .flash { outline: 2px solid var(--info); }
+  .empty { color: var(--dim); padding: 18px 4px; text-align: center; }
+
+  details.lib { margin-top: 14px; }
+  details.lib summary { cursor: pointer; font-weight: 700; list-style: none; }
+  details.lib summary::before { content: "▸ "; color: var(--dim); } details.lib[open] summary::before { content: "▾ "; }
+  table.sig { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .86rem; }
+  table.sig th { text-align: left; color: var(--dim); font-weight: 600; border-bottom: 1px solid var(--line); padding: 6px 6px; }
+  table.sig td { padding: 6px; border-bottom: 1px solid #1A2531; vertical-align: top; color: #C8D4E2; }
+  table.sig td.k { font-family: "IBM Plex Mono", monospace; white-space: nowrap; color: var(--ink); }
+  footer { margin-top: 18px; color: var(--faint); font-size: .8rem; line-height: 1.55; }
+  footer a { color: var(--dim); }
+  @media (max-width: 1100px) { .main { grid-template-columns: 1fr; } .main > div { display: contents; } .main .card, .main .verdict { margin-top: 0 !important; min-width: 0; }
+    #cPaste { order: 1; } #verdict { order: 2; } #cAct { order: 3; } #cFind { order: 4; } #cLog { order: 5; } }
+  @media (max-width: 640px) { html { font-size: 16px; } .fields { grid-template-columns: 1fr; } textarea { min-height: 240px; font-size: .72rem; } .logv { font-size: .68rem; } table.sig { font-size: .78rem; } }
+</style>
+</head>
+<body data-explain-bottom="16">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <a href="/">← AugieLab</a>
+      <h1>Log Triage <span>Buddy</span></h1>
+      <div class="sub">Paste logs from a GPU node. Get the probable root cause, the next commands to run, and a customer reply, in about a second.</div>
+    </div>
+    <div class="priv">🔒 Runs entirely in your browser. Nothing you paste is uploaded.</div>
+  </header>
+
+  <div class="main">
+    <div>
+      <div class="card" id="cPaste">
+        <h2>1 · Paste logs <span class="muted" id="stat">0 lines</span></h2>
+        <div class="bar">
+          <select id="sample" aria-label="Load a sample log"><option value="">Load a sample log…</option></select>
+          <button id="redact" title="Mask IPs, MACs, emails, serials and UUIDs in the pasted text">Redact</button>
+          <button id="clear">Clear</button>
+          <button class="go" id="analyze">Analyze ⏎</button>
+        </div>
+        <div class="fields">
+          <label>Node <input id="node" placeholder="auto-detected, e.g. gpu-r2-n07" autocomplete="off"></label>
+          <label>Customer first name (for the reply) <input id="cust" placeholder="optional" autocomplete="off"></label>
+        </div>
+        <textarea id="logs" spellcheck="false" placeholder="Paste any mix of:
+  dmesg / journalctl -k        nvidia-smi, nvidia-smi -q
+  ipmitool sel elist           ibstat, perfquery, mlx5 kernel messages
+  lspci -vv                    dcgmi diag output
+  NCCL / PyTorch job logs      Slurm slurmd / sinfo -R
+  systemctl status nvidia-fabricmanager"></textarea>
+        <div class="hintline">Tip: Ctrl+Enter analyzes. It also re-analyzes as you paste.</div>
+      </div>
+
+      <div class="card" id="cLog">
+        <h2>Annotated log <span class="muted">click a finding to jump to its line</span></h2>
+        <div class="logv" id="logv"><div class="empty">Highlighted lines appear here.</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div id="verdict" class="verdict"><div class="vcat">Verdict</div><div class="vhead">Waiting for logs</div><div class="vsub">Paste something on the left, or load a sample to see how it works.</div></div>
+
+      <div class="card" id="cAct" style="margin-top:14px">
+        <h2>2 · What to do <span class="tabs"><button data-t="cmds" class="on">Next commands</button><button data-t="reply">Customer reply</button><button data-t="note">Ticket note</button></span></h2>
+        <div id="action" class="out prose"><span class="c">Commands, a customer reply and an internal ticket note will appear here.</span></div>
+      </div>
+
+      <div class="card" id="cFind">
+        <h2>3 · Findings <span class="muted" id="fcount"></span></h2>
+        <div class="finds" id="finds"><div class="empty">No findings yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <details class="lib card">
+    <summary>Signature library: what this recognizes</summary>
+    <div id="lib"></div>
+  </details>
+
+  <footer>
+    Signatures are based on NVIDIA's Xid documentation and real-world GPU cluster support; meanings are summarized, and actions are a starting point, not a substitute for your fleet's runbooks. Practice these faults in the <a href="/cluster/">Cluster Triage Simulator</a>.<br>
+    Built by Mark "Augie" Aughenbaugh: 20 years of Intel lab, HPC and AI-cluster hardware support.
+  </footer>
+</div>
+
+<template id="explain">
+  <h2>How it works</h2>
+  <h3>A rule engine, not a guess</h3>
+  <p>Every line you paste is checked against a library of known failure signatures: NVIDIA Xid and NVSwitch SXid codes, ECC and row-remapper state, NVLink and InfiniBand link problems, NCCL errors, Fabric Manager and driver mismatches, PCIe errors and link downgrades, BMC event-log entries, and kernel messages like the out-of-memory killer.</p>
+  <h3>Hardware, software, or the customer's code?</h3>
+  <p>That's the first question in GPU support. Each signature is tagged as GPU hardware, node hardware (power, cooling, memory, disks), fabric (NVLink, NVSwitch, InfiniBand), driver/firmware, OS, or customer workload. When real hardware errors are present, the app treats application-level Xids (13, 31, 43, 45) as consequences rather than causes, the way an experienced engineer reads a log.</p>
+  <h3>The three outputs</h3>
+  <p><strong>Next commands</strong> with the node, PCI bus and job filled in. <strong>Customer reply</strong>: calm, specific, no blame, with what happened and what to do next. <strong>Ticket note</strong>: symptom, evidence, classification and next step, ready for the internal ticket or a BKM.</p>
+  <h3>Privacy</h3>
+  <p>Everything runs in your browser. No log text is sent anywhere. The Redact button masks IP and MAC addresses, emails, serial numbers and GPU UUIDs before you share anything.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const SEV = { crit: 4, high: 3, warn: 2, info: 1 };
+  const CAT = {
+    gpu: 'GPU hardware', node: 'Node hardware', fabric: 'Fabric / network', driver: 'Driver / firmware', os: 'OS / storage', user: 'Customer workload',
+  };
+  const CATRANK = { gpu: 6, fabric: 5, node: 4, driver: 3, os: 2, user: 1 };
+  const HGX_BUS = { '18': 0, '2a': 1, '3a': 2, '5d': 3, '9a': 4, 'ab': 5, 'ba': 6, 'db': 7 };
+
+  // ===================== Xid catalog (summarized) =====================
+  const XID = {
+    13: ['Graphics engine exception', 'user', 'warn', 'Usually the application: an illegal instruction or out-of-range access in a kernel. If it shows up across many different jobs on this GPU, suspect hardware.', 'app'],
+    31: ['GPU memory page fault (MMU fault)', 'user', 'warn', 'The named process touched GPU memory it doesn\'t own. Almost always a code bug (bad index or pointer), occasionally a driver issue.', 'app'],
+    32: ['Invalid or corrupted push buffer', 'driver', 'high', 'The driver saw a corrupted command stream. Causes: a driver bug, host memory corruption, or PCIe errors. Check PCIe AER and EDAC.', 'reset'],
+    38: ['Driver firmware error', 'driver', 'high', 'GPU firmware reported an error to the driver. Reset the GPU; if it repeats, update the driver/firmware or open a case.', 'reset'],
+    43: ['GPU stopped processing', 'user', 'info', 'The GPU stopped a process\'s work after an error, usually the application\'s own. Look for the Xid just before it.', 'app'],
+    45: ['Preemptive cleanup after previous errors', 'user', 'info', 'The driver cleaned up after a process died or was killed. A consequence of something else, rarely the cause.', 'app'],
+    48: ['Double-bit ECC error (DBE)', 'gpu', 'crit', 'Uncorrectable error in GPU memory (HBM). On A100/H100 the row remapper records the bad row; a GPU reset applies the remap.', 'reset'],
+    61: ['Internal micro-controller breakpoint/warning', 'driver', 'high', 'On-GPU firmware hit a problem. Reset the GPU; if it repeats, RMA.', 'reset'],
+    62: ['Internal micro-controller halt', 'gpu', 'crit', 'On-GPU firmware halted. Reset the GPU; repeated halts mean RMA.', 'reset'],
+    63: ['ECC row remap / page retirement recorded', 'gpu', 'high', 'A bad memory row was recorded for remapping. It takes effect after a GPU reset; the GPU is still usable.', 'reset'],
+    64: ['Row remap / page retirement failure', 'gpu', 'crit', 'The remap failed or no spare rows are left. This GPU needs an RMA.', 'rma'],
+    74: ['NVLink error', 'fabric', 'crit', 'An NVLink between GPUs/NVSwitches failed. Reset or power-cycle to retrain the links; if the same link fails again, the GPU or HGX baseboard needs service.', 'cycle'],
+    79: ['GPU has fallen off the bus', 'gpu', 'crit', 'The GPU disappeared from PCIe. Causes: GPU failure, power, overheating, or the PCIe path. Needs a full power cycle (a warm reboot often isn\'t enough). Repeats on the same GPU: reseat or RMA.', 'cycle'],
+    92: ['High single-bit ECC error rate', 'gpu', 'warn', 'Correctable memory errors at a high rate. Watch it; a reset lets the remapper retire bad rows; RMA if it keeps climbing.', 'watch'],
+    94: ['Contained ECC error', 'gpu', 'high', 'Uncorrectable ECC error contained to one process: that job was killed, others on the GPU are fine. Reset the GPU when idle to remap the row.', 'reset'],
+    95: ['Uncontained ECC error', 'gpu', 'crit', 'Uncorrectable ECC error that couldn\'t be contained: all work on the GPU is affected. Drain and reset the GPU now.', 'reset'],
+    109: ['Context switch timeout', 'driver', 'high', 'The GPU didn\'t respond to a context switch: a hung kernel, driver or firmware. Reset the GPU; update the driver if it repeats.', 'reset'],
+    119: ['GSP RPC timeout', 'driver', 'crit', 'The GPU System Processor firmware stopped answering the driver. Reset the GPU or reboot; if it repeats, move to a driver with GSP fixes or open a case.', 'reset'],
+    120: ['GSP error', 'driver', 'crit', 'The GPU System Processor reported an error. Reset the GPU or reboot; repeats need a driver update or a case.', 'reset'],
+    154: ['GPU recovery action changed', 'gpu', 'high', 'The driver is stating what recovery it needs (for example GPU reset or node reboot required). Do what the message says.', 'reset'],
+  };
+
+  // ===================== signature rules =====================
+  // kind: drives commands + customer reply. cons: true for app-level signs that become "consequences" when hardware errors exist.
+  const R = [];
+  const rule = (id, re, name, cat, sev, why, kind, extra = {}) => R.push(Object.assign({ id, re, name, cat, sev, why, kind }, extra));
+  rule('xid', /NVRM: Xid \((?:PCI:)?([0-9a-fA-F:.]+)\): (\d+),\s*(.*)$/, null, null, null, null, null, { xid: true });
+  rule('sxid', /nvswitch\d*: SXid \((?:PCI:)?([0-9a-fA-F:.]+)\): (\d+),\s*(Fatal|Non-fatal)(.*)$/i, null, null, null, null, null, { sxid: true });
+  rule('offbus', /GPU has fallen off the bus|GPU is lost|Unable to determine the device handle for GPU\s*([0-9a-fA-F:.]+)?/i, 'A GPU is missing from the node', 'gpu', 'crit', 'nvidia-smi or the driver can\'t reach one GPU. Pairs with Xid 79.', 'offbus');
+  rule('rminit', /RmInitAdapter failed/i, 'GPU failed to initialize', 'gpu', 'crit', 'The driver couldn\'t bring a GPU up at load time: GPU, power, PCIe or a firmware problem.', 'offbus');
+  rule('nodev', /No devices were found/i, 'nvidia-smi sees no GPUs', 'driver', 'high', 'Driver loaded but found no GPUs, or GPUs are not enumerated on PCIe. Check lspci and dmesg.', 'driver');
+  rule('nvmlmm', /Driver\/library version mismatch/i, 'Driver/library version mismatch', 'driver', 'high', 'The NVIDIA driver was updated but the old kernel module is still loaded. Reboot (or unload and reload the modules on a drained node).', 'driver');
+  rule('nodrv', /couldn't communicate with the NVIDIA driver/i, 'NVIDIA driver not loaded', 'driver', 'crit', 'The kernel module isn\'t loaded, often after a kernel update without a DKMS rebuild.', 'driver');
+  rule('apimm', /NVRM: API mismatch/i, 'Driver API mismatch', 'driver', 'high', 'User-space driver libraries and the kernel module are different versions.', 'driver');
+  rule('fmmm', /fabric ?manager.*(doesn'?t|does not) match|fabricmanager.*version mismatch/i, 'Fabric Manager version doesn\'t match the driver', 'driver', 'crit', 'On NVSwitch systems (HGX/DGX), Fabric Manager must exactly match the driver version or the GPU fabric never comes up.', 'fm', { pri: 3 });
+  rule('fmdown', /nvidia-fabricmanager\.service.*(failed|Failed)|Active: failed .*|fabricmanager.*(failed to start|exited)/i, 'Fabric Manager service is down', 'driver', 'crit', 'Without Fabric Manager, CUDA can\'t initialize on NVSwitch systems.', 'fm', { ctxNeed: /fabric/i });
+  rule('e802', /system not yet initialized|error 802|cudaErrorSystemNotReady/i, 'CUDA error 802: system not yet initialized', 'driver', 'crit', 'Classic symptom of Fabric Manager not running (or not matching the driver) on an NVSwitch system.', 'fm');
+  rule('rmfail', /Remapping Failure Occurred\s*:\s*Yes/i, 'Row remapping failure', 'gpu', 'crit', 'The GPU has run out of spare memory rows or a remap failed. RMA the GPU.', 'rma');
+  rule('rmpend', /^\s*(Pending|Pending Page Blacklist)\s*:\s*Yes/i, 'Row remap pending: GPU reset needed', 'gpu', 'high', 'A memory row is waiting to be remapped. It applies on the next GPU reset.', 'reset');
+  rule('uncorr', /(Uncorrectable Error|DRAM Uncorrectable|SRAM Uncorrectable)\s*:\s*[1-9]/i, 'Uncorrectable ECC errors recorded', 'gpu', 'high', 'The GPU has logged uncorrectable memory errors. Check the row remapper.', 'reset');
+  rule('eccmsg', /uncorrectable ECC error encountered/i, 'Job hit an uncorrectable ECC error', 'gpu', 'crit', 'CUDA reported an uncorrectable GPU memory error to the application.', 'reset');
+  rule('hwtherm', /HW Thermal Slowdown\s*:\s*Active/i, 'GPU thermal slowdown (hardware)', 'node', 'high', 'The GPU is hot enough that hardware cut its clocks. Usually cooling: a fan, airflow, blanking panels or liquid cooling.', 'thermal');
+  rule('pbrake', /HW Power Brake Slowdown\s*:\s*Active/i, 'Power brake asserted', 'node', 'high', 'The system pulled the GPU\'s power brake: a power supply or power-delivery event.', 'psu');
+  rule('swtherm', /SW Thermal Slowdown\s*:\s*Active/i, 'GPU thermal slowdown (driver)', 'node', 'warn', 'The driver is cutting clocks to keep the GPU under its temperature target.', 'thermal');
+  rule('aerf', /(PCIe Bus Error: severity=(Uncorrected|Fatal))|AER: (Uncorrected|Fatal)/i, 'PCIe uncorrectable error', 'node', 'crit', 'An uncorrectable PCIe error on the path to a device. Can take a GPU or NIC off the bus.', 'pcie');
+  rule('aerc', /PCIe Bus Error: severity=Corrected|AER: Corrected error/i, 'PCIe corrected errors', 'node', 'warn', 'Corrected PCIe errors. A few are normal; a storm points to a marginal link, riser, retimer or card seating.', 'pcie');
+  rule('lnk', /LnkSta:\s*Speed ([\d.]+)GT\/s[^,]*,\s*Width x(\d+)(.*)$/i, null, null, null, null, null, { lnk: true });
+  rule('nvlinact', /Link \d+(-\d+)?:\s*<inactive>|NVLink.*(inactive|is down)/i, 'NVLink link inactive', 'fabric', 'high', 'One or more NVLink lanes on a GPU are down. Multi-GPU jobs will fail or slow down.', 'cycle');
+  rule('ibdown', /^\s*(Port \d+:\s*)?State:\s*Down/i, 'InfiniBand port down', 'fabric', 'high', 'An IB port isn\'t active. Multi-node jobs that use this rail will hang.', 'ib');
+  rule('ibphys', /Physical state:\s*(Polling|Disabled|LinkErrorRecovery)/i, 'InfiniBand link not trained', 'fabric', 'high', 'The port is polling for a partner: no light, a bad optic or cable, or a down switch port.', 'ib');
+  rule('mlxdown', /mlx5_core.*(Link down|link down|module.*(unplugged|error|High Temperature|Power budget|Bad cable|not supported))/i, 'Mellanox port link / module event', 'fabric', 'high', 'The NIC reported a link drop or a problem with the optic/cable in a port.', 'ib');
+  rule('ibcnt', /(SymbolErrorCounter|LinkDownedCounter|PortRcvErrors|LinkErrorRecoveryCounter|LocalLinkIntegrityErrors)[\s.:]*([1-9]\d*)/i, 'InfiniBand error counters', 'fabric', 'warn', 'Non-zero link error counters: a marginal optic or cable. Link-downed and symbol errors climbing means replace it.', 'ib');
+  rule('ncclib', /NCCL WARN NET\/IB.*(completion with error|Got completion)/i, 'NCCL: InfiniBand completion error', 'fabric', 'high', 'An RDMA transfer failed (often "retry exceeded"): a bad link, a flapping port, or a remote node that went away.', 'ib');
+  rule('nccltimeout', /watchdog caught collective operation timeout|collective operation timeout|NCCL.*[Tt]imeout/i, 'NCCL collective timeout (job hang)', 'fabric', 'high', 'A collective never completed. One rank is stuck: a dead link, a slow or broken node, or the application. Find the straggler.', 'hang');
+  rule('nccltcp', /NCCL INFO (Using network Socket|NET\/Socket)/i, 'NCCL is using TCP sockets, not InfiniBand', 'fabric', 'warn', 'NCCL fell back to sockets: jobs run, but far slower. Check NCCL_IB_HCA, the RDMA modules and that IB devices are visible in the container.', 'perf');
+  rule('gpuoom', /CUDA (error: )?out of memory|OutOfMemoryError|NCCL WARN.*out of memory/i, 'GPU out of memory (job)', 'user', 'warn', 'The job asked for more GPU memory than the GPU has: batch size, sequence length, or model sharding.', 'gpuoom', { cons: true });
+  rule('illegal', /an illegal memory access was encountered/i, 'CUDA illegal memory access', 'user', 'warn', 'The application read or wrote GPU memory it doesn\'t own. Pairs with Xid 31.', 'app', { cons: true });
+  rule('hostoom', /Out of memory: Kill(ed)? process|oom-kill:|invoked oom-killer/i, 'Host out-of-memory killer', 'user', 'high', 'Linux killed a process because the server ran out of host RAM (not GPU memory). Usually dataloader workers, pinned memory, or too many processes.', 'hostoom');
+  rule('fsfull', /No space left on device/i, 'Disk full', 'os', 'high', 'A filesystem is full: container image caches, checkpoints or logs.', 'disk');
+  rule('fserr', /EXT4-fs error|XFS .*(corruption|internal error)|Remounting filesystem read-only/i, 'Filesystem error', 'os', 'high', 'The filesystem hit an error and may have gone read-only. Check the disk underneath.', 'disk');
+  rule('ioerr', /I\/O error, dev \w+|nvme\w*:.*(timeout|controller is down|resetting controller)/i, 'Disk / NVMe I/O errors', 'node', 'high', 'The storage device is timing out or failing.', 'disk');
+  rule('mce', /mce: \[Hardware Error\]|Machine check events logged|Machine Check Exception/i, 'Machine check (CPU / memory)', 'node', 'crit', 'The CPU reported a hardware error: CPU, memory or the system bus.', 'node');
+  rule('edacue', /EDAC.*(UE|Uncorrect)/i, 'Uncorrectable host memory error', 'node', 'crit', 'A DIMM had an uncorrectable error. Identify the DIMM slot from the EDAC message and replace it.', 'node');
+  rule('edacce', /EDAC.*\bCE\b|EDAC.*Correct(ed|able) error/i, 'Correctable host memory errors', 'node', 'warn', 'Correctable DIMM errors. Watch the rate; replace the DIMM if it keeps climbing.', 'node');
+  rule('lockup', /soft lockup|blocked for more than \d+ seconds|hung_task/i, 'Kernel hang warnings', 'os', 'warn', 'A CPU or task was stuck. Often a symptom of storage, network filesystem or driver trouble.', 'node');
+  rule('psu', /Power Supply.*(Failure detected|AC lost|Power Supply Failure|Predictive Failure)/i, 'Power supply failure', 'node', 'high', 'A PSU failed or lost input power. If redundant, the node keeps running: hot-swap it.', 'psu');
+  rule('redund', /Redundancy (Lost|Degraded)/i, 'Power/fan redundancy lost', 'node', 'warn', 'The node has lost its spare capacity. One more failure could take it down.', 'psu');
+  rule('fan', /Fan.*(Lower Critical|Lower Non-recoverable|Fan Failure|Failure detected|failed)/i, 'Fan failure', 'node', 'high', 'A fan stopped or is too slow. GPUs nearby will throttle or overheat.', 'thermal');
+  rule('tempc', /Temp.*Upper (Critical|Non-recoverable)/i, 'Temperature critical (BMC)', 'node', 'crit', 'A temperature sensor crossed its critical limit.', 'thermal');
+  rule('tempw', /Temp.*Upper Non-critical/i, 'Temperature warning (BMC)', 'node', 'warn', 'A temperature sensor crossed its warning limit.', 'thermal');
+  rule('memsel', /Memory.*(Uncorrectable ECC|Correctable ECC logging limit)/i, 'Host memory errors (BMC)', 'node', 'high', 'The BMC logged DIMM errors.', 'node');
+  rule('ierr', /Processor.*(IERR|CATERR)|CATERR/i, 'CPU internal error (IERR/CATERR)', 'node', 'crit', 'A catastrophic CPU error. Often needs a power cycle; repeats mean a board or CPU replacement.', 'node');
+  rule('drive', /Drive (Fault|Slot.*(Fault|Failure))/i, 'Drive fault (BMC)', 'node', 'high', 'The BMC flagged a failed drive.', 'disk');
+  rule('rfhealth', /"Health"\s*:\s*"(Critical|Warning)"/i, 'Redfish reports a component unhealthy', 'node', 'high', 'A Redfish resource reports Health Critical/Warning. Find which one (PowerSupplies, Fans, Processors, Memory).', 'node');
+  rule('killtask', /Kill task failed/i, 'Slurm: kill task failed (node drained)', 'os', 'high', 'Slurm couldn\'t kill a job\'s processes, usually stuck in the GPU driver. The node is drained until someone looks.', 'hang');
+  rule('reboot', /Node unexpectedly rebooted|unexpected reboot/i, 'Node rebooted unexpectedly', 'node', 'warn', 'Check the BMC event log and the previous boot\'s kernel log (journalctl -k -b -1).', 'node');
+  rule('dcgmfail', /^\|\s*([A-Za-z][A-Za-z ()/-]+?)\s*\|\s*Fail/i, null, null, null, null, null, { dcgm: true });
+  rule('dcgmpass', /^\|\s*(Memory|Diagnostic|Targeted Power|Targeted Stress|PCIe|NVLink|Deployment|Memory Bandwidth)[^|]*\|\s*Pass/i, null, null, null, null, null, { dcgmPass: true });
+  rule('launch', /unspecified launch failure/i, 'CUDA: unspecified launch failure', 'user', 'warn', 'A kernel crashed. On its own usually the application; check for Xids around it.', 'app', { cons: true });
+
+  // ===================== analysis =====================
+  function analyze(text) {
+    const t0 = performance.now();
+    const lines = text.replace(/\r/g, '').split('\n');
+    const F = new Map();                 // key -> finding
+    const marks = {};                     // line index -> sev
+    const ctx = { node: '', bus: '', job: '', pid: '', proc: '', xids: new Set(), sxid: false, rates: [], dcgmPass: 0, aerc: 0 };
+    const add = (key, base, i, line, data = {}) => {
+      let f = F.get(key);
+      if (!f) { f = Object.assign({ key, lines: [], count: 0 }, base); F.set(key, f); }
+      f.count++; if (f.lines.length < 6) f.lines.push(i); Object.assign(f, data);
+      if (!marks[i] || SEV[f.sev] > SEV[marks[i]]) marks[i] = f.sev;
+    };
+    lines.forEach((ln, i) => {
+      if (!ln.trim()) return;
+      if (!ctx.node) { let m = ln.match(/^\w{3}\s+\d+\s+[\d:]+\s+([A-Za-z0-9][\w.-]*)\s+(kernel|slurmd|slurmctld|nv-fabricmanager|systemd|nvidia)/) || ln.match(/@([A-Za-z0-9][\w.-]*)[:~ ]/) || ln.match(/\b(?:nodename|NodeName|NodeList)=([\w.-]+)/) || ln.match(/\bon (gpu[\w-]*\d)\b/i) || ln.match(/-H\s+([\w.-]+?)-bmc\b/); if (m) ctx.node = m[1]; }
+      if (!ctx.job) { const m = ln.match(/\b(?:JobId=|job[ _]?id[=: ]+|job )(\d{4,})/i); if (m) ctx.job = m[1]; }
+      for (const r of R) {
+        const m = ln.match(r.re); if (!m) continue;
+        if (r.xid) {
+          const bus = m[1].replace(/^0000:/, '').slice(0, 2).toLowerCase(), n = +m[2], X = XID[n];
+          ctx.xids.add(n); if (!ctx.bus || (X && SEV[X[2]] >= 3)) ctx.bus = m[1];
+          const pm = m[3].match(/pid=['"]?(\d+)/), nm = m[3].match(/name=([\w.<>-]+)/); if (pm) ctx.pid = pm[1]; if (nm) ctx.proc = nm[1];
+          add('xid' + n + '@' + bus, X ? { name: `Xid ${n}: ${X[0]}`, cat: X[1], sev: X[2], why: X[3], kind: X[4], xidN: n, cons: X[1] === 'user' } : { name: `Xid ${n}: not in this library`, cat: 'driver', sev: 'high', why: 'Look this code up in NVIDIA\'s Xid catalog. Treat it as a GPU/driver issue until proven otherwise.', kind: 'reset', xidN: n }, i, ln, { bus: m[1] });
+          break;
+        } else if (r.sxid) {
+          const fatal = /^fatal/i.test(m[3]); ctx.sxid = true;
+          add('sxid' + (fatal ? 'F' : 'N'), { name: `NVSwitch SXid ${m[2]} (${fatal ? 'fatal' : 'non-fatal'})`, cat: 'fabric', sev: fatal ? 'crit' : 'warn', why: fatal ? 'A fatal NVSwitch error: the NVLink fabric on this node is broken until the GPUs and switches are reset (usually a reboot or power cycle). Repeats point to the baseboard.' : 'A non-fatal NVSwitch error, usually a link-level event. Watch for repeats on the same link.', kind: 'cycle' }, i, ln);
+          break;
+        } else if (r.lnk) {
+          const down = /downgraded/i.test(m[3]) || (+m[2] < 16 && /x16/.test(lines.slice(Math.max(0, i - 6), i).join(' ')));
+          const sp = +m[1]; if (down || sp <= 2.5) add('lnk', { name: 'PCIe link running below capability', cat: 'node', sev: 'high', why: 'A device trained at a lower PCIe speed or width than it supports. Bandwidth drops a lot: reseat the card or riser, check the slot, firmware, or retimers.', kind: 'pcie', pri: 3 }, i, ln);
+          break;
+        } else if (r.dcgm) {
+          add('dcgm:' + m[1].trim(), { name: `DCGM diagnostic failed: ${m[1].trim()}`, cat: 'gpu', sev: 'high', why: 'NVIDIA\'s own GPU diagnostic failed this test. Treat as a hardware problem unless it\'s a deployment/config failure.', kind: 'reset' }, i, ln);
+          break;
+        } else if (r.dcgmPass) { ctx.dcgmPass++; marks[i] = marks[i] || 'info'; break; }
+        else {
+          if (r.ctxNeed && !r.ctxNeed.test(ln) && !r.ctxNeed.test(lines.slice(Math.max(0, i - 4), i).join(' '))) continue;
+          if (r.id === 'aerc') ctx.aerc++;
+          if (r.id === 'offbus' && m[1]) ctx.bus = ctx.bus || m[1];
+          add(r.id, r, i, ln);
+          break;
+        }
+      }
+      const rm = ln.match(/^\s*Rate:\s*(\d+)/i); if (rm) ctx.rates.push([+rm[1], i]);
+      const pm2 = ln.match(/Killed process \d+ \(([^)]+)\)/); if (pm2) ctx.proc = ctx.proc || pm2[1];
+    });
+    // post rules
+    if (ctx.rates.length > 1) { const mx = Math.max(...ctx.rates.map(r => r[0])); ctx.rates.filter(r => r[0] < mx && r[0] > 10).forEach(([v, i]) => add('ibrate', { name: 'InfiniBand port at reduced speed', cat: 'fabric', sev: 'high', why: `A port trained at ${v} Gb/s while others run at ${mx}. Usually a bad optic or cable lane.`, kind: 'ib' }, i, lines[i])); }
+    if (ctx.aerc >= 10) { const f = F.get('aerc'); f.sev = 'high'; f.name = `PCIe corrected-error storm (${ctx.aerc} lines)`; }
+    let list = [...F.values()];
+    const hw = list.some(f => ['gpu', 'fabric', 'node', 'driver'].includes(f.cat) && SEV[f.sev] >= 3);
+    list.forEach(f => { if (hw && f.cons) { f.consequence = true; f.sev = 'info'; } });
+    const pri = f => f.xidN != null ? 2 : f.pri || 0;
+    list.sort((a, b) => SEV[b.sev] - SEV[a.sev] || pri(b) - pri(a) || CATRANK[b.cat] - CATRANK[a.cat] || b.count - a.count);
+    const top = list[0] || null;
+    // confidence
+    let conf = 'md';
+    if (top) {
+      const definitive = ['xid79@', 'xid64@', 'xid95@', 'xid48@', 'rmfail', 'fmmm', 'nvmlmm', 'nodrv', 'hostoom', 'fsfull', 'psu', 'fan'].some(k => top.key.startsWith(k));
+      const corroborated = list.filter(f => f.cat === top.cat && SEV[f.sev] >= 2).length >= 2;
+      if (definitive || corroborated) conf = 'hi';
+      if (top.cat === 'user' && ctx.dcgmPass) conf = 'hi';
+    }
+    return { list, top, ctx, marks, lines, ms: performance.now() - t0, conf };
+  }
+
+  // ===================== outputs =====================
+  const N = r => r.ctx.node || $('node').value.trim() || '<node>';
+  const gpuIdx = bus => { if (!bus) return null; const k = bus.replace(/^0000:/, '').replace(/^0+(?=[0-9a-f]{2}:)/, '').slice(0, 2).toLowerCase(); return HGX_BUS[k]; };
+  const busFull = bus => bus ? (bus.length <= 8 ? '0000:' + bus.replace(/^0000:/, '') : bus).replace(/\.?$/, '').replace(/:00$/, ':00.0') : '<bus>';
+
+  function commands(r) {
+    const t = r.top, n = N(r), bus = r.ctx.bus, idx = gpuIdx(bus), gi = idx === undefined || idx === null ? '<gpu>' : idx, bmc = `${n}-bmc`;
+    const C = [];
+    const c = (cmd, why) => C.push([cmd, why]);
+    const drain = reason => c(`scontrol update nodename=${n} state=drain reason="${reason}"`, 'Stop new jobs landing here while you work.');
+    if (!t) return C;
+    const reason = ((t.xidN != null ? `Xid ${t.xidN}` : t.name.split(':')[0].slice(0, 40)) + (bus ? ' GPU ' + busFull(bus) : '')).trim();
+    switch (t.kind) {
+      case 'offbus': case 'cycle':
+        drain(reason);
+        c(`ipmitool -I lanplus -H ${bmc} -U $BMC_USER -E sel elist | tail -30`, 'Any power, thermal or PCIe events around the failure time?');
+        c(`ipmitool -I lanplus -H ${bmc} -U $BMC_USER -E chassis power cycle`, 'A full power cycle, not a warm reboot, to bring the GPU / links back.');
+        c(`nvidia-smi -L && nvidia-smi nvlink --status${idx != null ? ` -i ${gi}` : ''}`, 'After boot: all 8 GPUs present, all links up?');
+        c(`dcgmi diag -r 3`, 'Prove the node is healthy before it takes jobs again.');
+        c(`scontrol update nodename=${n} state=resume`, 'Only after a clean diagnostic. If the same GPU fails again: reseat or RMA.');
+        break;
+      case 'reset':
+        drain(reason);
+        c(`nvidia-smi -q -d ROW_REMAPPER${idx != null ? ` -i ${gi}` : ''}`, 'Pending: Yes means a reset will apply the remap. Remapping Failure: Yes means RMA.');
+        c(`nvidia-smi --query-compute-apps=pid,process_name --format=csv`, 'The GPU must be idle before a reset.');
+        c(`nvidia-smi -r -i ${gi}`, `Reset the GPU${bus ? ` at ${busFull(bus)}` : ''} (node drained, no processes).`);
+        c(`dcgmi diag -r 3`, 'Verify memory and stress tests pass.');
+        c(`scontrol update nodename=${n} state=resume`, 'Back in service once verified.');
+        break;
+      case 'rma':
+        drain(`RMA GPU ${bus ? busFull(bus) : ''}`.trim());
+        c(`nvidia-smi -q -i ${gi} | grep -E "Serial Number|GPU UUID|Board Part Number"`, 'Collect what the RMA needs.');
+        c(`nvidia-bug-report.sh`, 'Attach the bug report to the RMA case.');
+        c(`# Keep ${n} drained until the replacement GPU is installed`, 'Don\'t resume a node with a GPU that can\'t remap.');
+        break;
+      case 'fm':
+        drain('Fabric Manager down / mismatch');
+        c(`systemctl status nvidia-fabricmanager --no-pager; journalctl -u nvidia-fabricmanager -b --no-pager | tail -20`, 'Confirm the failure and the version it complains about.');
+        c(`cat /proc/driver/nvidia/version; dpkg -l | grep -E "nvidia-fabricmanager|nvidia-driver"`, 'Driver and Fabric Manager versions must match exactly.');
+        c(`apt-get install -y nvidia-fabricmanager-<branch>=<driver-version>-1 && systemctl enable --now nvidia-fabricmanager`, 'Install the matching Fabric Manager and start it.');
+        c(`dcgmi diag -r 1 && scontrol update nodename=${n} state=resume`, 'CUDA initializes again? Then resume. Pin the two packages so this can\'t recur.');
+        break;
+      case 'driver':
+        drain('NVIDIA driver/module issue');
+        c(`cat /proc/driver/nvidia/version; modinfo nvidia | grep ^version; nvidia-smi`, 'Compare loaded module, installed package and user-space versions.');
+        c(`dkms status`, 'After a kernel update, was the NVIDIA module rebuilt?');
+        c(`systemctl reboot   # node is drained`, 'The clean way to load the new module.');
+        c(`nvidia-smi && dcgmi diag -r 1 && scontrol update nodename=${n} state=resume`, 'Verify, then resume.');
+        break;
+      case 'ib': case 'hang':
+        c(`ibstat; ibdev2netdev`, 'Which port is down or slow, and which rail it is.');
+        c(`perfquery -x   # per port: SymbolErrorCounter, LinkDownedCounter, PortRcvErrors`, 'Climbing counters mean a marginal optic or cable.');
+        c(`mlxlink -d mlx5_<n> -m`, 'Module (optic) temperature, power and lane status.');
+        drain('IB rail down / NCCL timeouts');
+        c(`# Field ticket: reseat, then replace OSFP optic + cable on ${n} mlx5_<n>`, 'Most IB rail failures are optics or cables.');
+        c(`ibstat | grep -E "State|Rate" && scontrol update nodename=${n} state=resume`, 'Active / LinkUp / full rate on every port, then resume.');
+        break;
+      case 'perf':
+        c(`NCCL_DEBUG=INFO ...   # look for "NET/IB" vs "NET/Socket" in the job log`, 'Confirm which transport NCCL picked.');
+        c(`ibv_devices; ls /dev/infiniband; env | grep NCCL`, 'Are the IB devices visible inside the container? Is NCCL_IB_HCA right?');
+        c(`all_reduce_perf -b 8 -e 8G -f 2 -g 8`, 'nccl-tests: compare bus bandwidth with what this fabric should do.');
+        break;
+      case 'thermal':
+        c(`nvidia-smi -q -d TEMPERATURE,PERFORMANCE`, 'Which GPUs are hot and throttling?');
+        c(`ipmitool -I lanplus -H ${bmc} -U $BMC_USER -E sdr type Fan; ipmitool ... sel elist | tail`, 'Find the failed fan or cooling event.');
+        drain('cooling / fan');
+        c(`# Field ticket: replace fan module, check airflow, blanking panels and inlet temperature`, '');
+        c(`nvidia-smi -q -d PERFORMANCE | grep -i slowdown && scontrol update nodename=${n} state=resume`, 'All slowdowns "Not Active" under load, then resume.');
+        break;
+      case 'psu':
+        c(`ipmitool -I lanplus -H ${bmc} -U $BMC_USER -E sdr type "Power Supply"`, 'Which PSU, and is the node still redundant?');
+        c(`# Field ticket: hot-swap the failed PSU. No drain needed if the node is still redundant.`, 'Draining would idle 8 healthy GPUs for nothing.');
+        c(`ipmitool ... sel elist | tail -5`, 'Confirm the failure is deasserted after the swap.');
+        break;
+      case 'pcie':
+        c(`lspci -vvv -s ${bus ? busFull(bus) : '<bus>'} | grep -E "LnkCap|LnkSta"`, 'Compare trained speed/width with capability.');
+        c(`dmesg -T | grep -iE "AER|pcieport" | tail -30`, 'Which root port, how often, corrected or uncorrected?');
+        drain('PCIe link degraded / errors');
+        c(`# Power off, reseat the GPU/riser/cable; check slot and retimer firmware`, '');
+        c(`lspci -vvv -s ${bus ? busFull(bus) : '<bus>'} | grep LnkSta && scontrol update nodename=${n} state=resume`, 'Back to full speed and width, then resume.');
+        break;
+      case 'disk':
+        c(`df -h; du -xsh /var/lib/docker /var/lib/enroot /tmp 2>/dev/null`, 'Where did the space go?');
+        c(`docker system prune -af; enroot remove -f <unused images>`, 'Clear old container images and layers.');
+        c(`smartctl -a /dev/nvme0 | grep -iE "critical|error|percentage used"`, 'If you saw I/O errors: is the drive itself failing?');
+        break;
+      case 'node':
+        drain(reason);
+        c(`ipmitool -I lanplus -H ${bmc} -U $BMC_USER -E sel elist | tail -30`, 'Full hardware event history.');
+        c(`journalctl -k -b -1 | tail -100`, 'Kernel log from before the last reboot.');
+        c(`# Field ticket with the component from the SEL / EDAC message (DIMM slot, CPU, board)`, '');
+        break;
+      case 'hostoom':
+        c(`journalctl -k | grep -iE "oom|Killed process" | tail`, 'Which process, how big, which cgroup.');
+        c(`sacct -j ${r.ctx.job || '<jobid>'} --format=JobID,MaxRSS,ReqMem,State`, 'How much host memory the job used vs requested.');
+        c(`# Reply to the customer: fewer dataloader workers / smaller prefetch, or request more memory`, 'Node hardware is fine; nothing to drain.');
+        break;
+      case 'gpuoom':
+        c(`nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv`, 'Confirm GPU memory is simply full, not leaked by a stale process.');
+        c(`# Reply: smaller batch / sequence length, activation checkpointing, or shard the model`, 'Not a hardware problem.');
+        break;
+      default: // app / user code
+        c(`dmesg -T | grep -i xid | tail`, 'Xid 13/31/43 tied to one process and one job = application.');
+        c(`dcgmi diag -r 3`, 'Prove the GPU is healthy before telling the customer it\'s their code.');
+        c(`# Reply: run with CUDA_LAUNCH_BLOCKING=1, or compute-sanitizer python train.py, to find the failing kernel`, 'Keep the node in service.');
+    }
+    return C;
+  }
+
+  function reply(r) {
+    const t = r.top, n = N(r), who = $('cust').value.trim(), hi = who ? `Hi ${who},` : 'Hi,', job = r.ctx.job ? ` (job ${r.ctx.job})` : '';
+    if (!t) return '';
+    const sign = '\n\nBest,\n<your name>\nGPU Cloud Support';
+    const resubmit = 'You can resubmit now: the scheduler will place the job on healthy nodes, and if you were checkpointing you can resume from your last checkpoint.';
+    const K = t.kind;
+    if (t.cat === 'user' || K === 'app' || K === 'gpuoom' || K === 'hostoom') {
+      if (K === 'hostoom') return `${hi}\n\nThanks for the report${job}. We looked at ${n} and the hardware is healthy. The job was stopped by the Linux out-of-memory killer: the server ran out of host RAM (system memory, not GPU memory)${r.ctx.proc ? `, and the process killed was "${r.ctx.proc}"` : ''}.\n\nThe usual causes are too many dataloader workers, large prefetch buffers, or each rank loading the full dataset into memory. Reducing num_workers or prefetch_factor, or memory-mapping the dataset, normally fixes it. If you need more host memory per job, let us know and we'll help you size the request.\n\nHappy to look at your config if that helps.${sign}`;
+      if (K === 'gpuoom') return `${hi}\n\nThanks for the report${job}. We checked ${n} and the GPUs are healthy. The job failed because it asked for more GPU memory than the GPU has (CUDA out of memory).\n\nOptions that usually help: a smaller per-GPU batch or sequence length, activation (gradient) checkpointing, mixed precision, or sharding the model across GPUs (FSDP / ZeRO). If you share the model size and settings, we're happy to suggest a configuration that fits.${sign}`;
+      return `${hi}\n\nThanks for flagging this${job}. We investigated ${n} and ran NVIDIA's diagnostics on it; the GPU hardware checks out healthy.\n\nThe crash is coming from the job itself: the GPU reported an illegal memory access${r.ctx.xids.has(31) ? ' (Xid 31, a GPU memory page fault)' : ''}${r.ctx.proc ? ` from your "${r.ctx.proc}" process` : ''}. This is usually an out-of-bounds index or a bad pointer in a custom CUDA kernel or extension, or a tensor shape mismatch.\n\nTo pinpoint it:\n  • rerun with CUDA_LAUNCH_BLOCKING=1 so the error points at the exact operation, or\n  • run a short reproduction under compute-sanitizer.\n\nIf you send us the traceback from that run, we're glad to help narrow it down.${sign}`;
+    }
+    if (K === 'psu') return `${hi}\n\nA quick heads-up: one of the redundant power supplies on ${n} failed. Your work is not affected; the node is running normally on its remaining supplies. We're replacing the failed unit as a hot-swap, so there's no interruption to your jobs.\n\nNo action is needed on your side.${sign}`;
+    if (K === 'thermal') return `${hi}\n\nThanks for your patience${job}. We found that ${n} was running hotter than it should because of a cooling fault, and its GPUs were slowing themselves down to protect the hardware. That's why your job ran slower than expected, and in a multi-node run one slow node holds back all the others.\n\nWe've taken ${n} out of service while the cooling part is replaced and will verify temperatures and clocks under load before returning it. ${resubmit}${sign}`;
+    if (K === 'ib' || K === 'hang' || K === 'perf') return `${hi}\n\nSorry for the disruption${job}. Your multi-node job stalled because of a network problem on ${n}: one of its InfiniBand links between nodes went down, so the GPUs couldn't finish exchanging data with the rest of the job. It wasn't caused by your code.\n\nWe've removed ${n} from scheduling while the link hardware (optic/cable) is replaced, and we'll verify full link speed before it returns. ${resubmit}${sign}`;
+    if (K === 'fm' || K === 'driver') return `${hi}\n\nSorry about the failed jobs${job}. After recent maintenance, a software component on ${n} that manages the GPU interconnect wasn't running the right version, so CUDA couldn't start on that node. The hardware is fine, and this wasn't caused by your code.\n\nWe've taken ${n} out of scheduling, corrected the software, and will verify it before it takes work again. ${resubmit}${sign}`;
+    const what = K === 'rma' ? `one GPU's memory has developed errors it can no longer work around, so we're replacing that GPU` : K === 'cycle' || K === 'offbus' ? `one of its GPUs dropped off the system (${t.name.split(':')[0]}). We're power-cycling and testing the node, and replacing the part if needed` : `one of its GPUs reported a hardware memory error (${t.name.split(':')[0]}). We're resetting and testing that GPU`;
+    return `${hi}\n\nThanks for flagging this, and sorry your run was interrupted${job}. We traced the failure on ${n} to a hardware fault: ${what}. It wasn't caused by your code.\n\nWe've taken ${n} out of scheduling so no new work lands on it, and it won't return to service until it passes full diagnostics. ${resubmit}\n\nWe'll follow up when the node is back, and if the restart gives you any trouble, reply here and we'll jump on it.${sign}`;
+  }
+
+  function note(r) {
+    const t = r.top; if (!t) return '';
+    const n = N(r), dd = new Date(), d = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')} ${String(dd.getHours()).padStart(2, '0')}:${String(dd.getMinutes()).padStart(2, '0')}`;
+    const ev = r.list.filter(f => !f.consequence).slice(0, 6).map(f => `  - [${f.sev.toUpperCase()}] ${f.name}${f.count > 1 ? ` ×${f.count}` : ''}\n      ${r.lines[f.lines[0]].trim().slice(0, 150)}`).join('\n');
+    const cons = r.list.filter(f => f.consequence).map(f => f.name).join('; ');
+    const cmds = commands(r).filter(c => !c[0].startsWith('#')).slice(0, 4).map(c => `  $ ${c[0]}`).join('\n');
+    return `[TRIAGE] ${n} · ${d}${r.ctx.job ? ' · job ' + r.ctx.job : ''}
+Symptom:        ${t.name}
+Classification: ${CAT[t.cat]} · severity ${t.sev.toUpperCase()} · confidence ${r.conf === 'hi' ? 'HIGH' : 'MEDIUM'}
+${r.ctx.bus ? `GPU:            ${busFull(r.ctx.bus)}${gpuIdx(r.ctx.bus) != null ? ` (GPU ${gpuIdx(r.ctx.bus)} on standard HGX H100 layout; confirm with nvidia-smi -L)` : ''}\n` : ''}Why:            ${t.why}
+
+Evidence:
+${ev}${cons ? `\n  (secondary, consequences of the above: ${cons})` : ''}
+
+Next steps:
+${cmds}
+
+Customer impact: ${t.cat === 'user' ? 'None from infrastructure; customer workload issue, reply sent with debugging steps.' : 'Node removed from scheduling until verified; customer advised to resubmit / resume from checkpoint.'}
+BKM candidate:  ${t.name} → ${t.why.split('.')[0]}.`;
+  }
+
+  // ===================== render =====================
+  let last = null, tab = 'cmds';
+  function run() {
+    const txt = $('logs').value;
+    const nLines = txt ? txt.split('\n').length : 0;
+    if (!txt.trim()) { last = null; renderEmpty(); $('stat').textContent = '0 lines'; return; }
+    last = analyze(txt);
+    if (last.ctx.node && !$('node').value) $('node').placeholder = last.ctx.node + ' (detected)';
+    $('stat').textContent = `${nLines.toLocaleString('en-US')} lines · ${last.ms.toFixed(1)} ms`;
+    renderVerdict(); renderFinds(); renderAction(); renderLog();
+    if (txt.length > 40 && txt.slice(0, 200) !== run.lastHead) { run.lastHead = txt.slice(0, 200); window.labTrack && labTrack('analyze', 1); }
+  }
+  function renderEmpty() {
+    $('verdict').className = 'verdict'; $('verdict').innerHTML = '<div class="vcat">Verdict</div><div class="vhead">Waiting for logs</div><div class="vsub">Paste something on the left, or load a sample to see how it works.</div>';
+    $('finds').innerHTML = '<div class="empty">No findings yet.</div>'; $('fcount').textContent = '';
+    $('action').className = 'out prose'; $('action').innerHTML = '<span class="c">Commands, a customer reply and an internal ticket note will appear here.</span>';
+    $('logv').innerHTML = '<div class="empty">Highlighted lines appear here.</div>';
+  }
+  function renderVerdict() {
+    const r = last, t = r.top, V = $('verdict');
+    if (!t) { V.className = 'verdict ok'; V.innerHTML = `<div class="vcat">Verdict</div><div class="vhead">No known failure signatures found</div><div class="vsub">Nothing in ${r.lines.length.toLocaleString('en-US')} lines matched the library. If there's still a problem, add <code>dmesg -T</code>, <code>nvidia-smi -q</code> and <code>ipmitool sel elist</code> output from the time of the failure.</div>`; return; }
+    const headline = t.cat === 'user' ? 'Customer workload, not the hardware' : t.cat === 'gpu' ? 'GPU hardware fault' : t.cat === 'fabric' ? 'Interconnect / network fault' : t.cat === 'node' ? 'Node hardware problem' : t.cat === 'driver' ? 'Driver / firmware / configuration problem' : 'OS / storage problem';
+    const act = { offbus: 'Drain · power-cycle · diag · RMA if it repeats', cycle: 'Drain · power-cycle · verify links · diag', reset: 'Drain · reset GPU · diag · resume', rma: 'Drain · RMA the GPU · keep drained', fm: 'Drain · match Fabric Manager to driver · verify', driver: 'Drain · fix driver/module · reboot · verify', ib: 'Drain · replace optic/cable · verify rate', hang: 'Find the straggler · check IB · drain the bad node', perf: 'Fix NCCL transport config · re-benchmark', thermal: 'Drain · fix cooling · verify under load', psu: 'Hot-swap PSU · no drain needed', pcie: 'Drain · reseat · verify link speed/width', disk: 'Free space / check drive', node: 'Drain · check SEL · field ticket', hostoom: 'Reply to customer · no drain', gpuoom: 'Reply to customer · no drain', app: 'Verify with DCGM · reply to customer · keep in service' }[t.kind] || '';
+    V.className = 'verdict ' + (t.sev === 'info' ? 'warn' : t.sev);
+    V.innerHTML = `<div class="vtop"><div><div class="vcat">${esc(CAT[t.cat])} · ${t.sev.toUpperCase()}</div><div class="vhead">${esc(headline)}: ${esc(t.name)}</div></div><span class="conf ${r.conf}">${r.conf === 'hi' ? 'HIGH' : 'MEDIUM'} confidence</span></div>
+      <div class="vsub">${esc(t.why)}</div>
+      <div class="chips"><span class="chip">Action: <b>${esc(act)}</b></span>${r.ctx.node || $('node').value ? `<span class="chip">Node <b>${esc(N(r))}</b></span>` : ''}${r.ctx.bus ? `<span class="chip">GPU <b>${esc(busFull(r.ctx.bus))}</b>${gpuIdx(r.ctx.bus) != null ? ` (idx ${gpuIdx(r.ctx.bus)})` : ''}</span>` : ''}${r.ctx.job ? `<span class="chip">Job <b>${esc(r.ctx.job)}</b></span>` : ''}${r.ctx.dcgmPass ? `<span class="chip" style="border-color:#1E5A3D;color:#A9EBC9">DCGM <b>passed</b></span>` : ''}${r.ctx.xids.size ? `<span class="chip">Xids <b>${[...r.ctx.xids].sort((a, b) => a - b).join(', ')}</b></span>` : ''}</div>`;
+  }
+  function renderFinds() {
+    const r = last;
+    $('fcount').textContent = r.list.length ? `${r.list.length} signature${r.list.length === 1 ? '' : 's'}` : '';
+    $('finds').innerHTML = r.list.length ? r.list.map((f, k) => `<button class="find ${f.consequence ? 'cons' : ''}" data-k="${k}"><span class="sev ${f.sev}">${f.consequence ? 'SIDE' : f.sev.toUpperCase()}</span><span><b>${esc(f.name)}</b><span class="cat">${esc(CAT[f.cat])}</span> <span class="cnt">${f.count > 1 ? '×' + f.count : ''}</span><p>${f.consequence ? 'Likely a consequence of the hardware fault above, not the cause. ' : ''}${esc(f.why)}</p><div class="ev">L${f.lines[0] + 1}: ${esc(r.lines[f.lines[0]].trim())}</div></span></button>`).join('')
+      : '<div class="empty">No known signatures.</div>';
+    $('finds').querySelectorAll('.find').forEach(b => b.onclick = () => jump(r.list[+b.dataset.k].lines[0]));
+  }
+  function renderAction() {
+    const r = last, A = $('action');
+    if (!r.top) { A.className = 'out prose'; A.innerHTML = '<span class="c">Nothing to act on.</span>'; return; }
+    if (tab === 'cmds') {
+      const C = commands(r);
+      A.className = 'out';
+      A.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span class="c" style="font-family:IBM Plex Sans,sans-serif;font-size:.82rem">Filled in for this node. $BMC_USER and &lt;placeholders&gt; are yours to set.</span><button data-copy="all">Copy all</button></div>` + C.map(([c, w], i) => `<div class="cmdrow"><code>${esc(c)}${w ? `<span class="why">${esc(w)}</span>` : ''}</code>${c.startsWith('#') ? '' : `<button data-copy="${i}">Copy</button>`}</div>`).join('');
+      A.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copy(b, b.dataset.copy === 'all' ? C.filter(c => !c[0].startsWith('#')).map(c => c[0]).join('\n') : C[+b.dataset.copy][0]));
+    } else {
+      const txt = tab === 'reply' ? reply(r) : note(r);
+      A.className = 'out' + (tab === 'reply' ? ' prose' : '');
+      A.innerHTML = `<button class="copy" id="cp">Copy</button>${esc(txt)}`;
+      $('cp').onclick = () => copy($('cp'), redactText(txt));
+    }
+  }
+  function renderLog() {
+    const r = last, show = new Set();
+    Object.keys(r.marks).forEach(i => { for (let k = Math.max(0, +i - 2); k <= Math.min(r.lines.length - 1, +i + 2); k++) show.add(k); });
+    const all = r.lines.length <= 400;
+    let html = '', prev = -1;
+    r.lines.forEach((ln, i) => {
+      if (!all && !show.has(i)) return;
+      if (!all && prev >= 0 && i > prev + 1) html += `<div><span class="ln">⋮</span></div>`;
+      html += `<div id="L${i}" class="${r.marks[i] || ''}"><span class="ln">${i + 1}</span>${esc(ln) || ' '}</div>`; prev = i;
+    });
+    $('logv').innerHTML = html || '<div class="empty">Empty.</div>';
+  }
+  function jump(i) {
+    const el = document.getElementById('L' + i); if (!el) return;
+    const box = $('logv'); box.scrollTop = el.offsetTop - box.offsetTop - 60;
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400);
+    if (innerWidth < 1100) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function copy(btn, text) {
+    const done = () => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1300); };
+    try { navigator.clipboard.writeText(text).then(done, () => fallback()); } catch (e) { fallback(); }
+    function fallback() { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) {} t.remove(); }
+  }
+
+  // ===================== redaction =====================
+  function redactText(s) {
+    return s
+      .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '<ip>')
+      .replace(/\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b/gi, '<mac>')
+      .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<email>')
+      .replace(/GPU-[0-9a-f]{8}-[0-9a-f-]{27}/gi, 'GPU-<uuid>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+      .replace(/(Serial Number\s*:\s*)\S+/gi, '$1<serial>')
+      .replace(/(Board Serial|Product Serial|Chassis Serial)\s*:\s*\S+/gi, '$1 : <serial>')
+      .replace(/(password|passwd|token|apikey|api_key|secret)(\s*[=:]\s*)\S+/gi, '$1$2<redacted>');
+  }
+
+  // ===================== samples =====================
+  const S = {
+    'Xid 79: GPU fell off the bus': `Nov 26 03:14:07 gpu-r2-n07 slurmd[2211]: [48231.batch] error: *** JOB 48231 ON gpu-r2-n07 CANCELLED AT 2026-11-26T03:14:07 ***
+Nov 26 03:14:05 gpu-r2-n07 kernel: NVRM: GPU at PCI:0000:9a:00: GPU-3f1c2a7e-91d0-4b8e-a1c2-7e55d0c2b9aa
+Nov 26 03:14:05 gpu-r2-n07 kernel: NVRM: Xid (PCI:0000:9a:00): 79, pid='<unknown>', name=<unknown>, GPU has fallen off the bus.
+Nov 26 03:14:05 gpu-r2-n07 kernel: NVRM: GPU 0000:9a:00.0: GPU has fallen off the bus.
+Nov 26 03:14:06 gpu-r2-n07 kernel: NVRM: Xid (PCI:0000:9a:00): 45, pid=1844102, name=python3, Ch 00000010
+Nov 26 03:14:06 gpu-r2-n07 kernel: NVRM: Xid (PCI:0000:9a:00): 43, pid=1844102, name=python3, Ch 00000010
+$ nvidia-smi
+Unable to determine the device handle for GPU0000:9A:00.0: Unknown Error`,
+    'ECC: double-bit error, row remap pending': `Nov 26 01:02:44 gpu-r1-n04 kernel: NVRM: Xid (PCI:0000:3a:00): 48, pid=2210931, name=python3, DBE (double bit error) ECC error
+Nov 26 01:02:44 gpu-r1-n04 kernel: NVRM: Xid (PCI:0000:3a:00): 63, pid=2210931, name=python3, Row Remapper: New row marked for remapping, reset gpu to activate.
+Nov 26 01:02:45 gpu-r1-n04 kernel: NVRM: Xid (PCI:0000:3a:00): 45, pid=2210931, name=python3, Ch 00000008
+RuntimeError: CUDA error: uncorrectable ECC error encountered   (job 48190)
+$ nvidia-smi -q -d ROW_REMAPPER -i 2
+GPU 00000000:3A:00.0
+    Remapped Rows
+        Correctable Error                 : 0
+        Uncorrectable Error               : 1
+        Pending                           : Yes
+        Remapping Failure Occurred        : No`,
+    'Customer code: Xid 31 page fault': `Nov 26 22:41:10 gpu-r3-n02 kernel: NVRM: Xid (PCI:0000:5d:00): 31, pid=2384712, name=python3, Ch 00000008, intr 00000000. MMU Fault: ENGINE GRAPHICS GPCCLIENT_T1_0 faulted @ 0x7f2a_1c000000. Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_READ
+Nov 26 22:41:10 gpu-r3-n02 kernel: NVRM: Xid (PCI:0000:5d:00): 43, pid=2384712, name=python3, Ch 00000008
+Nov 26 22:43:55 gpu-r3-n02 kernel: NVRM: Xid (PCI:0000:5d:00): 31, pid=2385102, name=python3, Ch 00000008, intr 00000000. MMU Fault: ENGINE GRAPHICS GPCCLIENT_T1_0 faulted @ 0x7f11_08004000. Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_READ
+[rank3]: RuntimeError: CUDA error: an illegal memory access was encountered   job 48302
+[rank3]: CUDA kernel errors might be asynchronously reported at some other API call
+$ dcgmi diag -r 3
+| Deployment                | Pass                                           |
+| PCIe                      | Pass - All                                     |
+| Memory                    | Pass - All                                     |
+| Diagnostic                | Pass - All                                     |
+| Targeted Power            | Pass - All                                     |`,
+    'InfiniBand optic failing + NCCL timeouts': `Nov 26 04:20:31 gpu-r4-n05 kernel: mlx5_core 0000:c3:00.0: mlx5_port_module_event:1157:(pid 0): Port module event[error]: module 0, Cable error, High Temperature
+Nov 26 04:20:31 gpu-r4-n05 kernel: mlx5_core 0000:c3:00.0 ibp195s0: Link down
+[rank12] gpu-r4-n05:93311:93422 [3] NCCL WARN NET/IB : Got completion from peer 10.20.4.17<59811> with error 12, opcode 0, len 0, vendor err 129 (Recv)
+[rank12] Watchdog caught collective operation timeout: WorkNCCL(SeqNum=88123, OpType=ALLREDUCE) ran for 1800042 milliseconds before timing out.   job 48277
+$ ibstat mlx5_3
+CA 'mlx5_3'
+	CA type: MT4129
+	Port 1:
+		State: Down
+		Physical state: Polling
+		Rate: 10
+$ ibstat mlx5_2
+CA 'mlx5_2'
+	Port 1:
+		State: Active
+		Physical state: LinkUp
+		Rate: 400
+$ perfquery -x
+SymbolErrorCounter:..............65535
+LinkDownedCounter:...............14`,
+    'Fabric Manager mismatch after driver update': `Nov 26 06:02:10 gpu-r1-n08 systemd[1]: nvidia-fabricmanager.service: Main process exited, code=exited, status=1/FAILURE
+Nov 26 06:02:10 gpu-r1-n08 systemd[1]: nvidia-fabricmanager.service: Failed with result 'exit-code'.
+Nov 26 06:02:10 gpu-r1-n08 nv-fabricmanager[3301]: fabric manager NVIDIA GPU driver interface version 550.54.15 doesn't match with driver version 550.90.07. Please update with matching NVIDIA driver package.
+Nov 26 06:05:41 gpu-r1-n08 slurmd[2201]: launch task 48333.0 request from UID 41002
+RuntimeError: cudaGetDeviceCount: system not yet initialized (error 802)   job 48333`,
+    'Thermal throttling + fan failure (BMC SEL)': `$ ipmitool -I lanplus -H gpu-r3-n06-bmc sel elist | tail -4
+  4c | 11/26/2026 | 02:10:44 | Fan FAN_GPU_4         | Lower Critical going low  | Asserted
+  4d | 11/26/2026 | 02:11:31 | Temp GPU_ZONE_B       | Upper Non-critical going high | Asserted
+  4e | 11/26/2026 | 02:11:31 | Fan Redundancy        | Redundancy Lost | Asserted
+$ nvidia-smi -q -d PERFORMANCE -i 6
+GPU 00000000:BA:00.0
+    Clocks Event Reasons
+        Idle                              : Not Active
+        HW Slowdown                       : Active
+            HW Thermal Slowdown           : Active
+            HW Power Brake Slowdown       : Not Active
+        SW Thermal Slowdown               : Active`,
+    'PCIe link downgraded + AER error storm': `$ lspci -vvv -s 0000:ab:00.0 | grep -E "LnkCap|LnkSta"
+		LnkCap:	Port #0, Speed 32GT/s, Width x16, ASPM not supported
+		LnkSta:	Speed 2.5GT/s (downgraded), Width x8 (downgraded)
+` + Array.from({ length: 12 }, (_, i) => `Nov 26 05:${String(10 + i).padStart(2, '0')}:0${i % 10} gpu-r2-n03 kernel: pcieport 0000:a8:01.0: AER: Corrected error received: 0000:ab:00.0
+Nov 26 05:${String(10 + i).padStart(2, '0')}:0${i % 10} gpu-r2-n03 kernel: pcieport 0000:a8:01.0: PCIe Bus Error: severity=Corrected, type=Physical Layer, (Receiver ID)`).join('\n'),
+    'Driver/library mismatch after upgrade': `$ nvidia-smi
+Failed to initialize NVML: Driver/library version mismatch
+NVML library version: 550.90
+Nov 26 07:12:33 gpu-r4-n01 kernel: NVRM: API mismatch: the client has the version 550.90.07, but
+NVRM: this kernel module has the version 550.54.15.  Please make sure that this kernel module and all NVIDIA driver components have the same version.`,
+    'GSP firmware timeout (Xid 119)': `Nov 26 03:33:12 gpu-r3-n07 kernel: NVRM: Xid (PCI:0000:db:00): 119, pid=1990012, name=python3, Timeout after 6s of waiting for RPC response from GPU7 GSP! Expected function 76 (GSP_RM_CONTROL) (0x2080014b 0x5).
+Nov 26 03:33:18 gpu-r3-n07 kernel: NVRM: Xid (PCI:0000:db:00): 119, pid=1990012, name=python3, Timeout after 6s of waiting for RPC response from GPU7 GSP! Expected function 10 (FREE) (0xa55a0050 0x0).
+Nov 26 03:33:20 gpu-r3-n07 kernel: NVRM: Xid (PCI:0000:db:00): 154, pid='<unknown>', name=<unknown>, GPU recovery action changed from 0x0 (None) to 0x1 (GPU Reset Required)
+Nov 26 03:40:02 gpu-r3-n07 slurmd[2190]: error: Kill task failed, node drained. job 48350`,
+    'Host out-of-memory (not the GPU)': `Nov 26 23:58:01 gpu-r1-n02 kernel: python3 invoked oom-killer: gfp_mask=0x140cca(GFP_HIGHUSER_MOVABLE|__GFP_COMP), order=0, oom_score_adj=0
+Nov 26 23:58:01 gpu-r1-n02 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0-1,oom_memcg=/slurm/uid_41002/job_48371,task=python3,pid=2290441,uid=41002
+Nov 26 23:58:01 gpu-r1-n02 kernel: Memory cgroup out of memory: Killed process 2290441 (python3) total-vm:1103991204kB, anon-rss:1980012544kB
+Nov 26 23:58:02 gpu-r1-n02 slurmd[2210]: [48371.batch] error: Detected 1 oom_kill event in StepId=48371.batch. Some of the step tasks have been OOM Killed.`,
+    'NVLink: Xid 74 + NVSwitch SXid': `Nov 26 02:44:09 gpu-r2-n05 kernel: NVRM: Xid (PCI:0000:ab:00): 74, pid=1730021, name=python3, NVLink: fatal error detected on link 11(0x0, 0x0, 0x10000, 0x0, 0x0, 0x0, 0x0)
+Nov 26 02:44:09 gpu-r2-n05 kernel: nvidia-nvswitch2: SXid (PCI:0000:07:00.0): 20034, Fatal, Link 37 LTSSM Fault Up
+Nov 26 02:44:10 gpu-r2-n05 kernel: NVRM: Xid (PCI:0000:ab:00): 45, pid=1730021, name=python3, Ch 00000008
+$ nvidia-smi nvlink --status -i 5
+GPU 5: NVIDIA H100 80GB HBM3
+	 Link 11: <inactive>`,
+    'Root disk full (container cache)': `Nov 26 08:15:22 gpu-r4-n03 slurmd[2205]: [48390.0] enroot-import: write /var/lib/enroot/cache/sha256-a91c: No space left on device
+pyxis: failed to import docker image   job 48390
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  3.5T  3.5T     0 100% /`,
+  };
+  const sel = $('sample');
+  sel.innerHTML += Object.keys(S).map(k => `<option>${esc(k)}</option>`).join('');
+  sel.onchange = () => { if (!sel.value) return; $('logs').value = S[sel.value]; $('node').value = ''; run(); sel.value = ''; };
+
+  // ===================== library table =====================
+  const libRows = [
+    ...Object.entries(XID).map(([n, x]) => [`Xid ${n}`, x[0], CAT[x[1]], x[3]]),
+    ['SXid', 'NVSwitch error (fatal / non-fatal)', CAT.fabric, 'Fatal SXids break the NVLink fabric until reset; repeats point to the baseboard.'],
+    ...R.filter(r => r.name).map(r => [r.id, r.name, CAT[r.cat], r.why]),
+    ['LnkSta', 'PCIe link below capability (lspci)', CAT.node, 'Trained speed/width lower than LnkCap, or marked (downgraded).'],
+    ['Rate', 'InfiniBand port slower than its peers', CAT.fabric, 'One port at 200 or 100 while the rest run at 400.'],
+    ['DCGM', 'dcgmi diag test failures', CAT.gpu, 'Any test reported as Fail.'],
+  ];
+  $('lib').innerHTML = `<p style="color:var(--dim);margin-top:8px">${libRows.length} signatures across Xid, NVSwitch, ECC/row remapping, NVLink, InfiniBand/mlx5, NCCL, Fabric Manager, driver, PCIe, BMC SEL, Redfish, kernel, storage and Slurm.</p>
+    <table class="sig"><thead><tr><th>Signature</th><th>Meaning</th><th>Category</th><th>Notes</th></tr></thead><tbody>${libRows.map(r => `<tr><td class="k">${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table>`;
+
+  // ===================== wiring =====================
+  let deb; $('logs').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(run, 350); });
+  $('logs').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); } });
+  $('analyze').onclick = run;
+  $('clear').onclick = () => { $('logs').value = ''; $('node').value = ''; $('node').placeholder = 'auto-detected, e.g. gpu-r2-n07'; run(); };
+  $('redact').onclick = () => { $('logs').value = redactText($('logs').value); run(); const b = $('redact'); b.textContent = 'Redacted ✓'; setTimeout(() => b.textContent = 'Redact', 1500); };
+  ['node', 'cust'].forEach(id => $(id).addEventListener('input', () => { if (last) { renderVerdict(); renderAction(); } }));
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; document.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x === b)); if (last) renderAction(); });
+  window.__triage = { analyze, S, commands, reply, note };
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
