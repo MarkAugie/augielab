@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Out-of-Band Command Builder · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="Copy-ready Redfish curl, ipmitool, Python and host commands for BMC work: power, event logs, sensors, inventory, boot, virtual media, BMC reset. Vendor profiles, fleet loops, gotchas and recovery playbooks.">
+<meta property="og:title" content="Out-of-Band Command Builder">
+<meta property="og:description" content="Type the BMC once. Get copy-ready Redfish curl, ipmitool, Python and host commands, with the gotchas that cost you an hour at 3 a.m.">
+<meta property="og:url" content="https://augielab.dev/redfish/">
+<meta name="theme-color" content="#0A0E13">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #0A0E13; --panel: #111821; --panel2: #16202B; --line: #24313F; --ink: #E8EEF5; --dim: #93A3B6; --faint: #5E6E80;
+    --ok: #34D58A; --warn: #FFB224; --bad: #FF5263; --info: #5AB8FF; --cyan: #3FD6E0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); font-size: 17px; -webkit-text-size-adjust: 100%; }
+  body { color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; min-height: 100vh; padding: 12px 14px 90px; }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+  code { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  button, select, input, textarea { font: 600 .92rem "IBM Plex Sans", sans-serif; color: var(--ink); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+  input, textarea { font: 500 .9rem "IBM Plex Mono", monospace; width: 100%; }
+  button { cursor: pointer; } button:hover { border-color: #3C5168; background: #1B2735; }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .brand a { color: var(--dim); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .brand h1 { font: 700 clamp(1.6rem, 3.2vw, 2.2rem)/1.1 "IBM Plex Sans Condensed", sans-serif; }
+  .brand h1 span { color: var(--cyan); }
+  .brand .sub { color: var(--dim); font-size: .95rem; max-width: 70ch; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h2 { font: 700 1.02rem "IBM Plex Sans", sans-serif; margin-bottom: 10px; display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .card h2 .muted { font-weight: 500; font-size: .82rem; color: var(--dim); }
+
+  .target { margin-top: 14px; display: grid; grid-template-columns: 1.3fr 1fr 1.3fr 1fr 1fr 1fr; gap: 10px; align-items: end; }
+  .target label, .opts label { font-size: .74rem; color: var(--dim); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; display: block; }
+  .target label input, .target label select { margin-top: 4px; width: 100%; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; align-items: center; }
+  .opts label { display: flex; gap: 7px; align-items: center; text-transform: none; letter-spacing: 0; font-size: .9rem; color: #C8D4E2; font-weight: 500; cursor: pointer; }
+  .opts input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--cyan); }
+  .vnote { color: var(--faint); font-size: .8rem; margin-top: 8px; }
+  #fleetBox { margin-top: 10px; } #fleetBox textarea { min-height: 70px; }
+
+  .main { display: grid; grid-template-columns: minmax(260px, .55fr) minmax(0, 1.45fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .main > * { min-width: 0; }
+  #q { width: 100%; font-family: "IBM Plex Sans", sans-serif; }
+  .groups { margin-top: 10px; max-height: 78vh; overflow-y: auto; padding-right: 4px; }
+  .grp { margin-top: 12px; font: 700 .72rem "IBM Plex Sans", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .task { display: block; width: 100%; text-align: left; margin-top: 6px; padding: 10px 12px; font-weight: 600; }
+  .task small { display: block; color: var(--dim); font-weight: 500; font-size: .8rem; }
+  .task.on { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(63,214,224,.25); }
+  .task.pb { border-left: 3px solid var(--warn); }
+  .task .risk { float: right; font: 700 .64rem "IBM Plex Mono", monospace; padding: 2px 6px; border-radius: 4px; background: rgba(255,82,99,.18); color: #FFB3BC; }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .th { font: 700 clamp(1.25rem, 2.4vw, 1.55rem)/1.2 "IBM Plex Sans Condensed", sans-serif; }
+  .tdesc { color: #C8D4E2; margin-top: 4px; }
+  .danger { margin-top: 10px; padding: 9px 12px; border-radius: 9px; background: rgba(255,82,99,.08); border: 1px solid rgba(255,82,99,.4); color: #FFC9D0; font-size: .9rem; }
+  .cmd { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; background: #05080B; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; margin-top: 8px; }
+  .cmd pre { white-space: pre-wrap; word-break: break-all; font: 400 .84rem/1.55 "IBM Plex Mono", monospace; color: #CFE3F5; }
+  .cmd .c { color: var(--faint); }
+  .cmd .lbl { display: block; color: var(--dim); font: 600 .78rem "IBM Plex Sans", sans-serif; margin-bottom: 3px; word-break: normal; }
+  .cmd button { font-size: .76rem; padding: 5px 9px; }
+  .exp { margin-top: 8px; color: var(--dim); font-size: .86rem; }
+  .exp code { color: #9FB3C8; font-size: .8rem; }
+  .gotchas { margin-top: 14px; }
+  .got { margin-top: 8px; padding: 10px 13px; border-radius: 9px; background: rgba(255,178,36,.07); border: 1px solid rgba(255,178,36,.32); color: #F3DDB0; font-size: .92rem; }
+  .got b { color: var(--warn); }
+  .na { color: var(--dim); padding: 16px 4px; }
+  .setup { margin-top: 12px; }
+  .pbstep { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .pbstep h4 { font-size: 1rem; } .pbstep h4 span { color: var(--cyan); font-family: "IBM Plex Mono", monospace; margin-right: 6px; }
+  footer { margin-top: 18px; color: var(--faint); font-size: .8rem; line-height: 1.55; } footer a { color: var(--dim); }
+  [hidden] { display: none !important; }
+  @media (max-width: 1150px) { .target { grid-template-columns: 1fr 1fr 1fr; } }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .groups { max-height: none; } }
+  @media (max-width: 560px) { html { font-size: 16px; } .target { grid-template-columns: 1fr 1fr; } .cmd pre { font-size: .76rem; } }
+</style>
+</head>
+<body data-explain-bottom="16">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <a href="/">← AugieLab</a>
+      <h1>Out-of-Band <span>Command Builder</span></h1>
+      <div class="sub">Type the BMC once. Get copy-ready Redfish, ipmitool, Python and host commands for the job in front of you, with the gotchas that cost an hour at 3 a.m.</div>
+    </div>
+  </header>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Target <span class="muted">nothing here leaves your browser; passwords are never typed into this page</span></h2>
+    <div class="target">
+      <label>BMC host / IP <input id="bmc" placeholder="gpu-r2-n07-bmc" autocomplete="off"></label>
+      <label>BMC user <input id="user" placeholder="admin" autocomplete="off"></label>
+      <label>Vendor profile <select id="vendor"></select></label>
+      <label>System ID <input id="sys"></label>
+      <label>Manager ID <input id="mgr"></label>
+      <label>Chassis ID <input id="chs"></label>
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="k" checked> Self-signed BMC cert (<code>-k</code>)</label>
+      <label><input type="checkbox" id="tok"> Use a session token (for many calls)</label>
+      <label><input type="checkbox" id="jq" checked> Pretty-print with <code>jq</code></label>
+      <label><input type="checkbox" id="fleet"> Fleet mode: run on many BMCs</label>
+      <label><input type="checkbox" id="c17"> ipmitool cipher suite 17 (<code>-C 17</code>)</label>
+    </div>
+    <div id="fleetBox" hidden><label style="font-size:.74rem;color:var(--dim);font-weight:700;letter-spacing:.06em;text-transform:uppercase">BMC hosts, one per line (saved as bmcs.txt in the commands)</label><textarea id="hosts" placeholder="gpu-r1-n01-bmc&#10;gpu-r1-n02-bmc&#10;gpu-r1-n03-bmc"></textarea></div>
+    <p class="vnote" id="vnote"></p>
+  </section>
+
+  <div class="main">
+    <div class="card">
+      <h2>Tasks</h2>
+      <input id="q" placeholder="Search: power cycle, SEL, fans, firmware, PXE…" autocomplete="off">
+      <div class="groups" id="groups"></div>
+    </div>
+    <div class="card" id="detail"></div>
+  </div>
+
+  <footer>
+    Redfish paths follow the DMTF standard; vendor IDs and some paths differ between BMC firmware versions, so the vendor profiles are typical defaults (run <b>Discover the IDs</b> first on a new platform). Credentials never go on a command line: curl reads them from standard input through the <code>rf</code> helper, and ipmitool uses <code>-E</code> (the <code>IPMI_PASSWORD</code> environment variable).<br>
+    Pairs with the <a href="/triage/">Log Triage Buddy</a>, <a href="/bkm/">Ticket → BKM</a> and the <a href="/cluster/">Cluster Triage Simulator</a>. Built by Mark "Augie" Aughenbaugh: 20 years of Intel lab, HPC and AI-cluster hardware support.
+  </footer>
+</div>
+
+<template id="explain">
+  <h2>What is this?</h2>
+  <h3>Out-of-band management</h3>
+  <p>Every server has a small separate computer on its motherboard, the BMC (baseboard management controller), with its own network port. It works even when the server is off or hung: you can power-cycle the machine, read its hardware event log, check fans, temperatures and power supplies, see firmware versions, change the boot device, or mount an ISO, all remotely.</p>
+  <h3>Two ways to talk to it</h3>
+  <p><strong>IPMI</strong> (the <code>ipmitool</code> command) is the older, universal protocol. <strong>Redfish</strong> is the modern standard: a REST API over HTTPS that returns JSON, which makes it scriptable. Both are here side by side, plus Python and the commands you'd run on the host itself.</p>
+  <h3>Why a builder?</h3>
+  <p>Vendors put things at slightly different paths (Dell's system is "System.Embedded.1", HPE's and Supermicro's are "1", AMI-based boards use "Self"), and small details like cipher suites, deprecated endpoints or "a warm reboot won't bring back a GPU that fell off the bus" eat time during an outage. Type the target once and every command is filled in, with the gotchas next to it.</p>
+  <h3>Safety</h3>
+  <p>Passwords are never typed into this page or placed on a command line, where <code>ps</code> or shell history could show them: curl gets them through standard input via a small <code>rf</code> helper, and ipmitool reads them from an environment variable. Disruptive actions (power off, cycle, BMC reset, clearing logs) are marked.</p>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get(k, d) { try { const v = localStorage.getItem('rf-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('rf-' + k, JSON.stringify(v)); } catch (e) {} } };
+
+  // ============ vendor profiles (typical defaults) ============
+  const V = {
+    generic: { name: 'Generic DMTF / unknown', sys: '1', mgr: '1', chs: '1', sel: '<LogService>', cd: '<VirtualMediaId>', note: 'Unknown vendor: run "Discover the IDs" first and fill in the IDs above.' },
+    supermicro: { name: 'Supermicro', sys: '1', mgr: '1', chs: '1', sel: 'Log1', cd: '<VirtualMediaId>', note: 'Supermicro X12/X13 and H12/H13 typically use ID 1. Some Redfish features (virtual media, BIOS settings) need the SFT-DCMS license.' },
+    dell: { name: 'Dell iDRAC 9', sys: 'System.Embedded.1', mgr: 'iDRAC.Embedded.1', chs: 'System.Embedded.1', sel: 'Sel', cd: 'CD', note: 'iDRAC 9. Event log is under the Manager (LogServices/Sel). On newer iDRAC firmware, virtual media also appears under the System.' },
+    hpe: { name: 'HPE iLO 5/6', sys: '1', mgr: '1', chs: '1', sel: 'IEL', cd: '2', note: 'iLO uses ID 1. Hardware events are in the IML (Systems/1/LogServices/IML) and iLO events in the IEL (Managers/1/LogServices/IEL). Virtual media 2 is the DVD.' },
+    ami: { name: 'AMI MegaRAC (Gigabyte, ASRock Rack, many ODMs)', sys: 'Self', mgr: 'Self', chs: 'Self', sel: 'EventLog', cd: '<VirtualMediaId>', note: 'AMI-based BMCs commonly use "Self" as the ID. Log service names vary by firmware, so list LogServices first.' },
+    dgx: { name: 'NVIDIA DGX H100/H200 (BMC)', sys: 'DGX', mgr: 'BMC', chs: 'DGX', sel: 'EventLog', cd: '<VirtualMediaId>', note: 'DGX BMC IDs as commonly documented (System "DGX", Manager "BMC"); confirm with Discover on your firmware. GPUs show up under Systems/DGX/Processors.' },
+    openbmc: { name: 'OpenBMC', sys: 'system', mgr: 'bmc', chs: 'chassis', sel: 'EventLog', cd: '<VirtualMediaId>', note: 'OpenBMC (bmcweb) uses "system", "bmc" and "chassis". Many HGX baseboard BMCs are OpenBMC-based.' },
+  };
+
+  // ============ context ============
+  function C() {
+    const v = V[$('vendor').value] || V.generic;
+    const host = $('bmc').value.trim() || '$BMC', user = $('user').value.trim() || '$BMC_USER';
+    const fleet = $('fleet').checked;
+    return { v, host: fleet ? '$BMC' : host, user, sys: $('sys').value.trim() || v.sys, mgr: $('mgr').value.trim() || v.mgr, chs: $('chs').value.trim() || v.chs,
+      k: $('k').checked ? ' -k' : '', tok: $('tok').checked, jq: $('jq').checked, fleet, c17: $('c17').checked ? ' -C 17' : '' };
+  }
+  const base = c => `https://${c.host}/redfish/v1`;
+  const auth = () => '';
+  const U = (c, path) => `"${base(c)}${path.replace(/\$expand/g, '\\$expand')}"`;
+  const GET = (c, path, filt) => `rf ${U(c, path)}${c.jq ? ` | jq ${filt && !filt.startsWith('{') ? '-r ' : ''}${filt ? `'${filt}'` : "'.'"}` : ''}`;
+  const POST = (c, path, body, verb = 'POST') => `rf -X ${verb} -H "Content-Type: application/json" \\\n  -d '${body}' \\\n  ${U(c, path)}`;
+  const IPMI = (c, args) => `ipmitool -I lanplus${c.c17} -H ${c.host} -U ${c.user} -E ${args}`;
+  const PY = (c, body) => `import os, requests, urllib3
+${c.k ? 'urllib3.disable_warnings()\n' : ''}BMC, USER, PW = "${c.host.replace('$BMC', '<bmc>')}", "${c.user.replace('$BMC_USER', '<user>')}", os.environ["BMC_PASS"]
+s = requests.Session(); s.auth = (USER, PW); s.verify = ${c.k ? 'False' : 'True'}
+R = f"https://{BMC}/redfish/v1"
+${body}`;
+
+  // ============ tasks ============
+  // each: id, g (group), t (title), d (desc), risk, rf(c) -> [[label, cmd]], ip(c), py(c), host(c), exp (expected), got [..]
+  const T = [];
+  const task = o => T.push(o);
+  task({ id: 'discover', g: 'Start here', t: 'Discover the IDs', d: 'Find the System, Manager and Chassis IDs and Redfish version for this BMC.',
+    rf: c => [['Service root (Redfish version, top-level links)', GET(c, '/', '{RedfishVersion, Vendor, Product, Systems, Managers, Chassis}')], ['System, Manager and Chassis IDs', GET(c, '/Systems', '.Members[]."@odata.id"') + '\n' + GET(c, '/Managers', '.Members[]."@odata.id"') + '\n' + GET(c, '/Chassis', '.Members[]."@odata.id"')]],
+    ip: c => [['BMC identity and firmware', IPMI(c, 'mc info')], ['BMC network settings', IPMI(c, 'lan print 1')]],
+    py: c => [['List members', PY(c, `for col in ("Systems", "Managers", "Chassis"):\n    print(col, [m["@odata.id"] for m in s.get(f"{R}/{col}").json()["Members"]])`)]],
+    host: c => [['Find this server\'s BMC IP from the host OS', 'sudo ipmitool lan print 1 | grep -E "IP Address|MAC Address"']],
+    exp: 'Members like <code>/redfish/v1/Systems/1</code>. Put the last part into the ID boxes above.',
+    got: ['On a new platform, always run this first: vendor IDs differ, and some boards have more than one Chassis (baseboard, GPU tray, PSU shelf).', 'From the host itself, <code>ipmitool lan print 1</code> is the fastest way to find a BMC address nobody wrote down.'] });
+  task({ id: 'token', g: 'Start here', t: 'Get a session token', d: 'Log in once and reuse a token instead of sending the password with every call.',
+    rf: c => [['Create a session; the token comes back in the X-Auth-Token header', `export TOKEN=$(curl -s${c.k} -D - -o /dev/null -X POST -H "Content-Type: application/json" -d @- \\\n  "${base(c)}/SessionService/Sessions" <<< "{\\"UserName\\":\\"${c.user}\\",\\"Password\\":\\"$BMC_PASS\\"}" | awk -F': ' 'tolower($1)=="x-auth-token"{print $2}' | tr -d '\\r')`], ['Log out when done (the Location header from the login tells you the session URL)', `rf -X DELETE "${base(c)}/SessionService/Sessions/<session-id>"`]],
+    ip: () => [], py: c => [['Session login', PY(c, `r = requests.post(f"{R}/SessionService/Sessions", json={"UserName": USER, "Password": PW}, verify=s.verify)\ns.auth = None; s.headers["X-Auth-Token"] = r.headers["X-Auth-Token"]\nsession_url = r.headers["Location"]  # s.delete(f"https://{BMC}{session_url}") when done`)]],
+    host: () => [], exp: 'A long token string in <code>$TOKEN</code>. Then tick "Use a session token" above.',
+    got: ['BMCs allow only a handful of sessions. Scripts that log in on every call and never log out lock everyone out until sessions time out. Delete your session when done.'] });
+  // power
+  task({ id: 'pstate', g: 'Power', t: 'Power status', d: 'Is the host on or off?',
+    rf: c => [['', GET(c, `/Systems/${c.sys}`, '{PowerState, Status}')]], ip: c => [['', IPMI(c, 'chassis power status')], ['Plus last power event and fault flags', IPMI(c, 'chassis status')]],
+    py: c => [['', PY(c, `print(s.get(f"{R}/Systems/${c.sys}").json()["PowerState"])`)]], host: () => [], exp: '<code>"PowerState": "On"</code> / <code>Chassis Power is on</code>', got: [] });
+  task({ id: 'allow', g: 'Power', t: 'Which reset types does this BMC allow?', d: 'Check before you script a power action.',
+    rf: c => [['', GET(c, `/Systems/${c.sys}`, '.Actions."#ComputerSystem.Reset"')]], ip: () => [], py: c => [['', PY(c, `print(s.get(f"{R}/Systems/${c.sys}").json()["Actions"]["#ComputerSystem.Reset"])`)]], host: () => [],
+    exp: '<code>"ResetType@Redfish.AllowableValues": ["On", "ForceOff", "GracefulShutdown", "ForceRestart", "PowerCycle", ...]</code> (some BMCs point to an ActionInfo URL instead)',
+    got: ['Not every BMC supports every ResetType. "PowerCycle" in particular is missing on some firmware; ForceOff, wait, then On does the same thing.'] });
+  const reset = (id, t, d, rt, ipa, risk, got) => task({ id, g: 'Power', t, d, risk,
+    rf: c => [['', POST(c, `/Systems/${c.sys}/Actions/ComputerSystem.Reset`, `{"ResetType":"${rt}"}`)]], ip: c => [['', IPMI(c, `chassis power ${ipa}`)]],
+    py: c => [['', PY(c, `r = s.post(f"{R}/Systems/${c.sys}/Actions/ComputerSystem.Reset", json={"ResetType": "${rt}"})\nprint(r.status_code, r.text)`)]], host: () => [],
+    exp: 'HTTP 200/202/204 with no body, or a Task to poll. ipmitool prints <code>Chassis Power Control: ...</code>', got });
+  reset('pon', 'Power on', 'Turn the host on.', 'On', 'on', false, []);
+  reset('psoft', 'Graceful shutdown', 'Ask the OS to shut down (ACPI).', 'GracefulShutdown', 'soft', true, ['Graceful only works if the OS is alive and listening. A hung node ignores it: check status after a minute and use Force off if it\'s still on.']);
+  reset('poff', 'Force off', 'Hard power off, like holding the button.', 'ForceOff', 'off', true, ['Drain the node in the scheduler first. Running jobs die without warning.']);
+  reset('pcycle', 'Power cycle', 'Full off/on. The one that brings back a GPU that fell off the bus.', 'PowerCycle', 'cycle', true, ['A warm reboot (ForceRestart) keeps PCIe powered and often leaves a lost GPU (Xid 79) missing. PowerCycle removes power from the devices.', 'If PowerCycle isn\'t in the allowable values: ForceOff, wait 30 seconds, On.', 'Drain first.']);
+  reset('preset', 'Warm reset (ForceRestart)', 'Hard reset without removing power.', 'ForceRestart', 'reset', true, ['Fine for a hung OS. Not enough for hardware that needs power removed (lost GPUs, some NIC and retimer states).']);
+  // logs
+  task({ id: 'sel', g: 'Logs & health', t: 'Read the hardware event log (SEL)', d: 'What did the hardware report: PSU, fan, temperature, memory, PCIe events?',
+    rf: c => [['1. List the log services (names vary by vendor)', GET(c, `/Systems/${c.sys}/LogServices`, '.Members[]."@odata.id"') + '\n' + GET(c, `/Managers/${c.mgr}/LogServices`, '.Members[]."@odata.id"')], [`2. Read entries (${c.v.name} typical: ${c.v.sel})`, GET(c, `/${c.v.name.startsWith('Dell') || c.v.name.startsWith('HPE') ? `Managers/${c.mgr}` : `Systems/${c.sys}`}/LogServices/${c.v.sel}/Entries`, '.Members[] | [.Created, .Severity, .Message] | @tsv')]],
+    ip: c => [['Last 30 events with readable times', IPMI(c, 'sel elist | tail -30')], ['Is the log nearly full?', IPMI(c, 'sel info')]],
+    py: c => [['', PY(c, `for svc in s.get(f"{R}/Systems/${c.sys}/LogServices").json()["Members"]:\n    url = f"https://{BMC}{svc['@odata.id']}/Entries"\n    for e in s.get(url).json().get("Members", [])[-30:]:\n        print(e.get("Created"), e.get("Severity"), e.get("Message"))`)]],
+    host: () => [['Same log from the host OS', 'sudo ipmitool sel elist | tail -30']],
+    exp: '<code>4d | 11/26/2026 | 02:10:44 | Fan FAN_GPU_4 | Lower Critical going low | Asserted</code>',
+    got: ['HPE splits it in two: the IML (hardware) under Systems and the IEL (iLO events) under Managers.', 'A full SEL stops recording on some BMCs. Check <code>sel info</code>; save it, then clear it.'] });
+  task({ id: 'selclear', g: 'Logs & health', t: 'Save, then clear the event log', d: 'Keep the evidence, then start a clean log.', risk: true,
+    rf: c => [['1. Save it first (attach this to the ticket or RMA)', `${GET(c, `/Systems/${c.sys}/LogServices/${c.v.sel}/Entries`).replace(/ \| jq.*$/, '')} > sel-${c.host.replace('$', '')}-$(date +%F).json`], ['2. Clear', POST(c, `/Systems/${c.sys}/LogServices/${c.v.sel}/Actions/LogService.ClearLog`, '{}')]],
+    ip: c => [['1. Save', `${IPMI(c, 'sel elist')} > sel-${c.host.replace('$', '')}-$(date +%F).txt`], ['2. Clear', IPMI(c, 'sel clear')]],
+    py: () => [], host: () => [], exp: 'Empty log, one "Log area reset/cleared" entry.',
+    got: ['Never clear a SEL before saving it. It\'s the evidence an RMA or vendor case will ask for.'] });
+  task({ id: 'health', g: 'Logs & health', t: 'Overall health summary', d: 'One-line health for the system, its processors and memory.',
+    rf: c => [['', GET(c, `/Systems/${c.sys}`, '{PowerState, Health: .Status.Health, HealthRollup: .Status.HealthRollup, Bios: .BiosVersion, Model, SerialNumber}')]],
+    ip: c => [['', IPMI(c, 'chassis status')], ['Anything not OK in the sensors', `${IPMI(c, 'sdr elist')} | grep -viE "\\|\\s*ok\\s*\\|"`]],
+    py: c => [['', PY(c, `j = s.get(f"{R}/Systems/${c.sys}").json(); print(j["PowerState"], j["Status"])`)]], host: () => [],
+    exp: '<code>"Health": "OK", "HealthRollup": "Critical"</code> → something under it is unhealthy: check the subsystems.', got: ['HealthRollup covers everything underneath; Health covers only the resource itself. Rollup Critical with Health OK means look deeper (PSUs, fans, DIMMs, GPUs).'] });
+  task({ id: 'thermal', g: 'Logs & health', t: 'Temperatures & fans', d: 'Which sensor is hot, which fan is slow?',
+    rf: c => [['Newer schema (ThermalSubsystem)', GET(c, `/Chassis/${c.chs}/ThermalSubsystem/Fans?$expand=.`, '.Members[] | [.Name, .Speed.Reading, .Status.Health] | @tsv')], ['Older schema (still common)', GET(c, `/Chassis/${c.chs}/Thermal`, '.Temperatures[] | [.Name, .ReadingCelsius, .UpperThresholdCritical, .Status.Health] | @tsv') + '\n' + GET(c, `/Chassis/${c.chs}/Thermal`, '.Fans[] | [.Name, .Reading, .ReadingUnits, .Status.Health] | @tsv')]],
+    ip: c => [['', IPMI(c, 'sdr type Temperature')], ['', IPMI(c, 'sdr type Fan')]],
+    py: c => [['', PY(c, `t = s.get(f"{R}/Chassis/${c.chs}/Thermal").json()\nfor x in t.get("Temperatures", []): print(x["Name"], x.get("ReadingCelsius"))\nfor f in t.get("Fans", []): print(f["Name"], f.get("Reading"), f["Status"].get("Health"))`)]],
+    host: () => [['GPU temperatures and slowdowns from the host', 'nvidia-smi -q -d TEMPERATURE,PERFORMANCE | grep -E "GPU 0000|Current Temp|Slowdown"']],
+    exp: 'Fans with Health OK and similar RPM; GPU zone temperatures well below the critical threshold.',
+    got: ['/Thermal is deprecated in newer Redfish schemas in favor of ThermalSubsystem and Sensors. Try both; many BMCs serve only one.', '$expand support varies. If it errors, drop it and follow the Members links.', 'Multi-chassis systems (HGX) may put GPU tray sensors under a different Chassis ID: list /Chassis.'] });
+  task({ id: 'psu', g: 'Logs & health', t: 'Power supplies', d: 'Which PSU failed, and is the node still redundant?',
+    rf: c => [['Newer schema (PowerSubsystem)', GET(c, `/Chassis/${c.chs}/PowerSubsystem/PowerSupplies?$expand=.`, '.Members[] | [.Name, .Status.State, .Status.Health, .PowerCapacityWatts] | @tsv')], ['Older schema', GET(c, `/Chassis/${c.chs}/Power`, '.PowerSupplies[] | [.Name, .Status.State, .Status.Health, .LastPowerOutputWatts] | @tsv')]],
+    ip: c => [['', IPMI(c, 'sdr type "Power Supply"')], ['Current power draw', IPMI(c, 'dcmi power reading')]],
+    py: c => [['', PY(c, `for p in s.get(f"{R}/Chassis/${c.chs}/Power").json().get("PowerSupplies", []):\n    print(p["Name"], p["Status"])`)]], host: () => [],
+    exp: 'Every PSU <code>Enabled / OK</code>. One <code>Critical</code> or <code>Absent</code> = hot-swap it.',
+    got: ['With N+1 redundancy a single failed PSU doesn\'t need a drain: hot-swap it and keep the GPUs earning.', 'An 8-GPU node near full load may not be redundant at all with one PSU out. Check the power draw against the remaining capacity before deciding.'] });
+  // inventory
+  task({ id: 'fw', g: 'Inventory', t: 'Firmware inventory', d: 'BIOS, BMC, CPLD, NIC, GPU and other firmware versions.',
+    rf: c => [['All firmware components (needs jq)', `for u in $(rf ${U(c, '/UpdateService/FirmwareInventory')} | jq -r '.Members[]."@odata.id"'); do\n  rf "https://${c.host}$u" | jq -r '[.Id, .Version] | @tsv'\ndone`]],
+    ip: c => [['BMC firmware only', IPMI(c, 'mc info | grep -i "Firmware Revision"')]],
+    py: c => [['', PY(c, `for m in s.get(f"{R}/UpdateService/FirmwareInventory").json()["Members"]:\n    j = s.get(f"https://{BMC}{m['@odata.id']}").json(); print(j["Id"], j.get("Version"))`)]],
+    host: () => [['From the host', 'sudo dmidecode -s bios-version; nvidia-smi --query-gpu=index,vbios_version --format=csv; ethtool -i <iface> | grep firmware']],
+    exp: 'One line per component: <code>BIOS  2.3.5</code>, <code>BMC  12.60</code>…',
+    got: ['Run it in fleet mode and diff the results: firmware drift between "identical" nodes is behind a lot of one-node-only problems.'] });
+  task({ id: 'gpus', g: 'Inventory', t: 'GPUs & PCIe devices', d: 'What the BMC sees on PCIe, including GPUs.',
+    rf: c => [['GPUs (exposed as Processors on many GPU servers)', GET(c, `/Systems/${c.sys}/Processors?$expand=.`, '.Members[] | select(.ProcessorType=="GPU") | [.Id, .Model, .Status.Health] | @tsv')], ['PCIe devices', GET(c, `/Systems/${c.sys}/PCIeDevices`, '.Members[]."@odata.id"')]],
+    ip: c => [['FRU data (serials, part numbers)', IPMI(c, 'fru print')]],
+    py: () => [], host: () => [['From the host', 'nvidia-smi -L; lspci -d 10de: -nn; sudo lspci -vvv -d 10de: | grep -E "^[0-9a-f]|LnkSta:"']],
+    exp: '8 GPUs on an HGX/DGX node, all Health OK.', got: ['If the host shows 7 GPUs but the BMC shows 8, the GPU is alive but lost from the OS (power cycle). If the BMC also lost it, suspect hardware.', 'Some platforms list PCIe devices under the Chassis instead of the System.'] });
+  task({ id: 'mem', g: 'Inventory', t: 'Memory & CPUs', d: 'DIMMs, their health, and processors.',
+    rf: c => [['DIMMs with health', GET(c, `/Systems/${c.sys}/Memory?$expand=.`, '.Members[] | [.Id, .CapacityMiB, .Status.Health] | @tsv')], ['CPUs', GET(c, `/Systems/${c.sys}/Processors?$expand=.`, '.Members[] | select(.ProcessorType=="CPU") | [.Id, .Model, .Status.Health] | @tsv')]],
+    ip: c => [['', IPMI(c, 'sdr type Memory')]], py: () => [], host: () => [['', 'sudo dmidecode -t memory | grep -E "Locator|Size|Serial" ; sudo edac-util -v 2>/dev/null']],
+    exp: 'Every DIMM Health OK; total matches the spec.', got: ['A DIMM with Health Warning plus correctable errors in EDAC is a scheduled swap, not an emergency. Uncorrectable means now.'] });
+  task({ id: 'nic', g: 'Inventory', t: 'Network adapters', d: 'NICs and InfiniBand adapters the BMC knows about.',
+    rf: c => [['', GET(c, `/Chassis/${c.chs}/NetworkAdapters`, '.Members[]."@odata.id"')], ['', GET(c, `/Systems/${c.sys}/EthernetInterfaces`, '.Members[]."@odata.id"')]],
+    ip: () => [], py: () => [], host: () => [['InfiniBand from the host', 'ibstat | grep -E "CA |State|Rate"; ibdev2netdev']],
+    exp: 'One adapter per IB rail plus the front-end NICs.', got: ['IB link state is best checked from the host (<code>ibstat</code>) or the fabric manager; the BMC often only sees the card, not the link.'] });
+  // boot
+  task({ id: 'pxe', g: 'Boot', t: 'One-time PXE boot', d: 'Boot from the network once, then back to normal.', risk: true,
+    rf: c => [['Set the override', POST(c, `/Systems/${c.sys}`, '{"Boot":{"BootSourceOverrideTarget":"Pxe","BootSourceOverrideEnabled":"Once"}}', 'PATCH')], ['Then restart', POST(c, `/Systems/${c.sys}/Actions/ComputerSystem.Reset`, '{"ResetType":"ForceRestart"}')]],
+    ip: c => [['', IPMI(c, 'chassis bootdev pxe options=efiboot')], ['', IPMI(c, 'chassis power reset')]],
+    py: c => [['', PY(c, `s.patch(f"{R}/Systems/${c.sys}", json={"Boot": {"BootSourceOverrideTarget": "Pxe", "BootSourceOverrideEnabled": "Once"}})`)]], host: () => [['From the host (UEFI)', 'sudo efibootmgr  # find the PXE entry; then: sudo efibootmgr -n <BootNum> && sudo reboot']],
+    exp: 'HTTP 200/204; next boot comes up on PXE.', got: ['"Once" clears after one boot; "Continuous" sticks until you change it back. Forgetting this is how a node reimages itself every reboot.', 'On UEFI systems, without <code>options=efiboot</code> ipmitool may request a legacy PXE boot.', 'Some BMCs also need BootSourceOverrideMode "UEFI" in the same PATCH.'] });
+  task({ id: 'bios', g: 'Boot', t: 'Boot into BIOS setup once', d: 'Next boot goes to the BIOS menu.', risk: true,
+    rf: c => [['', POST(c, `/Systems/${c.sys}`, '{"Boot":{"BootSourceOverrideTarget":"BiosSetup","BootSourceOverrideEnabled":"Once"}}', 'PATCH')]], ip: c => [['', IPMI(c, 'chassis bootdev bios')]], py: () => [], host: () => [],
+    exp: 'Next boot lands in setup. Pair with the serial console task to see it.', got: [] });
+  task({ id: 'sol', g: 'Boot', t: 'Serial console (SOL)', d: 'Watch the boot or a hung kernel over the network.',
+    rf: () => [], ip: c => [['Attach (exit with ~. )', IPMI(c, 'sol activate')], ['If it says "SOL payload already active"', IPMI(c, 'sol deactivate')]], py: () => [], host: () => [['Kernel must send its console to the serial port', '# add to the kernel command line: console=tty0 console=ttyS0,115200n8']],
+    exp: 'The node\'s console, live.', got: ['Redfish has no standard serial console; vendors offer it through their web UI or SSH. ipmitool SOL is the universal fallback.', 'No output? The OS isn\'t sending its console to the serial port, or the BIOS serial redirection is off.', 'The escape is <code>~.</code>; over SSH you need <code>~~.</code>.'] });
+  // virtual media
+  task({ id: 'vm', g: 'Virtual media', t: 'Mount an ISO (virtual media)', d: 'Boot a rescue or installer image from a web server.', risk: true,
+    rf: c => [['1. Find the virtual media slots', GET(c, `/Managers/${c.mgr}/VirtualMedia`, '.Members[]."@odata.id"')], ['2. Insert the ISO', POST(c, `/Managers/${c.mgr}/VirtualMedia/${c.v.cd}/Actions/VirtualMedia.InsertMedia`, '{"Image":"http://<webserver>/images/rescue.iso","Inserted":true,"WriteProtected":true}')], ['3. Boot from it once', POST(c, `/Systems/${c.sys}`, '{"Boot":{"BootSourceOverrideTarget":"Cd","BootSourceOverrideEnabled":"Once"}}', 'PATCH')], ['4. Eject when done', POST(c, `/Managers/${c.mgr}/VirtualMedia/${c.v.cd}/Actions/VirtualMedia.EjectMedia`, '{}')]],
+    ip: () => [], py: () => [], host: () => [],
+    exp: 'GET the slot again: <code>"Inserted": true, "Image": "http://..."</code>',
+    got: ['The BMC downloads the image itself, so the web server must be reachable from the BMC\'s management network, not just your laptop.', 'Some vendors want HTTPS or NFS/CIFS instead of plain HTTP, and newer Dell firmware moved virtual media under the System.', 'Eject afterwards, or the node keeps a CD that may boot first next time.'] });
+  // bmc
+  task({ id: 'bmcreset', g: 'BMC', t: 'Reset the BMC', d: 'Restart the management controller. The host keeps running.', risk: true,
+    rf: c => [['', POST(c, `/Managers/${c.mgr}/Actions/Manager.Reset`, '{"ResetType":"GracefulRestart"}')]], ip: c => [['', IPMI(c, 'mc reset cold')]], py: () => [], host: () => [['From the host, if the BMC won\'t answer on the network', 'sudo ipmitool mc reset cold']],
+    exp: 'BMC unreachable for 1–5 minutes, then back. The host OS is unaffected.', got: ['Resetting the BMC does not reset the host and normally doesn\'t touch running jobs.', 'If the BMC is completely unresponsive (network and in-band), the last resort is an AC power drain: drain the node, pull all power cords for about a minute, reconnect. Somebody has to be on site.', 'The host can still talk to its BMC in-band (ipmitool without -H) when the BMC network is down: useful to reset it.'] });
+  task({ id: 'bmcfw', g: 'BMC', t: 'BMC firmware version & uptime', d: 'What firmware is the BMC running?',
+    rf: c => [['', GET(c, `/Managers/${c.mgr}`, '{FirmwareVersion, Model, DateTime, Status}')]], ip: c => [['', IPMI(c, 'mc info')]], py: () => [], host: () => [], exp: '<code>"FirmwareVersion": "..."</code>', got: [] });
+  task({ id: 'users', g: 'BMC', t: 'List BMC accounts', d: 'Who can log in to this BMC?',
+    rf: c => [['', GET(c, '/AccountService/Accounts?$expand=.', '.Members[] | select(.UserName != "") | [.Id, .UserName, .RoleId, .Enabled] | @tsv')]], ip: c => [['', IPMI(c, 'user list 1')]], py: () => [], host: () => [],
+    exp: 'Only the accounts you expect, with the right roles.', got: ['Default vendor credentials left enabled are a classic audit finding. Fleet mode plus this task finds them fast.'] });
+
+  // ============ playbooks ============
+  const PB = [
+    { id: 'pb-gpu', t: 'GPU fell off the bus (Xid 79)', d: 'Recover a node where nvidia-smi shows 7 of 8 GPUs.', steps: [['Drain the node first (Slurm)', 'host', c => [['', 'scontrol update nodename=<node> state=drain reason="Xid79"']]], ['Look for power or thermal events', 'sel'], ['Full power cycle (not a warm reboot)', 'pcycle'], ['Confirm all GPUs are back', 'gpus'], ['Verify, then resume', 'host', c => [['', 'nvidia-smi -L && dcgmi diag -r 3 && scontrol update nodename=<node> state=resume']]]] },
+    { id: 'pb-hung', t: 'Node hung, SSH dead', d: 'Find out why before you hit the power button.', steps: [['Is it even on?', 'pstate'], ['Look at the console', 'sol'], ['What did the hardware log?', 'sel'], ['Try graceful first', 'psoft'], ['If it\'s still on after a minute', 'poff'], ['Then on again', 'pon']] },
+    { id: 'pb-rma', t: 'Collect evidence before an RMA', d: 'Everything the vendor will ask for, before anything gets cleared.', steps: [['Save the event log (don\'t clear it)', 'selclear', c => [T.find(x => x.id === 'selclear')[iface === 'ip' ? 'ip' : 'rf'](c)[0]]], ['Firmware versions', 'fw'], ['Serials and part numbers', 'gpus'], ['From the host: the NVIDIA bug report', 'host', c => [['', 'sudo nvidia-bug-report.sh   # attaches nvidia-bug-report.log.gz to the case']]]] },
+    { id: 'pb-bmc', t: 'BMC not answering', d: 'Get the BMC back without taking the host down.', steps: [['From the host: is the BMC alive in-band?', 'host', c => [['', 'sudo ipmitool mc info && sudo ipmitool lan print 1']]], ['Reset it (host keeps running)', 'bmcreset'], ['Still dead: last resort', 'host', c => [['', '# Drain the node, then on site: pull all AC cords ~60 s, reconnect. Resets BMC and host together.']]]] },
+  ];
+
+  // ============ UI ============
+  let cur = store.get('task', 'discover'), iface = store.get('iface', 'rf');
+  const IF = [['rf', 'Redfish curl'], ['ip', 'ipmitool'], ['py', 'Python'], ['host', 'On the host']];
+  $('vendor').innerHTML = Object.entries(V).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
+  ['bmc', 'user', 'vendor', 'sys', 'mgr', 'chs', 'hosts'].forEach(id => { const v = store.get(id, null); if (v !== null) $(id).value = v; });
+  ['k', 'tok', 'jq', 'fleet', 'c17'].forEach(id => { const v = store.get(id, null); if (v !== null) $(id).checked = v; });
+  function setIDs(force) { const v = V[$('vendor').value]; ['sys', 'mgr', 'chs'].forEach(k => { $(k).placeholder = v[k] + ' (typical)'; if (force) $(k).value = ''; }); $('vnote').textContent = v.note; }
+  $('vendor').onchange = () => { setIDs(true); save(); draw(); };
+  ['bmc', 'user', 'sys', 'mgr', 'chs', 'hosts'].forEach(id => $(id).addEventListener('input', () => { save(); draw(); }));
+  ['k', 'tok', 'jq', 'fleet', 'c17'].forEach(id => $(id).addEventListener('change', () => { save(); draw(); }));
+  function save() { ['bmc', 'user', 'vendor', 'sys', 'mgr', 'chs', 'hosts'].forEach(id => store.set(id, $(id).value)); ['k', 'tok', 'jq', 'fleet', 'c17'].forEach(id => store.set(id, $(id).checked)); $('fleetBox').hidden = !$('fleet').checked; }
+
+  function list() {
+    const q = $('q').value.trim().toLowerCase(), groups = {};
+    const match = o => !q || (o.t + ' ' + o.d + ' ' + o.g).toLowerCase().includes(q);
+    PB.filter(match).forEach(p => (groups['Playbooks'] = groups['Playbooks'] || []).push(p));
+    T.filter(match).forEach(t => (groups[t.g] = groups[t.g] || []).push(t));
+    $('groups').innerHTML = Object.entries(groups).map(([g, items]) => `<div class="grp">${esc(g)}</div>` + items.map(o => `<button class="task ${o.steps ? 'pb' : ''} ${cur === o.id ? 'on' : ''}" data-id="${o.id}">${o.risk ? '<span class="risk">DISRUPTIVE</span>' : ''}${esc(o.t)}<small>${esc(o.d)}</small></button>`).join('')).join('') || '<div class="na">Nothing matches.</div>';
+    $('groups').querySelectorAll('.task').forEach(b => b.onclick = () => { cur = b.dataset.id; store.set('task', cur); list(); draw(); if (innerWidth < 900) $('detail').scrollIntoView({ behavior: 'smooth' }); window.labTrack && labTrack('cmd', 1); });
+  }
+  $('q').addEventListener('input', list);
+
+  const wrapFleet = (c, cmd) => {
+    if (!c.fleet || !/\$BMC\b/.test(cmd)) return cmd;
+    const out = /\$BMC/.test(cmd) ? cmd : cmd;
+    return `printf '%s\\n' ${($('hosts').value.trim().split(/\s+/).filter(Boolean).join(' ') || '<bmc1> <bmc2>')} > bmcs.txt\nwhile read -r BMC; do\n  echo "== $BMC"\n  ${out.replace(/\n/g, '\n  ')}\ndone < bmcs.txt`;
+  };
+  function cmdBlock(c, label, cmd, i) {
+    const full = wrapFleet(c, cmd);
+    return `<div class="cmd"><pre>${label ? `<span class="lbl">${esc(label)}</span>` : ''}${esc(full)}</pre><button data-cp="${i}">Copy</button></div>`;
+  }
+  function setupBlock(c) {
+    const lines = [];
+    if (!c.fleet && !$('bmc').value.trim()) lines.push('export BMC=<bmc-host-or-ip>');
+    if (!$('user').value.trim()) lines.push('export BMC_USER=<user>');
+    lines.push('read -rsp "BMC password: " BMC_PASS; echo; export BMC_PASS IPMI_PASSWORD="$BMC_PASS"');
+    lines.push(c.tok
+      ? `rf() { curl -s${c.k} -K- "$@" <<< "header = \\"X-Auth-Token: $TOKEN\\""; }   # token via stdin, not argv`
+      : `rf() { curl -s${c.k} -K- "$@" <<< "user = \\"${c.user}:$BMC_PASS\\""; }   # credentials via stdin, not argv`);
+    return `<details class="setup" open><summary style="cursor:pointer;color:var(--dim);font-weight:600">Once per shell: password and the <code>rf</code> helper (credentials never appear on a command line or in <code>ps</code>)</summary>${'<div class="cmd"><pre>' + esc(lines.join('\n')) + '</pre><button data-cp="setup">Copy</button></div>'}</details>`;
+  }
+  let copyables = {};
+  function draw() {
+    const c = C(), D = $('detail'); copyables = {};
+    const pb = PB.find(p => p.id === cur);
+    if (pb) {
+      let n = 0;
+      D.innerHTML = `<div class="th">📋 Playbook: ${esc(pb.t)}</div><p class="tdesc">${esc(pb.d)}</p>${setupBlock(c)}` + pb.steps.map(([title, ref, fn], si) => {
+        const t = T.find(x => x.id === ref);
+        let rows = fn ? fn(c) : (t[iface] && t[iface](c).length ? t[iface](c) : t.rf(c).length ? t.rf(c) : t.ip(c));
+        const body = rows.map(([l, cmd]) => { copyables[n] = wrapFleet(c, cmd); return cmdBlock(c, l, cmd, n++); }).join('');
+        return `<div class="pbstep"><h4><span>${si + 1}</span>${esc(title)}${t && t.risk ? ' <span class="risk" style="float:none;margin-left:6px;font:700 .64rem IBM Plex Mono,monospace;padding:2px 6px;border-radius:4px;background:rgba(255,82,99,.18);color:#FFB3BC">DISRUPTIVE</span>' : ''}</h4>${body}${t && t.got[0] ? `<div class="got"><b>Gotcha:</b> ${t.got[0]}</div>` : ''}</div>`;
+      }).join('') + `<p class="exp" style="margin-top:14px">Tabs above each task choose Redfish / ipmitool / Python; playbook steps use your current choice where it exists.</p>`;
+    } else {
+      const t = T.find(x => x.id === cur) || T[0];
+      const avail = IF.filter(([k]) => t[k](c).length);
+      const use = avail.some(([k]) => k === iface) ? iface : (avail[0] || ['rf'])[0];
+      const rows = t[use](c);
+      D.innerHTML = `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><div class="th">${esc(t.t)}</div><p class="tdesc">${esc(t.d)}</p></div>
+        <div class="tabs">${IF.map(([k, l]) => `<button data-if="${k}" class="${k === use ? 'on' : ''}" ${t[k](c).length ? '' : 'disabled style="opacity:.35"'}>${l}</button>`).join('')}</div></div>
+        ${t.risk ? '<div class="danger">⚠ Disruptive: this affects the running host. Drain it in the scheduler first unless you mean to interrupt jobs.</div>' : ''}
+        ${setupBlock(c)}
+        ${rows.map(([l, cmd], i) => { copyables[i] = wrapFleet(c, cmd); return cmdBlock(c, l, cmd, i); }).join('')}
+        ${rows.length > 1 ? `<div style="margin-top:8px;text-align:right"><button data-cp="all">Copy all</button></div>` : ''}
+        ${t.exp ? `<p class="exp"><b>Expect:</b> ${t.exp}</p>` : ''}
+        ${t.got.length ? `<div class="gotchas">${t.got.map(g => `<div class="got"><b>Gotcha:</b> ${g}</div>`).join('')}</div>` : ''}`;
+      copyables.all = rows.map(([, cmd]) => wrapFleet(c, cmd)).join('\n\n');
+      D.querySelectorAll('[data-if]').forEach(b => b.onclick = () => { iface = b.dataset.if; store.set('iface', iface); draw(); });
+    }
+    copyables.setup = D.querySelector('.setup pre') ? D.querySelector('.setup pre').textContent : '';
+    D.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => copy(b, copyables[b.dataset.cp]));
+  }
+  function copy(btn, text) {
+    const done = () => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1200); };
+    try { navigator.clipboard.writeText(text).then(done, fb); } catch (e) { fb(); }
+    function fb() { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) {} t.remove(); }
+  }
+  setIDs(false); save(); list(); draw();
+  window.__rf = { T, PB, C };
+})();
+</script>
+<script src="/lab/explain.js" defer></script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
