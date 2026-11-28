@@ -112,6 +112,8 @@
   .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 1.2rem; }
   .actions button { margin: 0; font-family: Inter, sans-serif; font-weight: 700; letter-spacing: .02em; font-size: 1.1rem; padding: 1rem 1.4rem; }
   button.ghost { color: #eef2ff; background: rgba(255,255,255,.08); border: 1px solid rgba(200,210,255,.45); box-shadow: none; }
+  .savepic { margin-top: .8rem; font-size: .95rem; color: #aeb8de; }
+  .savepic a { color: var(--glow); font-weight: 600; }
   #toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); z-index: 40; padding: .8rem 1.2rem; border-radius: 14px; font-size: 1rem;
     background: rgba(20,22,60,.95); border: 1px solid rgba(170,190,255,.5); opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
@@ -192,6 +194,7 @@
       <button id="share" type="button">📮 Send a postcard</button>
       <button id="again" type="button" class="ghost">Split again</button>
     </div>
+    <p class="savepic"><a href="#" id="savePic">⬇ Save the postcard picture</a> to attach it to an email</p>
     <p class="proof" id="proof"></p>
   </div>
 </section>
@@ -548,6 +551,16 @@
     c.fillText('Split your own: augielab.dev/split', W / 2, 570);
     return new Promise(r => cv.toBlob(r, 'image/png'));
   }
+  function download(blob) {
+    const url = URL.createObjectURL(blob), aEl = document.createElement('a');
+    aEl.href = url; aEl.download = 'universe-postcard.png'; document.body.appendChild(aEl); aEl.click(); aEl.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('Postcard saved to your Downloads folder. Attach it to an email or text!');
+  }
+  $('savePic').addEventListener('click', async (e) => {
+    e.preventDefault(); if (!last) return;
+    try { download(await makePostcard()); window.labTrack && labTrack('share'); } catch (err) { toast('Couldn’t make the postcard on this device, sorry.'); }
+  });
   $('share').addEventListener('click', async () => {
     if (!last) return;
     const btn = $('share'); btn.disabled = true;
@@ -559,10 +572,7 @@
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'I split the universe', text: text + ' https://augielab.dev/split/' });
       } else {
-        const url = URL.createObjectURL(blob), aEl = document.createElement('a');
-        aEl.href = url; aEl.download = 'universe-postcard.png'; document.body.appendChild(aEl); aEl.click(); aEl.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-        toast('Postcard saved to your downloads. Attach it to a text or email!');
+        download(blob);
       }
     } catch (e) {
       if (e && e.name !== 'AbortError') toast('Couldn’t make the postcard on this device, sorry.');
