@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --bg: #0B0F14; --card: #121922; --line: #263342;
@@ -115,8 +116,8 @@
   <p>A truly random source still wobbles, so each test asks how far off the result is, counted in "standard deviations" (the expected size of a random wobble). Under 3 is a pass; real randomness lands there 99.7% of the time. 3 to 4 is suspicious. Over 4 is a fail. Even a perfect source flashes "suspicious" now and then. That's normal: watch which ones stay there.</p>
   <h3>The cheater's trick</h3>
   <p>The broken formula's last bit simply goes 0, 1, 0, 1… forever. Its half-ones score is perfect, so it sails through the first test. The streak and next-bit tests catch it instantly. That's the lesson: <strong>no single test can prove randomness</strong>. Each test only catches one kind of failure, which is why real labs run whole batteries of them, like NIST's test suite.</p>
-  <h3>Demo mode</h3>
-  <p>Right now the Geiger clicks are simulated at a typical background rate, and the Cicada's bits come from your browser. When Mark's MightyOhm Geiger counter and the Cicada are hooked up to a Raspberry Pi, both cards switch to the real thing and their dots turn green. The real Cicada is far faster than shown here; the page takes a slice of its output so your computer can keep up.</p>
+  <h3>What's live</h3>
+  <p>The Cicada card is live: its bits come from Mark's Crypta Labs QCicada quantum stick on a Raspberry Pi. The Geiger clicks are still simulated at a typical background rate until Mark's MightyOhm Geiger counter is built and hooked up too. The real Cicada is far faster than shown here; the page takes a slice of its output so your computer can keep up.</p>
 </template>
 
 <script>
@@ -126,7 +127,7 @@
   // ================= Live sources (switch on when the Pi is online) =================
   // GEIGER: GET ENDPOINT?after=SEQ -> {"ok":true,"seq":LAST,"gaps_us":[...]}  (microseconds between clicks, from the pulse header)
   // CICADA: GET ENDPOINT?n=COUNT   -> {"ok":true,"values":[0..255,...]}         (refined, Cicada -p 0)
-  const GEIGER = { ENDPOINT: '' }, CICADA = { ENDPOINT: '' };
+  const GEIGER = { ENDPOINT: '' }, CICADA = { ENDPOINT: '/api/qrng' };
 
   const u32 = new Uint32Array(1), cbuf = new Uint8Array(4096); let cpos = cbuf.length;
   const cryptoByte = () => { if (cpos >= cbuf.length) { crypto.getRandomValues(cbuf); cpos = 0; } return cbuf[cpos++]; };

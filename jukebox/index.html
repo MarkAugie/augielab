@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Monoton&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --night: #140C1F; --plum: #2A1640; --chrome: #E9E4F0; --neon: #FF5FA2; --aqua: #4FE3E0; --amber: #FFC46B; --ink: #F5EEF9; --dim: #C2B3D3; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -108,12 +109,12 @@
 </main>
 
 <p class="foot" id="count">Every note is picked by chance, live. This exact song has never played before and never will again.</p>
-<p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+<p class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></p>
 
 <template id="explain">
   <h2>What's happening?</h2>
-  <h3>Right now: demo mode</h3>
-  <p>Today the notes are picked using your web browser's built-in random number maker, which is really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, every note, chord and rhythm will be chosen by a quantum measurement, and the dot at the bottom will turn from yellow to green.</p>
+  <h3>Where the notes come from</h3>
+  <p>Every note, chord and rhythm is chosen by this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
   <h3>How the music is made</h3>
   <p>Nothing here is recorded. Your computer is playing the instruments live. Every half second or so, random numbers decide which chord comes next, whether the melody steps up or down, which note it lands on, and whether to play or rest. A few simple rules keep it sounding musical: the notes stay in a pleasant scale, and the melody leans toward the notes of the current chord.</p>
   <h3>Why it never repeats</h3>
@@ -131,7 +132,7 @@
   // ================= Randomness source =================
   // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
   // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], quantum = false, fetching = false;
   async function topUp() {
     if (!SOURCE.ENDPOINT || fetching || pool.length > 256) return; fetching = true;
@@ -153,7 +154,7 @@
     document.getElementById('sourceText').textContent = quantum ? `Randomness: quantum, from the ${SOURCE.NAME}.`
       : SOURCE.ENDPOINT ? 'Randomness: the quantum generator is offline, so this is demo mode.' : "Randomness: demo mode, from your browser's generator.";
   }
-  paintSource();
+  paintSource(); topUp();   // ask the quantum generator right away
 
   // ================= Moods =================
   const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];

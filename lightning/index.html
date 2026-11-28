@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --night: #05060F; --panel: #0F1224; --line: #262C52;
@@ -153,7 +154,7 @@
   <h3>The fractal dimension</h3>
   <p>As the coral grows, the page counts how many particles fit within each distance from the center. A solid disk would grow like distance squared (dimension 2), a straight line like distance (dimension 1). DLA lands in between: about <strong>1.7</strong>, almost no matter how you run it. Frost and lightning grow against an edge, so their number is only a rough guide.</p>
   <h3>The quantum part</h3>
-  <p>Every single step of every walker is a random choice, often a million or more per growth. When the quantum generator is connected, steps come from it for as long as its supply keeps up, then from your browser. The line at the bottom shows the share. Right now it's your browser's random number maker. Soon it will be a <strong>quantum random number generator</strong> from Crypta Labs, and the dot turns green.</p>
+  <p>Every single step of every walker is a random choice, often a million or more per growth. Steps come from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light, for as long as its supply keeps up, then from your browser. The line at the bottom shows the share. If the stick is ever offline, every step comes from your browser and the dot turns yellow.</p>
 </template>
 
 <script>
@@ -163,7 +164,7 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], fetching = false, quantum = false, qUsed = 0, bUsed = 0;
   function setSource(q, fellBack) { quantum = q; $('source').classList.toggle('quantum', q); showSource(fellBack); }
   function showSource(fellBack) {

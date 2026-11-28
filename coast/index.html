@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --sea: #0A1F33; --panel: #102A42; --line: #24496B;
@@ -142,7 +143,7 @@
   <h3>The magnifier</h3>
   <p>Turn it on and it shows the coast 8 times closer. It looks just as wiggly as the whole island. That's what makes it a fractal: zoom in and the roughness doesn't go away. A real coast keeps this up over a huge range of sizes. This island stops at about 100 meters, where the computer stops adding detail, which is why the tiniest rulers start to level off.</p>
   <h3>The quantum part</h3>
-  <p>The island starts as a rough ten-sided blob. Then every straight edge gets a bend in the middle, and the random source decides whether it bends in or out, by how much, and where. That happens twelve times, giving over 40,000 bends. The "Kind of coast" buttons set how big the bends are, which sets the fractal dimension. Each island has a code, and the same code always makes the same island. When the quantum generator is connected, the code comes from a real quantum measurement and the dot at the bottom turns green.</p>
+  <p>The island starts as a rough ten-sided blob. Then every straight edge gets a bend in the middle, and the random source decides whether it bends in or out, by how much, and where. That happens twelve times, giving over 40,000 bends. The "Kind of coast" buttons set how big the bends are, which sets the fractal dimension. Each island has a code, and the same code always makes the same island. The code comes from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
 </template>
 
 <script>
@@ -152,7 +153,7 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], fetching = false, quantum = false;
   function setSource(q, fellBack) {
     quantum = q; $('source').classList.toggle('quantum', q);

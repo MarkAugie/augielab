@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --bench: #23252A; --bench2: #2C2F35; --hole: #17181B; --chalk: #EEF0F2; --dim: #A9B0BA; --tape: #B3122B; --ok: #6FDC8C; --warn: #F2B84B; --bad: #FF7A6B; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -131,7 +132,7 @@
 
   <div class="notes">
     <p>Made right here in your browser. Nothing you see on this page is sent anywhere or saved.</p>
-    <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's secure generator.</span></p>
+    <p class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></p>
     <button class="why" id="whyBtn" aria-haspopup="dialog">✦ What's happening?</button>
     <p>Passphrase words come from the <a href="https://www.eff.org/dice">EFF long wordlist</a> (CC BY 3.0).</p>
   </div>
@@ -141,8 +142,8 @@
   <div class="box">
     <button class="btn close" id="infoClose" aria-label="Close">×</button>
     <h2 id="infoTitle">What makes a password strong</h2>
-    <h3>Right now: demo mode</h3>
-    <p>Today your passwords come from your web browser's built-in secure random number maker, the same one banks and password managers rely on, so they're already strong. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, its quantum numbers get mixed into every password, and the dot below will turn from yellow to green.</p>
+    <h3>Where the randomness comes from</h3>
+    <p>Every password mixes two sources: your web browser's built-in secure random number maker (the same one banks and password managers rely on) and this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. Either one alone would make a strong password. When the dot below is green, the quantum numbers are in the mix. If the stick is ever offline, the browser's generator still makes a strong password on its own and the dot turns yellow. The quantum numbers come to this page from the site's own server; your passwords are made right here and never sent anywhere.</p>
     <h3>Unpredictability beats cleverness</h3>
     <p>A password is strong when there are so many possibilities that guessing would take forever. Swapping letters for symbols in a real word doesn't help much, because attackers try those tricks first. Pure randomness does.</p>
     <h3>Passwords or passphrases?</h3>
@@ -160,7 +161,7 @@
   // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
   // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT. Quantum bytes are XOR-mixed with the
   // browser's own secure randomness, so the result is never weaker than either source.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let qpool = [], quantumLive = false;
   async function refill() {
     if (!SOURCE.ENDPOINT) return;

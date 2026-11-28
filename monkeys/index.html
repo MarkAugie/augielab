@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --wall: #17302A; --wall2: #1C3A33; --brass: #D4AE62; --brass-dk: #8A6A2C; --paper: #F8F1DE; --ink: #1F1A14;
     --text: #F3EEE2; --dim: #C3CDBF; --word: #FFE27A; --hunt: #FF8F8F; --good: #7CF2A2; }
@@ -180,7 +181,7 @@
     <div class="shelf" id="shelf"><em>Nothing yet. Give them a minute.</em></div>
   </section>
 
-  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></p>
 </div>
 
 <template id="explain">
@@ -194,7 +195,7 @@
   <h3>Why it gets hard so fast</h3>
   <p>Every extra letter makes the job 27 times harder. Three letters, like "cat", takes about 20,000 key presses, which the monkeys do in seconds. Your name might take a few minutes at Ludicrous speed. "To be or not to be" takes about 10<sup>25</sup> presses, which is longer than the universe has existed. All of Hamlet, about 130,000 letters, would need a number with 186,000 digits. Even if every atom in the universe were a monkey, they would not get close.</p>
   <h3>Where the randomness comes from</h3>
-  <p>Today the keys are picked by your web browser's built-in random number maker, which is a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. Then the monkeys' keys will come from real quantum events, and the dot at the bottom will turn from yellow to green. At Ludicrous speed the monkeys type faster than the stick can keep up, so the page shows what share of the keys were quantum.</p>
+  <p>The monkeys' keys come from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow. At Ludicrous speed the monkeys type faster than the stick can keep up, so the page shows what share of the keys were quantum.</p>
   <h3>Tips</h3>
   <p>Type a short word, like your name or a pet's name, and switch to Ludicrous to give the monkeys a fair shot. Watch speed lets you read along. Turn the sound on for typewriter clacks and a bell when a monkey finds a good word.</p>
 </template>
@@ -208,7 +209,7 @@
   // ================= Randomness source =================
   // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
   // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let qChunks = [], qHead = 0, qLeft = 0, quantumUp = false, fetching = false, qUsed = 0, bUsed = 0;
   async function topUp() {
     if (!SOURCE.ENDPOINT || fetching || qLeft > 2048) return; fetching = true;

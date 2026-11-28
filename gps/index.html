@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --ground: #0D1A14; --panel: #13251C; --line: #2C4A3A;
@@ -210,7 +211,7 @@
   <h3>My phone (live)</h3>
   <p>This mode plots your own device's real location readings, about one a second. Nobody knows your true spot to the centimeter, so the brass marker becomes the <strong>average</strong> of your readings so far, and the dots show how each reading strays from it. The dashed circle is your phone's own estimate of its accuracy. Outdoors under open sky, expect a few meters. Indoors, and especially in a basement, the phone can't see the satellites, falls back on Wi-Fi and cell towers, and the dot can jump tens of meters. Try standing outside, then walking in. Phones also smooth and blend their readings before a web page sees them, so this is a cleaned-up view, not raw satellite data. Your location never leaves your device: this page doesn't send or save it.</p>
   <h3>Where the randomness comes from</h3>
-  <p>Real GPS errors come from the atmosphere and electronics, not from quantum dice. Here, the random parts of every simulated error are drawn from a random number source. Right now that's your browser. Soon it will be a <strong>quantum random number generator</strong> from Crypta Labs, and the dot at the bottom will turn green.</p>
+  <p>Real GPS errors come from the atmosphere and electronics, not from quantum dice. Here, the random parts of every simulated error are drawn from a random number source. That's this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
 </template>
 
 <script>
@@ -220,7 +221,7 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], fetching = false, quantum = false;
   function setSource(q, fellBack) {
     quantum = q; $('source').classList.toggle('quantum', q);

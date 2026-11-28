@@ -19,6 +19,7 @@
 <meta name="twitter:image" content="https://augielab.dev/split/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --glow: #9fe8ff; --violet: #b48cff; --ink: #eef2ff; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -150,10 +151,10 @@
     <p>In 1957, physicist Hugh Everett proposed a wild answer to that randomness: nothing is ever chosen at all. Every possible outcome happens, and the universe branches so each one gets its own world. One you sees heads. Another you, just as real, sees tails.</p>
 
     <h3>What this site actually does</h3>
-    <p>When you press the button, this site asks a real quantum random number generator for a number. It's a physics lab at the Australian National University that measures the tiny, flickering energy of empty space itself. No computer formula, no dice, no trick. Even number: Universe A. Odd number: Universe B.</p>
+    <p>When you press the button, this site asks a real quantum random number generator for a number. No computer formula, no dice, no trick. Even number: Universe A. Odd number: Universe B.</p>
 
-    <h3>Coming soon: a quantum lab at home</h3>
-    <p>Right now the numbers come from that lab in Australia, over the internet. Soon they'll come from a <strong>quantum random number generator</strong> plugged in right here: a small USB stick from Crypta Labs that measures tiny particles of light, running on a little Raspberry Pi computer in Mark's house. Same idea, same physics, just a lot closer to home.</p>
+    <h3>A quantum lab at home</h3>
+    <p>The number comes from a <strong>Crypta Labs QCicada</strong>, a small USB quantum random number generator that measures tiny, unpredictable particles of light. It's plugged into a Raspberry Pi in Mark's house in Oak Grove, Oregon. If it's ever offline, the site asks a physics lab at the Australian National University instead, which measures the flickering energy of empty space itself. Same idea, same physics. The reading under your result says which one split your universe.</p>
 
     <h3>So is it real?</h3>
     <p>If Many-Worlds is right, yes. There's now another you out there living the other choice. If it's wrong, you still handed your decision to the laws of physics, which is pretty cool on its own. Scientists are still debating it, and no experiment can settle it yet.</p>
@@ -234,13 +235,20 @@
   drawUniverse();
   let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawUniverse, 250); });
 
-  // Quantum source: your server's qrng.php (ANU). Falls back to browser randomness for demos.
+  // Quantum source: first the Crypta Labs QCicada on the Pi in Mark's house, then the ANU lab
+  // (through aughenbaugh.com/qrng.php), and only if both are unreachable, the browser.
   async function getQuantum() {
+    try {
+      const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 5000);
+      const res = await fetch('/api/qrng?n=1', { cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(to);
+      if (res.ok) { const j = await res.json(); if (j.ok && Array.isArray(j.values) && Number.isInteger(j.values[0])) return { value: j.values[0], quantum: true, where: 'home' }; }
+    } catch (e) {}
     try {
       const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 7000);
       const res = await fetch('https://aughenbaugh.com/qrng.php', { cache: 'no-store', signal: ctrl.signal });
       clearTimeout(to);
-      if (res.ok) { const j = await res.json(); if (j.ok && Number.isInteger(j.value)) return { value: j.value, quantum: true }; }
+      if (res.ok) { const j = await res.json(); if (j.ok && Number.isInteger(j.value)) return { value: j.value, quantum: true, where: 'anu' }; }
     } catch (e) {}
     const a = new Uint8Array(1); crypto.getRandomValues(a);
     return { value: a[0], quantum: false };
@@ -302,9 +310,11 @@
     splits++; window.labTrack && labTrack('split'); $('count').textContent = `Universes split: ${splits}`;
     $('you').textContent = `You are in ${pickA ? 'Universe A' : 'Universe B'}: ${pickA ? a : b}.`;
     $('other').textContent = `In the other universe, another you is going to ${(pickA ? b : a).replace(/^./, s => s.toLowerCase())}.`;
-    $('proof').innerHTML = q.quantum
-      ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), from the ANU lab measuring vacuum fluctuations in Canberra, Australia.`
-      : `Demo mode reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}). This used browser randomness. On the live site, every split comes from ANU's quantum lab.`;
+    $('proof').innerHTML = q.where === 'home'
+      ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), measured just now from particles of light by the Crypta Labs QCicada in Mark's house in Oak Grove, Oregon.`
+      : q.quantum
+      ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), from the ANU lab measuring vacuum fluctuations in Canberra, Australia. (The home quantum generator was offline.)`
+      : `Demo mode reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}). Both quantum sources were unreachable, so this used browser randomness.`;
     result.classList.remove('hidden'); document.body.classList.remove('splitting');
   });
 

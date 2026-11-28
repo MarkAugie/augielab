@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=Alfa+Slab+One&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --felt: #0F4D3A; --felt2: #0B3D2E; --rail: #5B3A1E; --brass: #D9B26A; --chalk: #F3EEDF; --dim: #B9CBBF; --red: #C8283A; --ivory: #FBF7EC; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -126,13 +127,13 @@
     <p class="odds" style="font-size:.9rem;margin-top:12px">Just for fun. Not affiliated with any lottery. If you play, play for fun and within your budget.</p>
   </section>
 
-  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's secure generator.</span></p>
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></p>
 </div>
 
 <template id="explain">
   <h2>What's happening?</h2>
-  <h3>Right now: demo mode</h3>
-  <p>Today every roll, flip and lottery pick comes from your web browser's built-in random number maker. It's fair, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, every result will come from a quantum measurement, and the dot at the bottom will turn from yellow to green.</p>
+  <h3>Where the randomness comes from</h3>
+  <p>Every roll, flip and lottery pick comes from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
   <h3>Why quantum dice are different</h3>
   <p>A real die is only "random" because nobody can track exactly how it tumbles. Physics says a perfect measurement could predict it. A quantum measurement is different: nothing in the universe decides the result ahead of time, not even in principle. Einstein famously didn't like that idea, saying God doesn't play dice. These dice are the kind he was talking about.</p>
   <h3>About the lottery pick</h3>
@@ -147,7 +148,7 @@
   // ================= Randomness source =================
   // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
   // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], quantum = false;
   async function topUp(n) {
     if (!SOURCE.ENDPOINT || pool.length >= n) return;
@@ -170,7 +171,7 @@
       : SOURCE.ENDPOINT ? "Randomness: the quantum generator is offline, so this is your browser's secure generator."
       : "Randomness: demo mode, from your browser's secure generator.";
   }
-  paintSource();
+  paintSource(); topUp(256);   // ask the quantum generator right away so the dot is right from the start
   const $ = id => document.getElementById(id);
 
   // ================= Tabs =================

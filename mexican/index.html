@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rye&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --felt: #1D5C46; --felt-dk: #123D2F; --text: #F6F1E4; --dim: #C9D8CF; --red: #C8102E; --gold: #F2C14E; --good: #5EE39A; --ink: #22180F; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -240,7 +241,7 @@
   <p>Each time anyone draws, the page writes down the odds of a fit and whether it happened. Add up the odds and you get how many fits to expect, and you can compare that with what really happened.</p>
   <p>Here's a twist you'll probably notice: draws tend to fit a little more often than the coach's number. That's not bad luck in reverse. The other players have been playing the numbers showing at the ends of the trains whenever they could, so their hands run short on those numbers. That leaves a few more of them in the boneyard than a plain count would suggest. In our test games, draws fit about a quarter more often than the simple odds said.</p>
   <h3>Where the shuffles come from</h3>
-  <p>Today the dominoes are shuffled with your browser's random number maker. When this lab's <strong>quantum random number generator</strong> is online, a small USB stick from Crypta Labs that measures tiny particles of light, it will shuffle every round, and the dot at the bottom will turn green.</p>
+  <p>Every round is shuffled by this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
 </template>
 <script src="/lab/explain.js" defer></script>
 <script src="/lab/track.js" defer></script>
@@ -253,7 +254,7 @@
 
   // ================= Randomness =================
   // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let qpool = [], quantum = false, fetching = false;
   async function topUp() {
     if (!SOURCE.ENDPOINT || fetching || qpool.length > 256) return; fetching = true;

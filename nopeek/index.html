@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --felt: #123A5A; --felt-dk: #0A2238; --rail: #5A1420; --gold: #F5C451; --text: #F3F1EA; --dim: #BFCCD9; --red: #C8102E; --ink: #14181D; --good: #5EE39A; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -214,7 +215,7 @@
   <h3>Why there are no choices</h3>
   <p>In No Peek, the cards make every decision. The only real choices at a home game are the bets. So this page lets you sit back, flip, and learn the odds. You can flip your own cards when it's your turn; the computer players flip theirs.</p>
   <h3>Where the shuffles come from</h3>
-  <p>Today the deck is shuffled with your browser's random number maker. When this lab's <strong>quantum random number generator</strong> is online, a small USB stick from Crypta Labs that measures tiny particles of light, it will shuffle every deck, and the dot at the bottom will turn green.</p>
+  <p>Every deck is shuffled by this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
 </template>
 <script src="/lab/explain.js" defer></script>
 <script src="/lab/track.js" defer></script>
@@ -226,7 +227,7 @@
 
   // ================= Randomness =================
   // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let qpool = [], quantum = false, fetching = false;
   async function topUp() {
     if (!SOURCE.ENDPOINT || fetching || qpool.length > 256) return; fetching = true;

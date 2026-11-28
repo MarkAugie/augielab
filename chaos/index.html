@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --void: #07060C; --panel: #13111E; --line: #2D2842;
@@ -191,7 +192,7 @@
   <h3>The quantum part</h3>
   <p>Each flame's design (its rules, their twists and its colors) comes from an 8-character code, and "New quantum flame" draws that code from the random source. That's 4.3 billion possible designs, so the one you're looking at has almost certainly never been seen before. Type in a code and you get exactly the same flame on any computer. A flame needs tens of millions of dots, far more than can travel over the internet from a generator, so those rolls come from a fast generator started by the quantum code. On the triangle and fern, the dice come from the quantum generator for as long as its supply lasts. The line at the bottom shows how much.</p>
   <h3>Where the randomness comes from</h3>
-  <p>Right now it's your browser's random number maker. Soon this lab plugs in a <strong>quantum random number generator</strong> from Crypta Labs, and the dot at the bottom turns green.</p>
+  <p>The dice come from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
 </template>
 
 <script>
@@ -201,7 +202,7 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], fetching = false, quantum = false, qUsed = 0, bUsed = 0;
   function setSource(q, fellBack) {
     quantum = q; $('source').classList.toggle('quantum', q); showSource(fellBack);

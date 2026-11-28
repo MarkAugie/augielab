@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --night: #080B1C; --deep: #10153A; --panel: #141A3F; --line: #2B3470;
@@ -176,7 +177,7 @@
   <h3>Reading the sky</h3>
   <p>Each streak is a muon. A purple puff is where one decayed. A yellow flash at the bottom is one reaching the ground. The bars on the right edge show where muons decay at each height; the yellow bar at the bottom is the ones that made it. <strong>Fire 1,000</strong> sends a big batch at once so the scoreboard settles close to the math.</p>
   <h3>Where the randomness comes from</h3>
-  <p>Right now the dice rolls come from your browser's built-in random number maker. Soon this lab plugs in a <strong>quantum random number generator</strong> from Crypta Labs, so each muon's lifetime is decided by a real quantum measurement. When it's connected, the dot at the bottom turns green. Someday this page may also show real muon counts from the lab's Geiger counter.</p>
+  <p>Each muon's lifetime is decided by this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow. Someday this page may also show real muon counts from the lab's Geiger counter.</p>
 </template>
 
 <script>
@@ -186,7 +187,7 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], fetching = false, quantum = false;
   function setSource(q, fellBack) {
     quantum = q; $('source').classList.toggle('quantum', q);

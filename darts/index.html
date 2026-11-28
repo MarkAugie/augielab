@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --ink: #0D1726; --ink2: #13213A; --line: #24395C; --chalk: #ECE6D6; --dim: #9AA9BF; --in: #4FE3C1; --out: #FF7A59; --gold: #FFD36E; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -105,7 +106,7 @@
 
     <div class="chartbox"><div class="label">How the estimate settles toward π as darts pile up</div><canvas id="chart"></canvas></div>
 
-    <div class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></div>
+    <div class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></div>
     <button class="why" id="whyBtn" aria-haspopup="dialog">✦ What's happening?</button>
   </section>
 </main>
@@ -114,14 +115,14 @@
   <div class="box">
     <button class="close" id="infoClose" aria-label="Close">×</button>
     <h2 id="infoTitle">Finding π with darts</h2>
-    <h3>Right now: demo mode</h3>
-    <p>Today the darts are thrown using your web browser's built-in random number maker. It's good, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, every dart will land where a quantum measurement says, and the dot under the chart will turn from yellow to green.</p>
+    <h3>Where the darts come from</h3>
+    <p>Every dart lands where this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light says. When the dot under the chart is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
     <h3>The trick</h3>
     <p>The board is a square with a circle drawn inside it, touching all four edges. If darts land at truly random spots, the share that lands inside the circle works out to π ÷ 4. Count them, multiply by 4, and you have π. More darts, closer answer.</p>
     <h3>Why it's called Monte Carlo</h3>
     <p>Named after the casino, it's the idea of solving a problem with lots of random guesses. Scientists use it for weather, finance, nuclear physics, chip design and AI, usually on big computer clusters.</p>
     <h3>Why the randomness matters</h3>
-    <p>The method only works if the darts are truly random. Ordinary computers fake randomness with a formula. This lab is connecting a real quantum random number generator, so each dart's landing spot comes from a quantum measurement instead of math. Until it's online, the page runs in demo mode and says so below the chart.</p>
+    <p>The method only works if the darts are truly random. Ordinary computers fake randomness with a formula. This lab uses a real quantum random number generator, so each dart's landing spot comes from a quantum measurement instead of math.</p>
     <h3>Don't expect perfection</h3>
     <p>Even perfectly random darts wobble. With 10,000 darts you'll usually match π to about two decimal places. Getting each extra digit takes roughly 100 times more darts.</p>
   </div>
@@ -132,11 +133,11 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
 
-  let pool = [];
+  let pool = [], downUntil = 0;   // if the quantum generator is offline, wait 30 s before asking again
   async function bytes(n) {
-    if (SOURCE.ENDPOINT) {
+    if (SOURCE.ENDPOINT && Date.now() > downUntil) {
       try {
         while (pool.length < n) {
           const res = await fetch(SOURCE.ENDPOINT + '?n=' + Math.min(4096, Math.max(n - pool.length, 512)), { cache: 'no-store' });
@@ -144,7 +145,7 @@
           pool.push(...j.values);
         }
         setSource(true); return pool.splice(0, n);
-      } catch (e) { setSource(false, true); }
+      } catch (e) { downUntil = Date.now() + 30000; setSource(false, true); }
     }
     const a = new Uint8Array(n); for (let i = 0; i < n; i += 65536) crypto.getRandomValues(a.subarray(i, Math.min(n, i + 65536)));
     return Array.from(a);
@@ -155,6 +156,7 @@
       : fellBack ? 'Randomness: the quantum generator is offline, so this is demo mode from your browser.' : "Randomness: demo mode, from your browser's generator.";
   }
   setSource(false);
+  if (SOURCE.ENDPOINT) bytes(1).catch(() => {});   // ask the quantum generator right away so the dot is right from the start
 
   // ================= Board =================
   const cv = document.getElementById('board'), x = cv.getContext('2d');

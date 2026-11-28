@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --paper: #F3ECDA; --paper2: #FBF7EC; --rule: rgba(64,110,150,.16); --margin: rgba(196,52,52,.45);
@@ -208,7 +209,7 @@
       </section>
     </div>
 
-    <div class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></div>
+    <div class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></div>
     <p class="credits">Data: city populations from GeoNames (CC BY 4.0) via all-the-cities · country populations (2018) and coastlines from country-json · country areas from mledoze/countries (ODbL).</p>
   </main>
 </div>
@@ -232,7 +233,7 @@
   <h3>And the Fibonacci numbers?</h3>
   <p>The famous series 1, 1, 2, 3, 5, 8, 13, 21… follows Benford's Law almost perfectly, and so do the powers of 2. Try them on the right page.</p>
   <h3>Where the randomness comes from</h3>
-  <p>Right now the left page uses your browser's built-in random number maker. It's good, but it's really a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. When it's connected, the dot at the bottom turns from yellow to green.</p>
+  <p>The left page's numbers come from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
 </template>
 
 <script src="data.js"></script>
@@ -244,10 +245,10 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
-  let pool = [];
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
+  let pool = [], downUntil = 0;   // if the quantum generator is offline, wait 30 s before asking again
   async function bytes(n) {
-    if (SOURCE.ENDPOINT) {
+    if (SOURCE.ENDPOINT && Date.now() > downUntil) {
       try {
         while (pool.length < n) {
           const res = await fetch(SOURCE.ENDPOINT + '?n=' + Math.min(4096, Math.max(n - pool.length, 512)), { cache: 'no-store' });
@@ -255,7 +256,7 @@
           pool.push(...j.values);
         }
         setSource(true); return pool.splice(0, n);
-      } catch (e) { setSource(false, true); }
+      } catch (e) { downUntil = Date.now() + 30000; setSource(false, true); }
     }
     const a = new Uint8Array(n); for (let i = 0; i < n; i += 65536) crypto.getRandomValues(a.subarray(i, Math.min(n, i + 65536)));
     return Array.from(a);
@@ -266,6 +267,7 @@
       : fellBack ? 'Randomness: the quantum generator is offline, so this is demo mode from your browser.' : "Randomness: demo mode, from your browser's generator.";
   }
   setSource(false);
+  if (SOURCE.ENDPOINT) bytes(1).catch(() => {});   // ask the quantum generator right away so the dot is right from the start
 
   // Whole numbers 1..999,999, every one equally likely: 20 random bits, throw away anything too big.
   async function quantumNumbers(n) {

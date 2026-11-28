@@ -7,13 +7,14 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="description" content="Bridge deals shuffled by random numbers, soon by a quantum random number generator. Hand records with HCP, shape, losing tricks, rare-hand odds, deal filters, four-color deck, printing, PBN and BBO export.">
+<meta name="description" content="Bridge deals shuffled by a quantum random number generator. Hand records with HCP, shape, losing tricks, rare-hand odds, deal filters, four-color deck, printing, PBN and BBO export.">
 <meta property="og:title" content="The Quantum Dealer">
 <meta property="og:description" content="Bridge deals shuffled by quantum randomness, with hand analysis, rare-hand odds, deal filters, printing and BBO export.">
 <meta property="og:url" content="https://augielab.dev/bridge/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root {
     --felt: #0F4A33; --felt2: #0A3624; --card: #FFFCF4; --ink: #1A1A1A; --dim: #5B5B55; --gold: #D9B45A; --cream: #F3EBD6;
@@ -180,7 +181,7 @@
 <template id="explain">
   <h2>What's happening?</h2>
   <h3>A true shuffle</h3>
-  <p>Each deal is a proper shuffle of all 52 cards: every card is placed by a random draw (the Fisher–Yates method), so every one of the 53,644,737,765,488,792,839,237,440,000 possible deals is equally likely. Human shuffles aren't quite that random: a few riffles leave clumps behind, which is why duplicate bridge moved to computer-dealt boards long ago. Soon this page will draw its randomness from a <strong>quantum random number generator</strong> (a Crypta Labs device), so each deal is decided by real quantum measurements. When it's connected, the dot at the bottom turns green.</p>
+  <p>Each deal is a proper shuffle of all 52 cards: every card is placed by a random draw (the Fisher–Yates method), so every one of the 53,644,737,765,488,792,839,237,440,000 possible deals is equally likely. Human shuffles aren't quite that random: a few riffles leave clumps behind, which is why duplicate bridge moved to computer-dealt boards long ago. This page draws its randomness from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light, so each deal is decided by real quantum measurements. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
   <h3>Boards, dealer and vulnerability</h3>
   <p>Boards follow the standard 16-board cycle used at every club: board 1 is North to deal, nobody vulnerable; board 2 East, N–S vulnerable; and so on. In the compass, red seats are vulnerable and the gold ring marks the dealer.</p>
   <h3>The numbers</h3>
@@ -200,7 +201,7 @@
   // ================= Randomness source =================
   // One switch: leave ENDPOINT empty for demo mode. When the quantum generator is online,
   // set it to a URL that returns {"ok":true,"values":[0..255,...]} for ?n=COUNT (refined, Cicada -p 0).
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], fetching = false, quantum = false, qUsed = 0, bUsed = 0;
   function setSource(q, fellBack) { quantum = q; $('source').classList.toggle('quantum', q); showSource(fellBack); }
   function showSource(fellBack) {

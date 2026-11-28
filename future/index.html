@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Limelight&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --night: #0D1326; --deep: #151E3B; --gold: #E7C26A; --gold-dk: #9C7A2E; --text: #F1EEE6; --dim: #BCC3D6;
     --hit: #6EF0A0; --miss: #FF8A8A; --wax: #A3142B; --card: #F6EFDD; --glow: #8FB8FF; }
@@ -178,7 +179,7 @@
     <div class="proof" id="proof">Your first guess will show its proof here.</div>
   </section>
 
-  <p class="source" id="source"><i></i><span id="sourceText">Randomness: demo mode, from your browser's generator.</span></p>
+  <p class="source" id="source"><i></i><span id="sourceText">Randomness: connecting to the quantum generator…</span></p>
 </div>
 
 <template id="explain">
@@ -192,7 +193,7 @@
   <h3>Reading your score</h3>
   <p>Luck goes up and down a lot over a few guesses, so being at 70% after 10 coin flips means very little. The shaded band on the chart shows where pure luck usually lands. The line under the scores tells you how often luck alone would do as well as you did. If it says "about 1 time in 1,000" after hundreds of guesses, that's worth telling someone about.</p>
   <h3>Where the randomness comes from</h3>
-  <p>Today the answers are picked by your web browser's built-in random number maker, a very clever math formula. Soon this lab is plugging in a <strong>quantum random number generator</strong>: a small USB stick from Crypta Labs that measures tiny, unpredictable particles of light. Then the answers will come from real quantum events, which nothing, not even the computer, could know in advance. The dot at the bottom will turn from yellow to green.</p>
+  <p>The answers come from this lab's <strong>quantum random number generator</strong>: a Crypta Labs QCicada, a small USB stick on a Raspberry Pi in Mark's house that measures tiny, unpredictable particles of light. They're real quantum events, which nothing, not even the computer, could know in advance. When the dot at the bottom is green, that's what you're getting. If the stick is ever offline, the page quietly switches to your browser's random number maker and the dot turns yellow.</p>
   <h3>Tips</h3>
   <p>Go with your first feeling and keep a steady pace. On a keyboard, press H or T for the coin, or 1 to 5 for the cards. Your score is saved on this device, so you can come back and keep going.</p>
 </template>
@@ -206,7 +207,7 @@
   // ================= Randomness source =================
   // Leave ENDPOINT empty for demo mode. When the quantum generator is online, set it to a URL that
   // returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
-  const SOURCE = { ENDPOINT: '', NAME: 'Crypta Labs Cicada quantum generator' };
+  const SOURCE = { ENDPOINT: '/api/qrng', NAME: 'Crypta Labs Cicada quantum generator' };
   let pool = [], quantum = false, fetching = false;
   async function topUp() {
     if (!SOURCE.ENDPOINT || fetching || pool.length > 128) return; fetching = true;

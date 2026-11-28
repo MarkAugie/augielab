@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --bg: #DCDDD8; --panel: #EFEFEA; --panel-dk: #C9CAC3; --ink: #1B1D1F; --dim: #4F555B; --orange: #F25C05; --lcd: #12181B; --lcd-ink: #9BF3C9;
     --a: #F25C05; --b: #2F6FDB; --x: #8A3FD1; --ok: #1FAE5B; --warn: #E8A10C; --bad: #D7263D; }
@@ -194,8 +195,8 @@
   <p>Luck alone makes a "1 in 1,000" result here about once every 40 minutes, because the detector runs over 1,400 checks an hour. So a single odd moment means nothing. Scientists call this the look-elsewhere effect. The detector only says "glitch" for something rarer than 1 in a million, which pure luck should produce about once every month of non-stop watching. And even then, the real test is whether it happens again.</p>
   <h3>The fake glitch button</h3>
   <p>It quietly makes Station B give 1s about 56% of the time for 10 seconds. That's a small tilt you'd never notice by eye, but the detector should catch it within one or two checks. It shows the instrument works.</p>
-  <h3>Right now: demo mode</h3>
-  <p>Until the quantum stick and the Australian link are switched on, both stations are stood in for by your web browser's random number maker. The checks, chart and alarms all work the same way. When the real sources are connected, the station tags will say LIVE and the dot at the bottom will turn green.</p>
+  <h3>Where the stations' numbers come from</h3>
+  <p>Station A is live: its bits come from this lab's Crypta Labs QCicada quantum stick in Oak Grove, Oregon, and its tag says LIVE. The Australian link for Station B isn't switched on yet, so for now your web browser's random number maker stands in for it. The checks, chart and alarms work the same either way. If the stick is ever offline, Station A falls back to your browser too.</p>
   <h3>Has anyone found a glitch?</h3>
   <p>Not convincingly. A long-running project at Princeton, the Global Consciousness Project, ran random number generators around the world for decades and claimed small effects, but most scientists aren't persuaded. So far, reality looks fair.</p>
 </template>
@@ -209,7 +210,7 @@
   // ================= Stations =================
   // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
   const STATIONS = [
-    { id: 'A', color: '#F25C05', name: 'Station A', place: 'Oak Grove, Oregon, USA', device: 'Crypta Labs Cicada quantum generator', ENDPOINT: '' },
+    { id: 'A', color: '#F25C05', name: 'Station A', place: 'Oak Grove, Oregon, USA', device: 'Crypta Labs Cicada quantum generator', ENDPOINT: '/api/qrng' },
     { id: 'B', color: '#2F6FDB', name: 'Station B', place: 'Canberra, Australia', device: 'public quantum source (planned)', ENDPOINT: '' }
   ];
   const RATE = 2000;            // bits per second per station
@@ -217,9 +218,10 @@
   STATIONS.forEach(s => Object.assign(s, { pool: [], live: false, fetching: false, n: 0, ones: 0, wN: 0, wOnes: 0, run: 0, last: -1, wLongest: 0, longest: 0, recent: [], drift: 0 }));
 
   async function topUp(s) {
-    if (!s.ENDPOINT || s.fetching || s.pool.length > 1024) return; s.fetching = true;
+    if (!s.ENDPOINT || s.fetching || s.pool.length > 1024 || Date.now() < (s.retryAt || 0)) return; s.fetching = true;
     try { const r = await fetch(s.ENDPOINT + '?n=1024', { cache: 'no-store' }); const j = await r.json();
       if (j.ok && Array.isArray(j.values)) { s.pool.push(...j.values); s.live = true; } else s.live = false; } catch (e) { s.live = false; }
+    if (!s.live) s.retryAt = Date.now() + 30000;   // offline: don't hammer the server, try again in 30 s
     s.fetching = false; paintTags();
   }
   const buf = new Uint8Array(4096); let bp = buf.length;
