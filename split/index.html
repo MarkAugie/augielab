@@ -18,7 +18,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://augielab.dev/split/og-image.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Antonio:wght@300;400&display=swap" rel="stylesheet">
 <script src="/lab/qrng-guard.js"></script>
 <style>
   :root { --glow: #9fe8ff; --violet: #b48cff; --ink: #eef2ff; }
@@ -81,6 +81,149 @@
   button:hover { transform: translateY(-1px); box-shadow: 0 0 46px rgba(170,180,255,.8); }
   .err { min-height: 1.4em; color: #ffb3c7; font-size: .95rem; text-align: center; }
 
+  /* =================== the retro lab console =================== */
+  .console { --enamel: #3D5A4C; --enamel2: #2E4639; --cream: #EDE4CC; --cream2: #DCD0B0; --ink: #2A2018; --brass: #C9A15C; --brass2: #8E6A2C;
+    --bake: #2B1D14; --nixie: #FF8A3D; --nixie-hot: #FFD2A6; --lampG: #5BE38A; --lampA: #FFB23D; --lampR: #FF4D4D;
+    position: relative; width: min(1000px, 100%); margin: auto; padding: 22px 24px 26px; border-radius: 26px; color: var(--ink); text-align: left;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,.08), transparent 40%),
+      repeating-radial-gradient(circle at 30% 40%, rgba(0,0,0,.05) 0 2px, rgba(255,255,255,.03) 2px 4px),
+      linear-gradient(180deg, var(--enamel), var(--enamel2));
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,.9), inset 0 2px 0 rgba(255,255,255,.18), inset 0 -4px 0 rgba(0,0,0,.35), 0 0 0 2px #1C2A22; }
+  .console .screw { position: absolute; width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #E8E1CF, #8C8678 70%); box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 1px 1px rgba(255,255,255,.2); }
+  .console .screw::after { content: ""; position: absolute; left: 3px; right: 3px; top: 7px; height: 2px; background: #5A554B; transform: rotate(var(--r, 30deg)); }
+  .screw.tl { top: 12px; left: 12px; } .screw.tr { top: 12px; right: 12px; --r: -20deg; } .screw.bl { bottom: 12px; left: 12px; --r: 70deg; } .screw.br { bottom: 12px; right: 12px; --r: 10deg; }
+
+  .plate { margin: 4px auto 6px; width: fit-content; max-width: 100%; padding: 10px 26px 9px; border-radius: 8px; text-align: center;
+    background: linear-gradient(180deg, #F3D995, var(--brass) 45%, var(--brass2)); box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 3px 8px rgba(0,0,0,.45); }
+  .plate .maker { font: 700 .82rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .3em; color: #4A3412; }
+  .plate h1 { margin: 2px 0 1px; font: 700 clamp(1.7rem, 5.4vw, 2.6rem)/1.05 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase;
+    color: #2A1A06; background: none; -webkit-background-clip: border-box; background-clip: border-box; text-shadow: 0 1px 0 rgba(255,240,200,.7); }
+  .plate .model { font: 600 .82rem "IBM Plex Mono", monospace; letter-spacing: .12em; color: #4A3412; }
+  .console .tagline { margin: 10px 0 14px; text-align: center; font: 500 clamp(1.05rem, 3.4vw, 1.3rem) Cinzel, serif; color: #FFE6C2; text-shadow: 0 1px 0 rgba(0,0,0,.6); }
+
+  .face { position: relative; border-radius: 16px; padding: 16px 16px 14px; background: linear-gradient(180deg, var(--cream), var(--cream2));
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.35), inset 0 0 0 2px rgba(0,0,0,.12); }
+  .instruments { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
+  .gauge { text-align: center; }
+  .gauge svg { width: 100%; max-width: 210px; display: block; margin: 0 auto; }
+  .gauge .gl { font: 700 .9rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); }
+  .gauge .gv { font: 600 .92rem "IBM Plex Mono", monospace; color: #5A4A38; }
+  .needle { transition: transform 1.2s cubic-bezier(.3,1.4,.5,1); transform-origin: 100px 100px; }
+  .lamps { display: grid; grid-template-columns: auto auto; gap: 10px 14px; }
+  .lamp { display: flex; align-items: center; gap: 8px; font: 700 .86rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
+  .lamp i { flex: none; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #6A6458, #2A2620);
+    box-shadow: inset 0 0 0 2px #1A1712, 0 0 0 3px #B9B09A, 0 1px 2px 3px rgba(0,0,0,.2); transition: background .3s, box-shadow .3s; }
+  .lamp.g i { background: radial-gradient(circle at 35% 35%, #E6FFEF, var(--lampG) 45%, #1C7A40); box-shadow: inset 0 0 0 2px #1A1712, 0 0 0 3px #B9B09A, 0 0 14px 4px rgba(91,227,138,.7); }
+  .lamp.a i { background: radial-gradient(circle at 35% 35%, #FFF3D6, var(--lampA) 45%, #8E5A06); box-shadow: inset 0 0 0 2px #1A1712, 0 0 0 3px #B9B09A, 0 0 14px 4px rgba(255,178,61,.7); }
+  .lamp.r i { background: radial-gradient(circle at 35% 35%, #FFE2E2, var(--lampR) 45%, #8A1212); box-shadow: inset 0 0 0 2px #1A1712, 0 0 0 3px #B9B09A, 0 0 14px 4px rgba(255,77,77,.7); }
+  .lamp.blink i { animation: lampblink .18s steps(2) 6; }
+  @keyframes lampblink { 50% { filter: brightness(.35); } }
+
+  .counters { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; margin-top: 14px; padding-top: 12px; border-top: 2px solid rgba(0,0,0,.12); }
+  .ctr .cl { font: 700 .86rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); margin-bottom: 6px; }
+  .nixies { display: flex; gap: 4px; padding: 6px; width: fit-content; border-radius: 10px; background: #15100C; box-shadow: inset 0 2px 6px rgba(0,0,0,.8), 0 0 0 3px var(--brass2); }
+  .nx { position: relative; width: clamp(26px, 3vw, 32px); aspect-ratio: 1 / 1.6; border-radius: 40% 40% 6px 6px / 20% 20% 6px 6px; overflow: hidden;
+    background: linear-gradient(90deg, rgba(255,255,255,.10), rgba(255,255,255,0) 22%, rgba(255,255,255,0) 78%, rgba(255,255,255,.06)), radial-gradient(ellipse at 50% 60%, rgba(255,140,60,.12), transparent 70%), #1B1410;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); display: grid; place-items: center;
+    font: 300 clamp(1.4rem, 4.2vw, 2.05rem)/1 Antonio, "IBM Plex Sans Condensed", sans-serif; color: var(--nixie-hot);
+    text-shadow: 0 0 4px var(--nixie), 0 0 12px var(--nixie), 0 0 24px rgba(255,138,61,.55); }
+  .nx::before { content: ""; position: absolute; inset: 14% 12% 10%; opacity: .18; background: repeating-linear-gradient(60deg, #C9A15C 0 1px, transparent 1px 5px), repeating-linear-gradient(-60deg, #C9A15C 0 1px, transparent 1px 5px); }
+  .nx.dim { color: rgba(255,138,61,.14); text-shadow: none; }
+
+  .instr { margin: 4px 0 0; padding: 10px 16px; border-radius: 10px; background: #1F2B24; color: #E9E1CA; box-shadow: inset 0 0 0 2px #4B6A59, 0 2px 0 rgba(255,255,255,.08); }
+  .instr h2 { font: 700 .86rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .2em; color: var(--brass); margin-bottom: 6px; }
+  .instr ol { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .instr li { display: flex; gap: 8px; align-items: center; font-size: 1rem; line-height: 1.3; }
+  .instr li b { flex: none; display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; font: 700 1rem "IBM Plex Sans Condensed", sans-serif;
+    color: #2A1A06; background: linear-gradient(180deg, #F3D995, var(--brass)); }
+  .coin { margin: -4px auto 12px; max-width: 46ch; text-align: center; font-size: 1.12rem; line-height: 1.45; color: #F4EEDC; }
+
+  .deck { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 14px; }
+  .deck .face { order: 1; } .deck form { order: 2; }
+  .controls { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; align-items: stretch; }
+  .controls > * { min-width: 0; } .console input { min-width: 0; width: 100%; }
+  .instruments { grid-template-columns: 1fr 1fr !important; }
+  .lamps { grid-column: 1 / -1; grid-row: 2; grid-template-columns: 1fr 1fr; justify-items: start; padding: 4px 6px; }
+  .counters { grid-template-columns: 1fr auto !important; }
+  .gauge svg { max-width: 170px; }
+  .console form { display: grid; gap: 12px; text-align: left; }
+  .slot { padding: 8px 10px 10px; border-radius: 10px; background: linear-gradient(180deg, #F3D995, var(--brass) 50%, var(--brass2)); box-shadow: 0 3px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5); }
+  .slot label { display: block; font: 700 .86rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .16em; color: #2A1A06; text-transform: uppercase; margin-bottom: 5px; }
+  .console input { margin: 0; padding: .8rem .9rem; font: 600 1.2rem "IBM Plex Mono", monospace; color: #1E1810; border-radius: 6px; border: 0; outline: none;
+    background: #FFF9EA; box-shadow: inset 0 2px 5px rgba(0,0,0,.35); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .console input::placeholder { color: #9C8F76; }
+  .console input:focus { box-shadow: inset 0 2px 5px rgba(0,0,0,.35), 0 0 0 3px #FFE6A0; border: 0; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+  .presets > span { font: 700 .86rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #E9E1CA; margin-right: 2px; }
+  .console .chip { padding: .6rem .85rem; border-radius: 8px; font: 600 .98rem Inter, sans-serif; letter-spacing: 0; color: #F4EAD2;
+    background: linear-gradient(180deg, #4A3526, var(--bake)); border: 0; box-shadow: 0 4px 0 #120B07, inset 0 1px 0 rgba(255,255,255,.15); transform: none; }
+  .console .chip:hover { box-shadow: 0 4px 0 #120B07, inset 0 1px 0 rgba(255,255,255,.15), 0 0 14px rgba(255,190,110,.35); }
+  .console .chip:active { transform: translateY(3px); box-shadow: 0 1px 0 #120B07; }
+
+  /* the lever */
+  .leverbox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  button.lever { position: relative; width: 120px; height: 210px; margin: 0; padding: 0; border-radius: 16px; background: none; box-shadow: none; cursor: pointer; transform: none; }
+  button.lever:hover { box-shadow: none; transform: none; }
+  button.lever:focus-visible { outline: 3px solid #FFE6A0; outline-offset: 4px; }
+  .lv-plate { position: absolute; left: 22px; right: 22px; top: 20px; bottom: 0; border-radius: 12px; background: linear-gradient(180deg, #2A2420, #120E0B);
+    box-shadow: 0 0 0 4px var(--brass2), 0 0 0 6px #1C2A22, inset 0 2px 8px rgba(0,0,0,.8); }
+  .lv-slot { position: absolute; left: 50%; top: 34px; bottom: 30px; width: 12px; margin-left: -6px; border-radius: 6px; background: #000; box-shadow: inset 0 0 4px rgba(255,255,255,.15); }
+  .lv-arm { position: absolute; left: 50%; bottom: 40px; width: 14px; height: 150px; margin-left: -7px; transform-origin: 50% 100%; transform: rotate(-28deg);
+    transition: transform .45s cubic-bezier(.5,-0.3,.4,1.4); }
+  .lv-arm::before { content: ""; position: absolute; left: 3px; right: 3px; top: 26px; bottom: 0; border-radius: 4px; background: linear-gradient(90deg, #8D8D8D, #F2F2F2, #9A9A9A); }
+  .lv-arm::after { content: ""; position: absolute; left: 50%; top: 0; width: 50px; height: 50px; margin-left: -25px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFB0A8, #E1261C 40%, #7A0C07); box-shadow: 0 6px 10px rgba(0,0,0,.6), inset 0 -4px 6px rgba(0,0,0,.35); }
+  .lv-hub { position: absolute; left: 50%; bottom: 26px; width: 36px; height: 36px; margin-left: -18px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #F3D995, var(--brass2)); box-shadow: 0 2px 4px rgba(0,0,0,.6); }
+  button.lever.pulled .lv-arm { transform: rotate(28deg); }
+  button.lever:not(.pulled):hover .lv-arm { transform: rotate(-22deg); }
+  .leverbox .ll { font: 700 .95rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #FFE6C2; text-align: center; }
+  .console .err { color: #FFD0C8; font-weight: 600; }
+
+  /* the measurement record (result) */
+  button.lever.ready { animation: none; }
+  button.lever.ready .lv-arm { animation: nudge .45s ease-in-out 3; }
+  @keyframes nudge { 50% { transform: rotate(-12deg); } }
+  #result .card.ticket { background: #FBF4E2; color: #2A2018; border: 0; border-radius: 4px; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 1.8rem 1.6rem 1.6rem;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.9);
+    -webkit-mask: radial-gradient(circle 7px at 50% 0, transparent 98%, #000) 0 0 / 22px 100% repeat-x, linear-gradient(#000 0 0) 0 7px / 100% calc(100% - 14px) no-repeat, radial-gradient(circle 7px at 50% 100%, transparent 98%, #000) 0 100% / 22px 7px repeat-x;
+    animation: printout .9s cubic-bezier(.2,.8,.2,1); }
+  @keyframes printout { from { transform: translateY(40px); clip-path: inset(0 0 100% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
+  .ticket .rec { font: 700 .86rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .22em; text-transform: uppercase; color: #8E6A2C; }
+  .ticket h2 { font: 700 clamp(1.6rem, 5vw, 2.1rem)/1.15 "IBM Plex Sans Condensed", sans-serif !important; text-transform: uppercase; letter-spacing: .04em; margin-top: .2rem; color: #2A1A06; }
+  .ticket .w.mine { background: #EFE3C2; border: 2px solid #2A2018; box-shadow: none; }
+  .ticket .w.theirs { background: transparent; border: 2px dashed #9C8F76; }
+  .ticket .w .tag { color: #6B5A3E; font-weight: 700; }
+  .ticket .w.theirs .tag { color: #8A7D66; }
+  .ticket .w .pick { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: #1E1810; }
+  .ticket .w.theirs .pick { color: #6B5F4C; }
+  .ticket .other, .ticket .nth, .ticket .uid, .ticket .proof, .ticket .savepic { color: #4A3E2E !important; }
+  .ticket .other { color: #8A2E1E !important; }
+  .ticket .uid b { color: #1E1810; background: #EFE3C2; border-color: #2A2018; }
+  .ticket .uid a, .ticket .savepic a, .ticket .proof a { color: #1F5FA8; }
+  .ticket .proof b { color: #1E1810; }
+  .ticket .actions #share { color: #FFF4DD; background: linear-gradient(180deg, #E1261C, #9A120C); box-shadow: 0 4px 0 #5A0A06; }
+  .ticket .actions .ghost { color: #F4EAD2; background: linear-gradient(180deg, #4A3526, #2B1D14); border: 0; box-shadow: 0 4px 0 #120B07; }
+
+  @media (max-width: 760px) {
+    .deck { grid-template-columns: minmax(0, 1fr); }
+    .counters { grid-template-columns: 1fr !important; gap: 10px; }
+    .deck > * { min-width: 0; }
+    .deck form { order: 1; } .deck .face { order: 2; }
+    .lamp { font-size: .76rem; letter-spacing: .02em; gap: 7px; white-space: nowrap; } .lamps { padding: 4px 0; gap: 10px 8px; }
+    .nx { width: 26px; font-size: 1.35rem; }
+    .console { padding: 18px 14px 20px; border-radius: 20px; }
+    .instruments { grid-template-columns: 1fr 1fr; }
+    .lamps { grid-column: 1 / -1; grid-row: 2; grid-template-columns: 1fr 1fr; justify-items: start; }
+    .instr ol { grid-template-columns: 1fr; gap: 6px; }
+    .controls { grid-template-columns: 1fr; }
+    .controls { grid-template-columns: minmax(0, 1fr) 100px; gap: 8px; }
+    .leverbox .ll { font-size: .85rem; letter-spacing: .06em; }
+    button.lever { width: 100px; height: 180px; }
+    .lv-arm { height: 125px; }
+    .plate { padding: 8px 14px 7px; } .plate .model { font-size: .72rem; letter-spacing: .06em; }
+  }
   /* the light experiment */
   #lab { position: fixed; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity .5s; }
   #lab.on { opacity: 1; }
@@ -149,6 +292,7 @@
     .sub { font-size: 1.05rem; margin-bottom: 1rem; } h1 { font-size: 2rem; } .tagline { margin-top: .6rem; font-size: 1.05rem; } .sub { margin-top: .6rem; }
     #result .card { padding: 1.5rem 1.1rem; } .w { padding: .8rem .95rem; }
     .worlds { grid-template-columns: 1fr; } }
+  @media (max-width: 400px) { .lamps { grid-template-columns: 1fr 1fr; } .lamp { font-size: .7rem; letter-spacing: 0; gap: 5px; } .lamp i { width: 18px; height: 18px; } .face { padding: 14px 10px 12px; } }
   @media (prefers-reduced-motion: reduce) { #sky { animation: none; } button.ready { animation: none; } }
 </style>
 </head>
@@ -163,30 +307,73 @@
 <div id="labCap" aria-live="polite"></div>
 
 <section class="panel" id="intro">
-  <div class="card">
-    <h1>The Universe<br>Splitter</h1>
+  <div class="console">
+    <span class="screw tl"></span><span class="screw tr"></span><span class="screw bl"></span><span class="screw br"></span>
+    <div class="plate">
+      <div class="maker">AUGIELAB</div>
+      <h1>Universe Splitter</h1>
+      <div class="model">MODEL QS-1 · QUANTUM DECISION INSTRUMENT</div>
+    </div>
     <p class="tagline">Having a bad day? Somewhere, another you isn't.</p>
-    <p class="sub">It's like flipping a coin, except the coin is a particle of light, and both sides come true.</p>
-    <ol class="steps">
-      <li><b>1</b><span>Pick two choices</span></li>
-      <li><b>2</b><span>Press Split</span></li>
-      <li><b>3</b><span>Light picks one for you</span></li>
-    </ol>
-    <div class="tries" id="tries"><span>Try one:</span></div>
-    <form id="form" autocomplete="off">
-      <div><label for="a">Choice A</label><input id="a" maxlength="60" placeholder="Pizza"></div>
-      <div><label for="b">Choice B</label><input id="b" maxlength="60" placeholder="Tacos"></div>
-      <button type="submit" id="go">Split the Universe</button>
-      <div class="err" id="err"></div>
+
+    <p class="coin">It's like flipping a coin, except the coin is a particle of light, and both sides come true.</p>
+    <div class="instr">
+      <h2>OPERATING INSTRUCTIONS</h2>
+      <ol>
+        <li><b>1</b><span>Type two choices, or press a preset</span></li>
+        <li><b>2</b><span>Pull the red lever</span></li>
+        <li><b>3</b><span>A particle of light picks one for you</span></li>
+      </ol>
+    </div>
+
+    <div class="deck">
+    <div class="face" aria-label="Live readings from the quantum generator">
+      <div class="instruments">
+        <div class="gauge">
+          <svg viewBox="0 0 200 128" id="g1" aria-hidden="true"></svg>
+          <div class="gl">Photon rate</div><div class="gv" id="g1v">–</div>
+        </div>
+        <div class="lamps">
+          <div class="lamp" id="lpGen"><i></i>Generator</div>
+          <div class="lamp" id="lpTest"><i></i>Self-test</div>
+          <div class="lamp" id="lpA"><i></i>Detector A</div>
+          <div class="lamp" id="lpB"><i></i>Detector B</div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 200 128" id="g2" aria-hidden="true"></svg>
+          <div class="gl">Reserve</div><div class="gv" id="g2v">–</div>
+        </div>
+      </div>
+      <div class="counters">
+        <div class="ctr"><div class="cl">Universes split on AugieLab</div><div class="nixies" id="nxTotal" aria-live="polite"></div></div>
+        <div class="ctr"><div class="cl">Yours</div><div class="nixies" id="nxMine"></div></div>
+      </div>
+    </div>
+
+    <form id="form" autocomplete="off" class="controls">
+      <div style="display:grid; gap:12px">
+        <div class="slot"><label for="a">Choice A</label><input id="a" maxlength="60" placeholder="Pizza"></div>
+        <div class="slot"><label for="b">Choice B</label><input id="b" maxlength="60" placeholder="Tacos"></div>
+        <div class="presets" id="tries"><span>Presets</span></div>
+        <div class="err" id="err"></div>
+      </div>
+      <div class="leverbox">
+        <button type="submit" id="go" class="lever" aria-label="Pull the lever to split the universe">
+          <span class="lv-plate"></span><span class="lv-slot"></span><span class="lv-arm"></span><span class="lv-hub"></span>
+        </button>
+        <div class="ll">Pull to<br>split</div>
+      </div>
     </form>
-    <p class="tally" id="tally"></p>
+    </div>
+    <p class="tally" id="tally" hidden></p>
   </div>
 </section>
 
 <div id="status">Measuring the quantum vacuum…</div>
 
 <section class="panel hidden" id="result">
-  <div class="card">
+  <div class="card ticket">
+    <div class="rec">Measurement record · Model QS-1</div>
     <h2>The universe has split.</h2>
     <div class="worlds">
       <div class="w mine"><div class="tag" id="youTag">In this universe</div><div class="pick" id="you"></div></div>
@@ -219,6 +406,9 @@
 
     <h3>What this site actually does</h3>
     <p>When you press the button, this site asks a real quantum random number generator for a number. No computer formula, no dice, no trick. Even number: Universe A. Odd number: Universe B.</p>
+
+    <h3>The console is live</h3>
+    <p>The instrument panel isn't decoration. The <b>Photon rate</b> needle shows how fast the quantum generator in Mark's lab is turning light into random bits right now (about 100,000 a second). <b>Reserve</b> shows how many fresh quantum numbers are waiting. The <b>Generator</b> and <b>Self-test</b> lamps are real checks: the stick tests itself constantly and stops if anything looks wrong. The Nixie tubes count every universe split on AugieLab, and yours (kept only on your own device).</p>
 
     <h3>The light show, explained</h3>
     <p>The animation is the most famous quantum experiment there is. Shine one single particle of light at a half-silvered mirror, and it has a 50/50 chance of going through or bouncing off. Physics says that until a detector measures it, it isn't on one path or the other. It's on both. Then a detector clicks, and only one answer is real. The generator in Mark's lab measures light in its own way, counting particles instead of using a mirror, but it's the same kind of unpredictable.</p>
@@ -359,10 +549,57 @@
   /* ---------- the live counter ---------- */
   let total = null;
   const fmt = n => Number(n).toLocaleString('en-US');
+  function nixie(el, n, digits) {
+    const s = String(Math.max(0, n)).padStart(digits, '0').slice(-digits);
+    const lead = s.length - String(n).length;
+    el.innerHTML = [...s].map((d, i) => `<span class="nx${i < lead ? ' dim' : ''}">${d}</span>`).join('');
+    el.setAttribute('aria-label', String(n));
+  }
+  let myCount = 0; try { myCount = parseInt(localStorage.getItem('qs1-mine') || '0', 10) || 0; } catch (e) {}
+  nixie($('nxMine'), myCount, 3); nixie($('nxTotal'), 0, 7);
   function paintTally() {
     if (total === null) return;
-    $('tally').innerHTML = `🌌 <b>${fmt(total)}</b> universes split here so far`;
+    nixie($('nxTotal'), total, 7);
   }
+
+  /* ---------- gauges and lamps: live readings from the generator ---------- */
+  function buildGauge(svg, max, unitStep) {
+    const ns = 'http://www.w3.org/2000/svg', cx = 100, cy = 100, r = 80;
+    let h = `<path d="M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="#F8F1DE" stroke="#2A2018" stroke-width="3"/>`;
+    h += `<path d="M ${cx + r * Math.cos(Math.PI * .2)} ${cy - r * Math.sin(Math.PI * .2)} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="none" stroke="#C0392B" stroke-width="6" opacity=".0"/>`;
+    for (let v = 0; v <= max; v += unitStep / 2) {
+      const a = Math.PI - (v / max) * Math.PI, major = v % unitStep === 0;
+      const r1 = r - (major ? 14 : 8), x1 = cx + r1 * Math.cos(a), y1 = cy - r1 * Math.sin(a), x2 = cx + (r - 2) * Math.cos(a), y2 = cy - (r - 2) * Math.sin(a);
+      h += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2A2018" stroke-width="${major ? 2.5 : 1.3}"/>`;
+      if (major) { const r2 = r - 26; h += `<text x="${cx + r2 * Math.cos(a)}" y="${cy - r2 * Math.sin(a) + 5}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" fill="#2A2018">${v}</text>`; }
+    }
+    h += `<g class="needle"><line x1="${cx}" y1="${cy}" x2="${cx - r + 12}" y2="${cy}" stroke="#C0392B" stroke-width="3.5" stroke-linecap="round"/></g>`;
+    h += `<circle cx="${cx}" cy="${cy}" r="9" fill="#2A2018"/><circle cx="${cx}" cy="${cy}" r="4" fill="#C9A15C"/>`;
+    svg.innerHTML = h;
+    return (v) => { const k = Math.max(0, Math.min(1, v / max)); svg.querySelector('.needle').style.transform = `rotate(${k * 180}deg)`; };
+  }
+  const setG1 = buildGauge($('g1'), 150, 50), setG2 = buildGauge($('g2'), 100, 25);
+  const lamp = (id, c) => { $(id).classList.remove('g', 'a', 'r'); if (c) $(id).classList.add(c); };
+  let live = { speed: 0, buf: 0, ok: false };
+  async function pollHealth() {
+    try {
+      const r = await fetch('/api/qrng?health=1', { cache: 'no-store' }); const h = await r.json();
+      if (!h.ok) throw 0;
+      live = { ok: true, speed: (h.stick_speed || 0) / 1000, buf: 100 * (h.buffer_bytes || 0) / 262144 };
+      lamp('lpGen', 'g');
+      lamp('lpTest', h.health_flags && Object.values(h.health_flags).some(Boolean) ? 'r' : 'g');
+      $('g1v').textContent = `${Math.round(live.speed)} kbit/s`;
+      $('g2v').textContent = `${Math.round(live.buf)}% full`;
+    } catch (e) {
+      live = { ok: false, speed: 0, buf: 0 };
+      lamp('lpGen', 'a'); lamp('lpTest', null);
+      $('g1v').textContent = 'offline: using browser'; $('g2v').textContent = '–';
+    }
+    setG1(live.speed); setG2(live.buf);
+  }
+  pollHealth(); setInterval(pollHealth, 6000);
+  // a real needle never sits perfectly still
+  setInterval(() => { if (live.ok && !document.hidden) { setG1(live.speed * (1 + (Math.random() - .5) * .04)); setG2(Math.min(100, live.buf + (Math.random() - .5) * 1.5)); } }, 1400);
   fetch('/api/splits').then(r => r.json()).then(j => { if (j.ok) { total = j.total; paintTally(); } }).catch(() => {});
 
   /* ---------- the light experiment (single photon, half-silvered mirror) ---------- */
@@ -460,6 +697,10 @@
     const a = $('a').value.trim() || $('a').placeholder, b = $('b').value.trim() || $('b').placeholder;
     if (a.toLowerCase() === b.toLowerCase()) { $('err').textContent = 'Give two different choices.'; return; }
     $('err').textContent = ''; busy = true;
+    const lever = $('go'); lever.classList.remove('ready'); lever.classList.add('pulled');
+    lamp('lpA', null); lamp('lpB', null);
+    ['lpA', 'lpB'].forEach(id => { $(id).classList.remove('blink'); void $(id).offsetWidth; $(id).classList.add('blink', 'a'); });
+    await wait(reduce ? 200 : 900);
 
     intro.classList.add('hidden'); document.body.classList.add('splitting');
     const qp = getQuantum();
@@ -486,6 +727,9 @@
     await wait(1400);
 
     splits++; window.labTrack && labTrack('split');
+    myCount++; try { localStorage.setItem('qs1-mine', String(myCount)); } catch (e) {} nixie($('nxMine'), myCount, 3);
+    ['lpA', 'lpB'].forEach(id => $(id).classList.remove('blink'));
+    lamp('lpA', pickA ? 'g' : null); lamp('lpB', pickA ? null : 'g');
     if (total !== null) { total++; paintTally(); }
     last = { mine: pickA ? a : b, theirs: pickA ? b : a, letter: pickA ? 'A' : 'B', q };
     $('youTag').textContent = `In this universe (${last.letter})`;
@@ -509,7 +753,7 @@
     [...halves.children].forEach(h => { h.style.opacity = 0; });
     riftLight.style.opacity = 0;
     await wait(700);
-    halves.innerHTML = ''; crack.classList.remove('draw'); crack.style.opacity = 1;
+    halves.innerHTML = ''; crack.classList.remove('draw'); crack.style.opacity = 1; $('go').classList.remove('pulled');
     sky.style.opacity = 1; intro.classList.remove('hidden'); document.body.classList.remove('splitting'); busy = false;
   });
   /* ---------- postcard ---------- */
