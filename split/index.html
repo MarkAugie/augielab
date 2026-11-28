@@ -154,7 +154,7 @@
     <p>When you press the button, this site asks a real quantum random number generator for a number. No computer formula, no dice, no trick. Even number: Universe A. Odd number: Universe B.</p>
 
     <h3>A quantum lab at home</h3>
-    <p>The number comes from a <strong>Crypta Labs QCicada</strong>, a small USB quantum random number generator that measures tiny, unpredictable particles of light. It's plugged into a Raspberry Pi in Mark's house in Oak Grove, Oregon. If it's ever offline, the site asks a physics lab at the Australian National University instead, which measures the flickering energy of empty space itself. Same idea, same physics. The reading under your result says which one split your universe.</p>
+    <p>The number comes from a <strong>Crypta Labs QCicada</strong>, a small USB quantum random number generator that measures tiny, unpredictable particles of light. It's plugged into a Raspberry Pi in Mark's home lab near Portland, Oregon. If it's ever offline, the site asks a physics lab at the Australian National University instead, which measures the flickering energy of empty space itself. Same idea, same physics. The reading under your result says which one split your universe.</p>
 
     <h3>So is it real?</h3>
     <p>If Many-Worlds is right, yes. There's now another you out there living the other choice. If it's wrong, you still handed your decision to the laws of physics, which is pretty cool on its own. Scientists are still debating it, and no experiment can settle it yet.</p>
@@ -311,7 +311,7 @@
     $('you').textContent = `You are in ${pickA ? 'Universe A' : 'Universe B'}: ${pickA ? a : b}.`;
     $('other').textContent = `In the other universe, another you is going to ${(pickA ? b : a).replace(/^./, s => s.toLowerCase())}.`;
     $('proof').innerHTML = q.where === 'home'
-      ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), measured just now from particles of light by the Crypta Labs QCicada in Mark's house in Oak Grove, Oregon.`
+      ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), measured just now from particles of light by the Crypta Labs QCicada in Mark's home lab near Portland, Oregon.`
       : q.quantum
       ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), from the ANU lab measuring vacuum fluctuations in Canberra, Australia. (The home quantum generator was offline.)`
       : `Demo mode reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}). Both quantum sources were unreachable, so this used browser randomness.`;

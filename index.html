@@ -324,7 +324,7 @@
 
 <a class="qstat" id="qstat" href="/inside/" data-state="checking" aria-live="polite">
   <span class="qdot" aria-hidden="true"></span>
-  <span class="qmain"><b id="qTitle">Checking the quantum generator…</b><span id="qWhere">Oak Grove, Oregon</span></span>
+  <span class="qmain"><b id="qTitle">Checking the quantum generator…</b><span id="qWhere">Portland, Oregon</span></span>
   <span class="qnums" id="qNums"></span>
   <span class="qgo">Inside the lab →</span>
 </a>
@@ -661,7 +661,7 @@
       text: 'Every big server has a tiny side computer (the BMC) that works even when the server is frozen or off. This tool writes the exact commands to power-cycle it, read its hardware logs and sensors, check inventory, change the boot order, or mount a rescue disk, in Redfish, ipmitool, Python and more. It knows each vendor\'s quirks and has recovery playbooks. Press a ▶ Demo button to try it on a pretend broken server with six hidden problems.' },
     // ---------- Quantum ----------
     { s: 1, href: '/inside/', name: 'Inside the lab', tags: ['Quantum', 'Physics'],
-      why: 'A real quantum random number generator, live, in Oak Grove.',
+      why: 'A real quantum random number generator, live, in a home lab near Portland, Oregon.',
       text: 'Meet the machine behind every dice roll and shuffle on this site: a Crypta Labs QCicada on a Raspberry Pi. See its live status, watch its numbers stream as quantum static, follow a particle of light all the way to your screen, and press Prove it: the stick signs a reading with its own built-in key and your browser checks it. Plus myth-busters, like why it does not need absolute zero.' },
     { s: 1, href: '/split/', name: 'Split the universe', tags: ['Quantum', 'Physics'],
       why: 'Can\'t decide? Do both.',
@@ -928,7 +928,7 @@
 </script>
 
 <script>
-// Live status of the home quantum generator (Crypta Labs QCicada on a Raspberry Pi in Oak Grove).
+// Live status of the home quantum generator (Crypta Labs QCicada on a Raspberry Pi in Mark's home lab near Portland).
 (() => {
   const el = document.getElementById('qstat'), title = document.getElementById('qTitle'), nums = document.getElementById('qNums');
   let shown = null, target = null, t0 = 0, from = 0, timer = null;

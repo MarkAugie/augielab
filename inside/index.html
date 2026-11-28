@@ -7,7 +7,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="description" content="A real quantum random number generator runs in Mark's house in Oak Grove, Oregon. Watch its numbers stream live, see how they get from particles of light to your screen, and check a reading signed by the device itself.">
+<meta name="description" content="A real quantum random number generator runs in Mark's home lab near Portland, Oregon. Watch its numbers stream live, see how they get from particles of light to your screen, and check a reading signed by the device itself.">
 <meta property="og:title" content="Inside the lab: a live quantum random number generator">
 <meta property="og:description" content="Particles of light in, unpredictable numbers out, live. No absolute zero required. Watch the stream and check a signed reading yourself.">
 <meta property="og:url" content="https://augielab.dev/inside/">
@@ -115,6 +115,28 @@
   .kit span { color: var(--dim); font-size: .9rem; }
   footer { margin-top: 50px; color: var(--soft); font-size: .9rem; text-align: center; }
 
+  /* ---------- last 24 hours (uptime) ---------- */
+  .uptime { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+  .up-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .up-tiles .meter .v { font-size: 1.6rem; }
+  .tl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tl-head b { font-size: 1.05rem; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); font-size: .9rem; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .timeline { display: grid; grid-template-columns: repeat(96, 1fr); gap: 2px; height: 46px; }
+  .timeline span { border-radius: 2px; background: #1A2330; }
+  .timeline span.ok { background: var(--q); }
+  .timeline span.part { background: var(--amber); }
+  .timeline span.down { background: var(--bad); }
+  .tl-axis { display: flex; justify-content: space-between; color: var(--soft); font-size: .85rem; margin: 6px 0 18px; }
+  #speedSpark { width: 100%; height: 70px; display: block; background: #080D14; border: 1px solid var(--line); border-radius: 10px; }
+  .log { list-style: none; margin: 10px 0 0; padding: 0; max-height: 260px; overflow-y: auto; }
+  .log li { display: grid; grid-template-columns: 9.5em 1.6em 1fr; gap: 8px; padding: 9px 4px; border-top: 1px solid var(--line); font-size: 1rem; }
+  .log li:first-child { border-top: 0; }
+  .log time { color: var(--soft); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .92rem; }
+  .uptime h3 { font-size: 1.1rem; margin: 18px 0 4px; }
+  .up-note { color: var(--dim); }
+  @media (max-width: 700px) { .up-tiles { grid-template-columns: 1fr; } .timeline { height: 38px; gap: 1px; } .log li { grid-template-columns: 7.5em 1.4em 1fr; } }
   @media (max-width: 1000px) {
     .pipe { grid-template-columns: 1fr 1fr; gap: 12px; }
     .step { margin: 0; }
@@ -137,17 +159,35 @@
 <div class="wrap">
   <nav class="top"><a href="/">← AugieLab</a></nav>
   <h1>Inside the <em>lab</em></h1>
-  <p class="sub">A real quantum random number generator runs in Mark's house in Oak Grove, Oregon. It turns particles of light into numbers that nobody, and nothing, can predict. Every dice roll, card shuffle and universe split on this site comes from it. Here it is, live.</p>
+  <p class="sub">A real quantum random number generator runs in Mark's home lab near Portland, Oregon. It turns particles of light into numbers that nobody, and nothing, can predict. Every dice roll, card shuffle and universe split on this site comes from it. Here it is, live.</p>
 
   <section class="status" id="status" data-state="checking" aria-live="polite">
     <div class="beacon" aria-hidden="true"></div>
-    <div><div class="st-title" id="stTitle">Checking the generator…</div><div class="st-sub" id="stSub">Asking the Raspberry Pi in Oak Grove for its status.</div></div>
+    <div><div class="st-title" id="stTitle">Checking the generator…</div><div class="st-sub" id="stSub">Asking the Raspberry Pi in Mark's home lab for its status.</div></div>
     <div class="meters">
       <div class="meter"><div class="lbl">Quantum bits measured</div><div class="v big" id="mBits">–</div><small>since the stick last powered on</small></div>
       <div class="meter"><div class="lbl">Speed</div><div class="v" id="mSpeed">–</div><small>random bits a second</small></div>
       <div class="meter"><div class="lbl">Ready to hand out</div><div class="v" id="mBuf">–</div><small>fresh bytes waiting on the Pi</small></div>
       <div class="meter"><div class="lbl">Self-tests</div><div class="v" id="mTests">–</div><small id="mUp">NIST health checks, run by the stick itself</small></div>
     </div>
+  </section>
+
+  <h2>The last 24 hours</h2>
+  <p class="lead">A lab instrument is only as good as its uptime. The Pi checks on the generator every minute and keeps a log of anything that goes wrong, and how fast it recovered. This is the same kind of monitoring you'd want on any server.</p>
+  <section class="uptime" id="uptime" aria-live="polite">
+    <div class="up-tiles">
+      <div class="meter"><div class="lbl">Uptime</div><div class="v big" id="uPct">–</div><small id="uPctSub">of the last 24 hours</small></div>
+      <div class="meter"><div class="lbl">Outages</div><div class="v" id="uOut">–</div><small id="uOutSub">in the last 24 hours</small></div>
+      <div class="meter"><div class="lbl">Average speed</div><div class="v" id="uSpeed">–</div><small>random bits a second</small></div>
+    </div>
+    <div class="tl-head"><b>Every 15 minutes</b>
+      <span class="legend"><span><i style="background:var(--q)"></i>Online</span><span><i style="background:var(--amber)"></i>Brief hiccup</span><span><i style="background:var(--bad)"></i>Offline</span><span><i style="background:#1A2330"></i>Before the log began</span></span></div>
+    <div class="timeline" id="timeline" role="img" aria-label="Uptime for the last 24 hours in 15-minute blocks"></div>
+    <div class="tl-axis"><span>24 h ago</span><span>18 h</span><span>12 h</span><span>6 h</span><span>Now</span></div>
+    <h3>Speed, minute by minute</h3>
+    <canvas id="speedSpark" aria-label="Generator speed over the last 24 hours"></canvas>
+    <h3>Incident log</h3>
+    <ul class="log" id="upLog"><li><time>–</time><span></span><span class="up-note">Loading…</span></li></ul>
   </section>
 
   <h2>The stream</h2>
@@ -243,7 +283,7 @@
     }
     online = true; s.dataset.state = 'online';
     $('stTitle').textContent = 'Generator online';
-    $('stSub').textContent = `Crypta Labs QCicada ${h.serial || ''}${h.hw_info ? ' (' + h.hw_info + ')' : ''} · Raspberry Pi 5 · Oak Grove, Oregon`;
+    $('stSub').textContent = `Crypta Labs QCicada ${h.serial || ''}${h.hw_info ? ' (' + h.hw_info + ')' : ''} · Raspberry Pi 5 · near Portland, Oregon`;
     const bits = (h.stick_generated || 0) * 8;
     if (bitsTo === null) bitsShown = bits;
     bitsFrom = bitsShown ?? bits; bitsTo = bits; t0 = performance.now();
@@ -258,6 +298,83 @@
   async function pollStatus() {
     try { const r = await fetch('/api/qrng?health=1', { cache: 'no-store' }); paintStatus(await r.json()); } catch (e) { paintStatus(null); }
   }
+
+  /* ---------------- last 24 hours ---------------- */
+  const ICON = { start: '🔄', down: '🔴', up: '🟢', reset: '🛠️' };
+  function when(ts) {
+    const d = new Date(ts * 1000), now = new Date();
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return 'Today ' + time;
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday ' + time;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + time;
+  }
+  function paintHistory(h) {
+    const tl = $('timeline'), log = $('upLog');
+    if (!h || !h.ok || !Array.isArray(h.minutes) || !h.minutes.length) {
+      tl.innerHTML = '<span style="grid-column:1/-1"></span>';
+      log.innerHTML = '<li><time>–</time><span></span><span class="up-note">The uptime log is starting up. Check back in a few minutes.</span></li>';
+      return;
+    }
+    const nowMin = Math.floor(h.now / 60), start = nowMin - 24 * 60 + 1;
+    const byMin = new Map(h.minutes.map((m) => [m[0], m]));
+    const first = Math.max(start, Math.min(...h.minutes.map((m) => m[0])));
+    // A missing minute after the log began means the Pi itself was off: count it as offline.
+    // The newest minute may not be logged yet, so stop one short of now.
+    const last = byMin.has(nowMin) ? nowMin : nowMin - 1;
+    let up = 0, total = 0, outages = 0, prevOk = true, speedSum = 0, speedN = 0;
+    const blocks = [];
+    for (let b = 0; b < 96; b++) {
+      let ok = 0, n = 0;
+      for (let m = start + b * 15; m < start + (b + 1) * 15; m++) {
+        if (m < first || m > last) continue;
+        const row = byMin.get(m), isOk = !!(row && row[1]);
+        n++; total++;
+        if (isOk) { ok++; up++; } else if (prevOk) outages++;
+        prevOk = isOk;
+        if (isOk && row[2]) { speedSum += row[2]; speedN++; }
+      }
+      blocks.push(n === 0 ? '' : ok === n ? 'ok' : ok === 0 ? 'down' : 'part');
+    }
+    tl.innerHTML = blocks.map((c, b) => {
+      const t0 = new Date((start + b * 15) * 60000);
+      const label = t0.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const word = { ok: 'online', part: 'a brief hiccup', down: 'offline', '': 'not logged yet' }[c];
+      return `<span class="${c}" title="${label}: ${word}"></span>`;
+    }).join('');
+    const pct = total ? (100 * up / total) : 0;
+    $('uPct').textContent = total ? (pct === 100 ? '100%' : pct.toFixed(pct > 99 ? 2 : 1) + '%') : '–';
+    $('uPct').style.color = pct >= 99 ? 'var(--q)' : pct >= 95 ? 'var(--amber)' : 'var(--bad)';
+    const hours = total / 60;
+    $('uPctSub').textContent = hours >= 23.9 ? 'of the last 24 hours' : `since the log began ${hours < 1 ? Math.round(total) + ' min' : hours.toFixed(1) + ' h'} ago`;
+    $('uOut').textContent = outages;
+    $('uOutSub').textContent = hours >= 23.9 ? 'in the last 24 hours' : 'since the log began';
+    $('uSpeed').textContent = speedN ? '~' + fmt(Math.round(speedSum / speedN / 1000) * 1000) : '–';
+
+    // speed sparkline
+    const cv = $('speedSpark'), dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.scale(dpr, dpr);
+    g.clearRect(0, 0, W, H);
+    const pts = h.minutes.filter((m) => m[0] >= start);
+    const max = Math.max(1, ...pts.map((m) => m[2])) * 1.15;
+    g.strokeStyle = '#3BE37A'; g.lineWidth = 2; g.beginPath();
+    let pen = false;
+    for (let m = start; m <= nowMin; m++) {
+      const row = byMin.get(m), x = ((m - start) / (24 * 60 - 1)) * (W - 8) + 4;
+      if (!row || !row[1]) { pen = false; continue; }
+      const y = H - 6 - (row[2] / max) * (H - 12);
+      pen ? g.lineTo(x, y) : g.moveTo(x, y); pen = true;
+    }
+    g.stroke();
+
+    const ev = (h.events || []).slice().reverse();
+    log.innerHTML = ev.length ? ev.map((e) => `<li><time>${when(e[0])}</time><span aria-hidden="true">${ICON[e[1]] || '•'}</span><span>${e[2].replace(/[<>&]/g, '')}</span></li>`).join('')
+      : '<li><time>–</time><span></span><span class="up-note">Nothing to report. Quiet is good.</span></li>';
+  }
+  async function pollHistory() {
+    try { const r = await fetch('/api/qrng?history=1', { cache: 'no-store' }); paintHistory(await r.json()); } catch (e) { paintHistory(null); }
+  }
+  pollHistory(); setInterval(pollHistory, 60000);
 
   /* ---------------- stream ---------------- */
   const cv = $('rain'), cx = cv.getContext('2d');
@@ -283,7 +400,7 @@
     }
     $('hex').classList.toggle('off', !streamLive);
     $('streamNote').textContent = streamLive
-      ? 'Live from the QCicada in Oak Grove. About 250 bytes a second, so the generator has plenty left for everyone else.'
+      ? 'Live from the QCicada in Mark’s home lab. About 250 bytes a second, so the generator has plenty left for everyone else.'
       : 'The generator is offline, so for now this stream shows your browser’s random numbers (in amber).';
   }
   const hexLines = [];

@@ -10,6 +10,7 @@
 //   QRNG_URL  (optional) defaults to https://qrng.augielab.dev
 //
 // /api/qrng?health=1 returns the stick's status (no key or secrets in it) for the status strip and lab page.
+// /api/qrng?history=1 returns the last 24 hours of minute-by-minute status plus the outage log (Pi service v4).
 // /api/qrng?signed=1 returns 32 fresh bytes signed by the stick's own key, for the "Prove it" button.
 
 const CHUNK = 4096;          // the Pi hands out at most 4096 bytes per request
@@ -50,6 +51,24 @@ export async function onRequestGet({ request, env }) {
       body = { ok: false, error: 'quantum generator offline' }; status = 503;
     }
     const store = new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=4' } });
+    try { await cache.put(ck, store); } catch (e) {}
+    return json(body, status);
+  }
+
+  if (url.searchParams.has('history')) {
+    // The last 24 hours (one sample a minute) and the outage log, for the uptime panel. Pi service v4+.
+    const cache = caches.default, ck = new Request(new URL('/__qrng_history_cache', url).toString());
+    const hit = await cache.match(ck);
+    if (hit) return json(await hit.json(), hit.status);
+    let body, status = 200;
+    try {
+      const h = await ask(env, '/history');
+      if (!h || !h.ok) throw new Error('old');
+      body = { ok: true, now: h.now, minutes: h.minutes, events: h.events };
+    } catch (e) {
+      body = { ok: false, error: 'history not available yet' }; status = 503;
+    }
+    const store = new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=30' } });
     try { await cache.put(ck, store); } catch (e) {}
     return json(body, status);
   }

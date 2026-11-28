@@ -188,7 +188,7 @@
   <h3>The idea</h3>
   <p>Some scientists and philosophers have asked whether our universe could be a giant computer simulation. If it were, it might cut corners. Quantum events are the most truly random things we know of, so if the "dice" of reality ever slipped, a quantum random source is a good place to look.</p>
   <h3>The two stations</h3>
-  <p><strong>Station A</strong> is this lab's own quantum random number generator, a USB stick from Crypta Labs in Oak Grove, Oregon, that measures tiny particles of light. <strong>Station B</strong> is planned to be a public quantum source in Canberra, Australia, nearly on the other side of the world. Each one streams 1s and 0s that should be perfectly fair and perfectly unconnected to each other.</p>
+  <p><strong>Station A</strong> is this lab's own quantum random number generator, a USB stick from Crypta Labs plugged in near Portland, Oregon, that measures tiny particles of light. <strong>Station B</strong> is planned to be a public quantum source in Canberra, Australia, nearly on the other side of the world. Each one streams 1s and 0s that should be perfectly fair and perfectly unconnected to each other.</p>
   <h3>What it checks</h3>
   <p>Four things, all the time: is each station giving 1s and 0s equally often? Do the two stations agree with each other half the time, the way unconnected coins should? And are there any suspiciously long streaks, like 30 heads in a row?</p>
   <h3>Odd results happen. That's the trick.</h3>
@@ -196,7 +196,7 @@
   <h3>The fake glitch button</h3>
   <p>It quietly makes Station B give 1s about 56% of the time for 10 seconds. That's a small tilt you'd never notice by eye, but the detector should catch it within one or two checks. It shows the instrument works.</p>
   <h3>Where the stations' numbers come from</h3>
-  <p>Station A is live: its bits come from this lab's Crypta Labs QCicada quantum stick in Oak Grove, Oregon, and its tag says LIVE. The Australian link for Station B isn't switched on yet, so for now your web browser's random number maker stands in for it. The checks, chart and alarms work the same either way. If the stick is ever offline, Station A falls back to your browser too.</p>
+  <p>Station A is live: its bits come from this lab's Crypta Labs QCicada quantum stick near Portland, Oregon, and its tag says LIVE. The Australian link for Station B isn't switched on yet, so for now your web browser's random number maker stands in for it. The checks, chart and alarms work the same either way. If the stick is ever offline, Station A falls back to your browser too.</p>
   <h3>Has anyone found a glitch?</h3>
   <p>Not convincingly. A long-running project at Princeton, the Global Consciousness Project, ran random number generators around the world for decades and claimed small effects, but most scientists aren't persuaded. So far, reality looks fair.</p>
 </template>
@@ -210,7 +210,7 @@
   // ================= Stations =================
   // Leave ENDPOINT empty for demo mode. A live endpoint returns {"ok":true,"values":[0..255,...]} for ?n=COUNT.
   const STATIONS = [
-    { id: 'A', color: '#F25C05', name: 'Station A', place: 'Oak Grove, Oregon, USA', device: 'Crypta Labs Cicada quantum generator', ENDPOINT: '/api/qrng' },
+    { id: 'A', color: '#F25C05', name: 'Station A', place: 'Portland, Oregon, USA', device: 'Crypta Labs Cicada quantum generator', ENDPOINT: '/api/qrng' },
     { id: 'B', color: '#2F6FDB', name: 'Station B', place: 'Canberra, Australia', device: 'public quantum source (planned)', ENDPOINT: '' }
   ];
   const RATE = 2000;            // bits per second per station
