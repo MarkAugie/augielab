@@ -482,7 +482,6 @@
     const pickA = q.value % 2 === 0;
     const [mine, theirs] = pickA ? [L, R] : [R, L];
     theirs.style.opacity = .25; theirs.style.filter = 'blur(6px) saturate(.4)';
-    theirs.style.transform += pickA ? ' translateX(10vw)' : ' translateX(-10vw)';
     mine.style.filter = 'brightness(1.25) saturate(1.2)';
     await wait(1400);
 
