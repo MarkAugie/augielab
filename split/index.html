@@ -20,6 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Antonio:wght@300;400&display=swap" rel="stylesheet">
 <script src="/lab/qrng-guard.js"></script>
+<script src="/split/cosmos.js"></script>
 <style>
   :root { --glow: #9fe8ff; --violet: #b48cff; --ink: #eef2ff; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -224,6 +225,10 @@
     .lv-arm { height: 125px; }
     .plate { padding: 8px 14px 7px; } .plate .model { font-size: .72rem; letter-spacing: .06em; }
   }
+  /* the branching universe */
+  #cosmos { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .7s; }
+  #cosmos.on { opacity: 1; }
+  #cosmos.on.behind { opacity: .55; }
   /* the light experiment */
   #lab { position: fixed; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity .5s; }
   #lab.on { opacity: 1; }
@@ -303,6 +308,7 @@
 <div id="halves"></div>
 <svg id="crack" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline pathLength="1" points=""/></svg>
 <div id="flash"></div>
+<canvas id="cosmos" aria-hidden="true"></canvas>
 <canvas id="lab" aria-hidden="true"></canvas>
 <div id="labCap" aria-live="polite"></div>
 
@@ -413,8 +419,12 @@
     <h3>The light show, explained</h3>
     <p>The animation is the most famous quantum experiment there is. Shine one single particle of light at a half-silvered mirror, and it has a 50/50 chance of going through or bouncing off. Physics says that until a detector measures it, it isn't on one path or the other. It's on both. Then a detector clicks, and only one answer is real. The generator in Mark's lab measures light in its own way, counting particles instead of using a mirror, but it's the same kind of unpredictable.</p>
 
+    <h3>The picture of your universe</h3>
+    <p>The glowing sphere is a map of everything we can see, with us in the middle. At the very center is the Sun with its planets, inside our home galaxy, the Milky Way. Around it are our neighbor galaxies, then the "cosmic web": billions of galaxies gathered into clusters and long glowing threads. The speckled, colorful ring at the edge is the oldest light there is, the afterglow of the Big Bang, which scientists have mapped from space with satellites like NASA's WMAP. Nothing can be seen beyond it.</p>
+    <p>Your picture is drawn fresh for every split, using your quantum reading to place every galaxy and speckle. No one has ever seen that exact universe before. When it splits, the two copies start out identical, as many-worlds says they would. Then one drifts away for good, because the two branches can never touch again.</p>
+
     <h3>Your universe ID</h3>
-    <p>The code on your result (like #5C24-2EB9) is the actual quantum reading, written in hexadecimal. The first number decided your universe: even for A, odd for B. Nobody else will ever get the same one. The "How do I know it's real?" link goes to a page where the generator signs its numbers so your browser can check they came from it.</p>
+    <p>The code on your result (like #5C24-2EB9) is the actual quantum reading, written in hexadecimal. The first number decided your universe: even for A, odd for B. The same numbers also drew your universe's picture. Nobody else will ever get the same one. The "How do I know it's real?" link goes to a page where the generator signs its numbers so your browser can check they came from it.</p>
 
     <h3>A quantum lab at home</h3>
     <p>The number comes from a <strong>Crypta Labs QCicada</strong>, a small USB quantum random number generator that measures tiny, unpredictable particles of light. It's plugged into a Raspberry Pi in Mark's home lab near Portland, Oregon. If it's ever offline, the site asks a physics lab at the Australian National University instead, which measures the flickering energy of empty space itself. Same idea, same physics. The reading under your result says which one split your universe.</p>
@@ -703,28 +713,16 @@
     await wait(reduce ? 200 : 900);
 
     intro.classList.add('hidden'); document.body.classList.add('splitting');
+    orbImg = null;
     const qp = getQuantum();
+    qp.then((v) => { try { buildOrb(v); } catch (e) { orbImg = null; } });
     await runExperiment(a, b, qp.then(v => (v.value % 2 === 0 ? 'A' : 'B')));
     const q = await qp;
-
-    const [L, R] = makeHalves(a, b);
-    sky.style.opacity = 0;
-    await wait(50);
-    crack.classList.add('draw');            // the crack races down the sky
-    await wait(700);
-    flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
-    riftLight.style.opacity = 1;
-    L.style.transform = 'translateX(-14vw) rotate(-2.5deg) scale(.94)';
-    R.style.transform = 'translateX(14vw) rotate(2.5deg) scale(.94)';
-    crack.style.opacity = 0;
-    L.querySelector('.label').style.opacity = 1; R.querySelector('.label').style.opacity = 1;
-    await wait(2600);
+    if (!orbImg) buildOrb(q);
 
     const pickA = q.value % 2 === 0;
-    const [mine, theirs] = pickA ? [L, R] : [R, L];
-    theirs.style.opacity = .25; theirs.style.filter = 'blur(6px) saturate(.4)';
-    mine.style.filter = 'brightness(1.25) saturate(1.2)';
-    await wait(1400);
+    sky.style.opacity = .4;
+    await branch(a, b, pickA);
 
     splits++; window.labTrack && labTrack('split');
     myCount++; try { localStorage.setItem('qs1-mine', String(myCount)); } catch (e) {} nixie($('nxMine'), myCount, 3);
@@ -751,11 +749,99 @@
   $('again').addEventListener('click', async () => {
     result.classList.add('hidden');
     [...halves.children].forEach(h => { h.style.opacity = 0; });
+    stopCosmos();
     riftLight.style.opacity = 0;
     await wait(700);
     halves.innerHTML = ''; crack.classList.remove('draw'); crack.style.opacity = 1; $('go').classList.remove('pulled');
     sky.style.opacity = 1; intro.classList.remove('hidden'); document.body.classList.remove('splitting'); busy = false;
   });
+  /* ---------- the branching universe ---------- */
+  const cosmos = $('cosmos'), cg = cosmos.getContext('2d');
+  let orbImg = null, cosmosRAF = null, cosmosLive = false;
+  const clamp01 = (x) => Math.max(0, Math.min(1, x));
+  const ease = (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  const orbSize = () => Math.min(innerWidth * .9, innerHeight * .64, 740);
+  function seedOf(q) { let s = 2166136261; for (const v of q.bytes) s = Math.imul(s ^ v, 16777619); return s >>> 0; }
+  function buildOrb(q) {
+    const px = Math.min(1100, Math.round(orbSize() / .88 * Math.min(devicePixelRatio || 1, 2)));
+    orbImg = Cosmos.paintUniverse(seedOf(q), px);
+  }
+  // One universe shimmers, a twin peels away, the two hang side by side, then the other one
+  // drifts out of reach and fades for good. Resolves when yours has settled in the middle.
+  function branch(a, b, pickA) {
+    return new Promise((resolve) => {
+      const dpr = Math.min(devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
+      cosmos.width = W * dpr; cosmos.height = H * dpr; cg.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const D = orbSize(), img = D / .88, portrait = W < H * .9, cy = portrait ? H * .53 : H * .57;
+      const side = pickA ? -1 : 1;                       // A on the left (top on a phone), B on the right (bottom)
+      const shrink = portrait ? Math.max(.42, 1 - Math.min(W * .78, H * .3) / D) : .42;   // how much smaller they get side by side
+      const sepMax = portrait ? Math.min(H * .2, D * (1 - shrink) * .62) : Math.min(W * .25, D * .6);
+      const at = (off) => (portrait ? [W / 2, cy + off] : [W / 2 + off, cy]);
+      const T = reduce ? { in: 300, sh: 1, ap: 300, hold: 900, away: 400 } : { in: 1200, sh: 1000, ap: 1500, hold: 1500, away: 2600 };
+      const t1 = T.in, t2 = t1 + T.sh, t3 = t2 + T.ap, t4 = t3 + T.hold, t5 = t4 + T.away;
+      const start = performance.now(); let resolved = false, said = 0;
+      cosmos.classList.add('on'); cosmosLive = true;
+      const fontPx = Math.round(Math.max(18, Math.min(30, W / 26)));
+      function drawOrb(x, y, scale, alpha, spin, glow) {
+        if (alpha <= 0.01) return;
+        const s = img * scale;
+        cg.save(); cg.globalAlpha = alpha; cg.translate(x, y); cg.rotate(spin);
+        cg.drawImage(orbImg, -s / 2, -s / 2, s, s); cg.restore();
+        if (glow > 0) {
+          const r = D * scale / 2, gr = cg.createRadialGradient(x, y, r * .9, x, y, r * 1.25);
+          gr.addColorStop(0, `rgba(255,255,255,${.5 * glow * alpha})`); gr.addColorStop(1, 'rgba(180,200,255,0)');
+          cg.fillStyle = gr; cg.beginPath(); cg.arc(x, y, r * 1.25, 0, Math.PI * 2); cg.fill();
+        }
+      }
+      function label(x, y, letter, text, alpha, faded) {
+        if (alpha <= .01) return;
+        cg.save(); cg.globalAlpha = alpha; cg.textAlign = 'center';
+        cg.font = `600 ${Math.round(fontPx * .62)}px Inter, sans-serif`; cg.fillStyle = faded ? '#C9A8FF' : '#9FE8FF';
+        cg.fillText(`UNIVERSE ${letter}`, x, y);
+        cg.font = `700 ${fontPx}px Cinzel, serif`; cg.fillStyle = '#FFFFFF'; cg.shadowColor = 'rgba(120,140,255,.9)'; cg.shadowBlur = 14;
+        const tx = text.length > 26 ? text.slice(0, 25) + '…' : text;
+        cg.fillText(tx, x, y + fontPx * 1.15); cg.restore();
+      }
+      function frame(now) {
+        const t = now - start;
+        cg.clearRect(0, 0, W, H);
+        const spin = t * .00004;
+        const p1 = clamp01(t / T.in), p2 = clamp01((t - t1) / T.sh), p3 = clamp01((t - t2) / T.ap), p4 = clamp01((t - t4) / T.away);
+        const e1 = ease(p1), e3 = ease(p3), e4 = ease(p4);
+        const apart = 1 - shrink * e3;                 // both shrink a little to fit side by side
+        const sep = sepMax * e3;
+        if (t < t2) {
+          // one universe, then a shimmer as the twin forms in exactly the same place
+          drawOrb(W / 2, cy, .86 + .14 * e1, e1, spin, p2 > 0 ? Math.sin(p2 * Math.PI) : 0);
+          if (p2 > 0) {
+            cg.save(); cg.globalCompositeOperation = 'lighter';
+            const j = Math.sin(t / 38) * 5 * p2;
+            drawOrb(W / 2 + j, cy - j * .4, 1, .35 * p2, spin, 0); cg.restore();
+          }
+          if (said === 0 && t > 200) { said = 1; caption('This is your universe.<small>Everything there is, from the Sun to the edge of what we can see.</small>'); }
+          if (said === 1 && t > t1) { said = 2; caption('The measurement is in…'); }
+        } else {
+          const far = (portrait ? H : W) * .8;
+          const [mx, my] = at(side * sep * (1 - e4)), [tx, ty] = at(-side * (sep + e4 * far));
+          const mineS = apart + (1 - apart) * e4, theirS = apart * (1 - .55 * e4);
+          if (said === 2) { said = 3; caption('It splits in two.<small>One universe for each choice.</small>'); }
+          if (said === 3 && t > t4) { said = 4; caption(`You stay in Universe ${pickA ? 'A' : 'B'}.<small>The other one drifts out of reach, forever.</small>`); }
+          cg.save(); if ('filter' in cg) cg.filter = `saturate(${1 - .6 * e4}) blur(${(2.5 * e4).toFixed(1)}px)`;
+          drawOrb(tx, ty - (portrait ? 0 : e4 * H * .05), theirS, 1 - e4, -spin, 0); cg.restore();
+          drawOrb(mx, my, mineS, 1, spin, e4 * .25 * (1 - clamp01((t - t5) / 1500)));
+          const ly = (y, s) => y + D * s / 2 + fontPx * 1.1;
+          const la = clamp01((p3 - .5) * 2);
+          label(tx, ly(ty, theirS), pickA ? 'B' : 'A', pickA ? b : a, la * (1 - e4), e4 > 0);
+          label(mx, ly(my, mineS), pickA ? 'A' : 'B', pickA ? a : b, la * (1 - clamp01((t - t5) / 500)), false);
+          if (!resolved && t > t5 + 300) { resolved = true; cap.classList.remove('on'); cosmos.classList.add('behind'); resolve(); }
+        }
+        if (cosmosLive) cosmosRAF = requestAnimationFrame(frame);
+      }
+      cosmosRAF = requestAnimationFrame(frame);
+    });
+  }
+  function stopCosmos() { cosmos.classList.remove('on', 'behind'); setTimeout(() => { cosmosLive = false; cancelAnimationFrame(cosmosRAF); cg.clearRect(0, 0, innerWidth, innerHeight); }, 700); }
+
   /* ---------- postcard ---------- */
   function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 3200); }
   function wrap(c, text, maxW) {
@@ -771,32 +857,32 @@
     const s = Math.max(W / img.width, H / img.height) || 1;
     c.drawImage(img, (W - img.width * s) / 2, (H - img.height * s) / 2, img.width * s, img.height * s);
     c.fillStyle = 'rgba(3,4,18,.55)'; c.fillRect(0, 0, W, H);
-    // the rift down the middle
-    const rift = c.createLinearGradient(W * .44, 0, W * .56, 0);
-    rift.addColorStop(0, 'rgba(160,140,255,0)'); rift.addColorStop(.5, 'rgba(230,245,255,.55)'); rift.addColorStop(1, 'rgba(160,140,255,0)');
-    c.fillStyle = rift; c.fillRect(W * .44, 0, W * .12, H);
+    // your universe on the left, the one that got away fading on the right
+    if (orbImg) {
+      const D = 420, sz = D / .88;
+      c.drawImage(orbImg, 300 - sz / 2, 360 - sz / 2, sz, sz);
+      c.save(); c.globalAlpha = .22; if ('filter' in c) c.filter = 'saturate(.3) blur(2px)';
+      const d2 = 150 / .88; c.drawImage(orbImg, 1110 - d2 / 2, 420 - d2 / 2, d2, d2); c.restore();
+    }
     c.textAlign = 'center'; c.fillStyle = '#fff';
-    c.font = '700 54px Cinzel, serif'; c.shadowColor = 'rgba(150,170,255,.9)'; c.shadowBlur = 24;
-    c.fillText('I split the universe.', W / 2, 100); c.shadowBlur = 0;
-    c.font = '500 26px Inter, sans-serif'; c.fillStyle = '#ffd9f2';
-    c.fillText('A particle of light decided for me.', W / 2, 148);
-    const box = (x, tag, text, bright) => {
-      c.fillStyle = bright ? 'rgba(120,170,255,.25)' : 'rgba(255,255,255,.06)';
-      c.strokeStyle = bright ? 'rgba(180,220,255,.9)' : 'rgba(180,190,255,.45)'; c.lineWidth = 3;
-      if (!bright) c.setLineDash([10, 10]);
-      c.beginPath(); c.roundRect(x, 210, 470, 230, 26); c.fill(); c.stroke(); c.setLineDash([]);
-      c.fillStyle = bright ? '#9fe8ff' : '#c9a8ff'; c.font = '600 22px Inter, sans-serif'; c.fillText(tag, x + 235, 260);
-      c.fillStyle = bright ? '#fff' : 'rgba(230,234,255,.8)'; c.font = `700 ${bright ? 46 : 38}px Cinzel, serif`;
-      const lines = wrap(c, text, 420);
-      lines.forEach((l, i) => c.fillText(l, x + 235, 340 + (i - (lines.length - 1) / 2) * 52));
-    };
-    box(90, 'THIS UNIVERSE', last.mine, true);
-    box(640, 'ANOTHER ME, RIGHT NOW', last.theirs, false);
-    c.fillStyle = '#c9d2f0'; c.font = '500 24px Inter, sans-serif';
+    c.font = '700 50px Cinzel, serif'; c.shadowColor = 'rgba(150,170,255,.9)'; c.shadowBlur = 24;
+    c.fillText('I split the universe.', W / 2, 84); c.shadowBlur = 0;
+    c.font = '500 24px Inter, sans-serif'; c.fillStyle = '#ffd9f2';
+    c.fillText('A particle of light decided for me.', W / 2, 124);
+    c.textAlign = 'left';
+    const col = 560, wide = 470;
+    c.fillStyle = '#9fe8ff'; c.font = '700 22px Inter, sans-serif'; c.fillText('THIS UNIVERSE', col, 222);
+    c.fillStyle = '#fff'; c.font = '700 46px Cinzel, serif';
+    let lines = wrap(c, last.mine, wide); lines.forEach((l, i) => c.fillText(l, col, 278 + i * 52));
+    let y = 278 + lines.length * 52 + 40;
+    c.fillStyle = '#c9a8ff'; c.font = '700 20px Inter, sans-serif'; c.fillText('ANOTHER ME, IN A UNIVERSE NOW OUT OF REACH', col, y);
+    c.fillStyle = 'rgba(230,234,255,.75)'; c.font = '700 34px Cinzel, serif';
+    lines = wrap(c, last.theirs, wide); lines.forEach((l, i) => c.fillText(l, col, y + 46 + i * 40));
+    c.fillStyle = '#c9d2f0'; c.font = '500 22px Inter, sans-serif';
     const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    c.fillText(`Universe ${last.id} · ${date}`, W / 2, 510);
-    c.fillStyle = '#9fe8ff'; c.font = '600 28px Inter, sans-serif';
-    c.fillText('Split your own: augielab.dev/split', W / 2, 570);
+    c.fillText(`Universe ${last.id} · ${date}`, col, 540);
+    c.fillStyle = '#9fe8ff'; c.font = '600 26px Inter, sans-serif';
+    c.fillText('Split your own: augielab.dev/split', col, 588);
     return new Promise(r => cv.toBlob(r, 'image/png'));
   }
   function download(blob) {
