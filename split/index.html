@@ -47,7 +47,8 @@
   #flash.go { animation: flash .9s ease-out; }
   @keyframes flash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
 
-  .panel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; transition: opacity .6s, transform .6s; }
+  .panel { position: fixed; inset: 0; display: flex; padding: 24px; overflow-y: auto; transition: opacity .6s, transform .6s; }
+  .panel > .card { margin: auto; }
   .panel.hidden { opacity: 0; transform: scale(.96); pointer-events: none; }
   .card { width: min(640px, 100%); text-align: center; position: relative; }
   #intro .card::before { content: ""; position: absolute; inset: -40px -60px; z-index: -1; pointer-events: none;
@@ -55,7 +56,21 @@
   h1 { font-family: Cinzel, serif; font-weight: 700; font-size: clamp(2.1rem, 7vw, 3.6rem); letter-spacing: .06em; line-height: 1.1;
     background: linear-gradient(180deg, #fff 30%, #b9c7ff); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 0 40px rgba(150,170,255,.35); }
   .tagline { margin-top: 1rem; font-family: Cinzel, serif; font-size: clamp(1.1rem, 3.6vw, 1.45rem); color: #ffd9f2; text-shadow: 0 0 18px rgba(255,170,230,.55); }
-  .sub { margin: .8rem auto 2rem; max-width: 34ch; font-size: 1.05rem; line-height: 1.5; color: #c9d2f0; }
+  .sub { margin: .9rem auto 1.3rem; max-width: 30ch; font-size: 1.15rem; line-height: 1.5; color: #e4e9ff; }
+  .steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 1.3rem; text-align: left; }
+  .steps li { display: flex; gap: .6rem; align-items: flex-start; padding: .75rem .8rem; font-size: .92rem; line-height: 1.35; color: #e4e9ff;
+    background: rgba(10,14,40,.5); border: 1px solid rgba(160,190,255,.22); border-radius: 14px; }
+  .steps b { flex: none; display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; font-family: Cinzel, serif; font-size: .95rem;
+    color: #0a0820; background: linear-gradient(135deg, #9fe8ff, #c8b2ff); }
+  .tries { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin-bottom: 1.2rem; }
+  .tries > span { font-size: .9rem; color: #aeb8de; margin-right: 2px; }
+  .chip { margin: 0; padding: .55rem .85rem; font-family: Inter, sans-serif; font-weight: 500; font-size: .92rem; letter-spacing: 0; color: #eef2ff;
+    background: rgba(20,24,64,.65); border: 1px solid rgba(170,190,255,.35); border-radius: 999px; box-shadow: none; }
+  .chip:hover { background: rgba(60,60,140,.7); box-shadow: 0 0 16px rgba(160,170,255,.4); }
+  .tally { margin-top: 1rem; text-align: center; font-size: 1rem; color: #c9d2f0; min-height: 1.5em; }
+  .tally b { color: #fff; font-variant-numeric: tabular-nums; }
+  button.ready { animation: ready 1.1s ease-in-out 2; }
+  @keyframes ready { 50% { box-shadow: 0 0 60px rgba(200,190,255,1); transform: scale(1.03); } }
   form { display: grid; gap: 1rem; text-align: left; }
   label { font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: var(--glow); }
   input { width: 100%; margin-top: .4rem; padding: 1rem 1.1rem; font: inherit; font-size: 1.1rem; color: #fff; background: rgba(10,14,40,.55);
@@ -66,17 +81,42 @@
   button:hover { transform: translateY(-1px); box-shadow: 0 0 46px rgba(170,180,255,.8); }
   .err { min-height: 1.4em; color: #ffb3c7; font-size: .95rem; text-align: center; }
 
+  /* the light experiment */
+  #lab { position: fixed; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity .5s; }
+  #lab.on { opacity: 1; }
+  #labCap { position: fixed; left: 0; right: 0; top: 7vh; padding: 0 20px; text-align: center; font-family: Cinzel, serif; font-size: clamp(1.15rem, 4vw, 1.7rem);
+    line-height: 1.35; color: #fff; text-shadow: 0 0 20px rgba(150,170,255,.8); opacity: 0; transition: opacity .35s; pointer-events: none; }
+  #labCap.on { opacity: 1; }
+  #labCap small { display: block; margin-top: .4rem; font-family: Inter, sans-serif; font-size: .8em; color: #c9d2f0; text-shadow: none; }
   #status { position: fixed; left: 0; right: 0; bottom: 12vh; text-align: center; font-family: Cinzel, serif; font-size: 1.15rem; letter-spacing: .15em; color: var(--glow); opacity: 0; transition: opacity .4s; pointer-events: none; }
   #status.on { opacity: 1; animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .45; } }
 
   #result .card { background: rgba(6,8,28,.62); border: 1px solid rgba(160,190,255,.3); border-radius: 22px; padding: 2rem 1.6rem; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #result h2 { font-family: Cinzel, serif; font-size: clamp(1.5rem, 5vw, 2.2rem); line-height: 1.25; }
-  #result .you { margin-top: .8rem; font-size: 1.35rem; font-weight: 600; color: #fff; }
+  .worlds { display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; margin-top: 1.2rem; text-align: left; }
+  .w { padding: 1rem 1.1rem; border-radius: 16px; }
+  .w .tag { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--glow); }
+  .w .pick { margin-top: .35rem; font-family: Cinzel, serif; font-weight: 700; font-size: clamp(1.3rem, 4.6vw, 1.9rem); line-height: 1.2; word-wrap: break-word; }
+  .w.mine { background: linear-gradient(135deg, rgba(120,180,255,.22), rgba(180,140,255,.22)); border: 1px solid rgba(170,210,255,.6); box-shadow: 0 0 30px rgba(150,180,255,.3); }
+  .w.theirs { background: rgba(255,255,255,.04); border: 1px dashed rgba(170,190,255,.35); }
+  .w.theirs .tag { color: #c9a8ff; }
+  .w.theirs .pick { color: #d4d9f2; opacity: .85; font-size: clamp(1.1rem, 3.8vw, 1.5rem); }
   #result .other { margin-top: 1rem; font-size: 1.1rem; color: #c9d2f0; line-height: 1.5; }
+  .uid { margin-top: 1.1rem; font-size: 1rem; color: #c9d2f0; }
+  .uid b { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.15rem; letter-spacing: .06em; color: #fff; background: rgba(159,232,255,.12);
+    border: 1px solid rgba(159,232,255,.4); border-radius: 8px; padding: .1rem .5rem; }
+  .uid a, #result .proof a { color: var(--glow); }
+  .uid a { display: block; margin-top: .45rem; }
+  .nth { margin-top: .6rem; font-size: 1rem; color: #ffd9f2; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 1.2rem; }
+  .actions button { margin: 0; font-family: Inter, sans-serif; font-weight: 700; letter-spacing: .02em; font-size: 1.1rem; padding: 1rem 1.4rem; }
+  button.ghost { color: #eef2ff; background: rgba(255,255,255,.08); border: 1px solid rgba(200,210,255,.45); box-shadow: none; }
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); z-index: 40; padding: .8rem 1.2rem; border-radius: 14px; font-size: 1rem;
+    background: rgba(20,22,60,.95); border: 1px solid rgba(170,190,255,.5); opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
   #result .proof { margin-top: 1.4rem; font-size: .9rem; color: #9aa6cc; line-height: 1.5; }
   #result .proof b { color: var(--glow); font-weight: 600; }
-  .count { position: fixed; top: 14px; right: 18px; font-size: .8rem; letter-spacing: .12em; color: #8f9bc6; }
   footer { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; font-size: .75rem; color: #6f7aa6; padding: 0 12px; }
 
   /* "What's happening?" button and window */
@@ -99,7 +139,11 @@
     font-family: Inter, sans-serif; font-size: 1.6rem; line-height: 1; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.3); box-shadow: none; }
   #info .close:hover { background: rgba(255,255,255,.18); transform: none; }
   footer { text-align: right; padding: 0 16px 0 200px; }
-  @media (max-width: 600px) { footer { display: none; } #intro { padding-bottom: 84px; } }
+  @media (max-width: 600px) { footer { display: none; } #intro, #result { padding-bottom: 84px; } .steps { gap: 6px; } .steps li { flex-direction: column; align-items: center; text-align: center; gap: .35rem; padding: .6rem .4rem; font-size: .85rem; }
+    .sub { font-size: 1.05rem; margin-bottom: 1rem; } h1 { font-size: 2rem; } .tagline { margin-top: .6rem; font-size: 1.05rem; } .sub { margin-top: .6rem; }
+    #result .card { padding: 1.5rem 1.1rem; } .w { padding: .8rem .95rem; }
+    .worlds { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { #sky { animation: none; } button.ready { animation: none; } }
 </style>
 </head>
 <body>
@@ -108,19 +152,27 @@
 <div id="halves"></div>
 <svg id="crack" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline pathLength="1" points=""/></svg>
 <div id="flash"></div>
-<div class="count" id="count"></div>
+<canvas id="lab" aria-hidden="true"></canvas>
+<div id="labCap" aria-live="polite"></div>
 
 <section class="panel" id="intro">
   <div class="card">
     <h1>The Universe<br>Splitter</h1>
     <p class="tagline">Having a bad day? Somewhere, another you isn't.</p>
-    <p class="sub">Can't decide? Don't. Do both. Type two choices. A quantum measurement picks one, and under the many-worlds idea, the other one happens in another universe.</p>
+    <p class="sub">It's like flipping a coin, except the coin is a particle of light, and both sides come true.</p>
+    <ol class="steps">
+      <li><b>1</b><span>Pick two choices</span></li>
+      <li><b>2</b><span>Press Split</span></li>
+      <li><b>3</b><span>Light picks one for you</span></li>
+    </ol>
+    <div class="tries" id="tries"><span>Try one:</span></div>
     <form id="form" autocomplete="off">
-      <div><label for="a">In one universe, I will…</label><input id="a" maxlength="60" placeholder="Get a pizza"></div>
-      <div><label for="b">In the other, I will…</label><input id="b" maxlength="60" placeholder="Skip the pizza"></div>
-      <button type="submit">Split the Universe</button>
+      <div><label for="a">Choice A</label><input id="a" maxlength="60" placeholder="Pizza"></div>
+      <div><label for="b">Choice B</label><input id="b" maxlength="60" placeholder="Tacos"></div>
+      <button type="submit" id="go">Split the Universe</button>
       <div class="err" id="err"></div>
     </form>
+    <p class="tally" id="tally"></p>
   </div>
 </section>
 
@@ -129,11 +181,18 @@
 <section class="panel hidden" id="result">
   <div class="card">
     <h2>The universe has split.</h2>
-    <p class="you" id="you"></p>
-    <p class="other" id="other"></p>
+    <div class="worlds">
+      <div class="w mine"><div class="tag" id="youTag">In this universe</div><div class="pick" id="you"></div></div>
+      <div class="w theirs"><div class="tag">Another you, right now</div><div class="pick" id="other"></div></div>
+    </div>
     <p class="other" style="font-style: italic; color: #ffd9f2;">Now follow through. Don't cheat: the other you is counting on you.</p>
+    <p class="uid">Your universe ID: <b id="uid"></b> <a href="/inside/#prove" id="uidLink">How do I know it's real?</a></p>
+    <p class="nth" id="nth"></p>
+    <div class="actions">
+      <button id="share" type="button">📮 Send a postcard</button>
+      <button id="again" type="button" class="ghost">Split again</button>
+    </div>
     <p class="proof" id="proof"></p>
-    <button id="again">Split Again</button>
   </div>
 </section>
 
@@ -153,6 +212,12 @@
     <h3>What this site actually does</h3>
     <p>When you press the button, this site asks a real quantum random number generator for a number. No computer formula, no dice, no trick. Even number: Universe A. Odd number: Universe B.</p>
 
+    <h3>The light show, explained</h3>
+    <p>The animation is the most famous quantum experiment there is. Shine one single particle of light at a half-silvered mirror, and it has a 50/50 chance of going through or bouncing off. Physics says that until a detector measures it, it isn't on one path or the other. It's on both. Then a detector clicks, and only one answer is real. The generator in Mark's lab measures light in its own way, counting particles instead of using a mirror, but it's the same kind of unpredictable.</p>
+
+    <h3>Your universe ID</h3>
+    <p>The code on your result (like #5C24-2EB9) is the actual quantum reading, written in hexadecimal. The first number decided your universe: even for A, odd for B. Nobody else will ever get the same one. The "How do I know it's real?" link goes to a page where the generator signs its numbers so your browser can check they came from it.</p>
+
     <h3>A quantum lab at home</h3>
     <p>The number comes from a <strong>Crypta Labs QCicada</strong>, a small USB quantum random number generator that measures tiny, unpredictable particles of light. It's plugged into a Raspberry Pi in Mark's home lab near Portland, Oregon. If it's ever offline, the site asks a physics lab at the Australian National University instead, which measures the flickering energy of empty space itself. Same idea, same physics. The reading under your result says which one split your universe.</p>
 
@@ -164,13 +229,14 @@
   </div>
 </div>
 
+<div id="toast" role="status"></div>
 <footer><a href="/" style="color:inherit">AugieLab</a> · a thought experiment in quantum mechanics</footer>
 
 <script>
 (() => {
   const sky = document.getElementById('sky');
   let skyURL = '';
-  let splits = 0;
+  let splits = 0, last = null;
 
   // Seeded random so the universe looks the same each redraw
   function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -240,18 +306,18 @@
   async function getQuantum() {
     try {
       const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 5000);
-      const res = await fetch('/api/qrng?n=1', { cache: 'no-store', signal: ctrl.signal });
+      const res = await fetch('/api/qrng?n=4', { cache: 'no-store', signal: ctrl.signal });
       clearTimeout(to);
-      if (res.ok) { const j = await res.json(); if (j.ok && Array.isArray(j.values) && Number.isInteger(j.values[0])) return { value: j.values[0], quantum: true, where: 'home' }; }
+      if (res.ok) { const j = await res.json(); if (j.ok && Array.isArray(j.values) && Number.isInteger(j.values[0])) return { value: j.values[0], bytes: j.values, quantum: true, where: 'home' }; }
     } catch (e) {}
     try {
       const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 7000);
       const res = await fetch('https://aughenbaugh.com/qrng.php', { cache: 'no-store', signal: ctrl.signal });
       clearTimeout(to);
-      if (res.ok) { const j = await res.json(); if (j.ok && Number.isInteger(j.value)) return { value: j.value, quantum: true, where: 'anu' }; }
+      if (res.ok) { const j = await res.json(); if (j.ok && Number.isInteger(j.value)) return { value: j.value, bytes: [j.value], quantum: true, where: 'anu' }; }
     } catch (e) {}
-    const a = new Uint8Array(1); crypto.getRandomValues(a);
-    return { value: a[0], quantum: false };
+    const a = new Uint8Array(4); crypto.getRandomValues(a);
+    return { value: a[0], bytes: [...a], quantum: false };
   }
 
   const $ = id => document.getElementById(id);
@@ -259,6 +325,111 @@
   const intro = $('intro'), result = $('result'), status = $('status'), halves = $('halves');
   const crack = $('crack'), line = crack.querySelector('polyline'), flash = $('flash'), riftLight = $('riftLight');
   let busy = false;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- example choices ---------- */
+  const EXAMPLES = [
+    ['🍕 Pizza', '🌮 Tacos'], ['😴 Take a nap', '🚶 Go for a walk'], ['📞 Call Mom', '💬 Text Mom'],
+    ['🎬 Watch a movie', '📚 Read a book'], ['🍦 Ice cream', '🥗 A salad'], ['🧹 Clean the garage', '🛋️ Put it off one more day'],
+  ];
+  const tries = $('tries');
+  const CHIPS = ['🍕 Pizza or tacos?', '😴 Nap or walk?', '📞 Call or text Mom?'];
+  EXAMPLES.slice(0, 3).forEach(([a, b], i) => {
+    const c = document.createElement('button'); c.type = 'button'; c.className = 'chip';
+    c.textContent = CHIPS[i];
+    c.addEventListener('click', () => fill(a, b)); tries.appendChild(c);
+  });
+  const sur = document.createElement('button'); sur.type = 'button'; sur.className = 'chip'; sur.textContent = '🎲 Surprise me';
+  sur.addEventListener('click', () => { const [a, b] = EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)]; fill(a, b); });
+  tries.appendChild(sur);
+  function fill(a, b) {
+    $('a').value = a; $('b').value = b; $('err').textContent = '';
+    const go = $('go'); go.classList.remove('ready'); void go.offsetWidth; go.classList.add('ready');
+    go.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  }
+
+  /* ---------- the live counter ---------- */
+  let total = null;
+  const fmt = n => Number(n).toLocaleString('en-US');
+  function paintTally() {
+    if (total === null) return;
+    $('tally').innerHTML = `🌌 <b>${fmt(total)}</b> universes split here so far`;
+  }
+  fetch('/api/splits').then(r => r.json()).then(j => { if (j.ok) { total = j.total; paintTally(); } }).catch(() => {});
+
+  /* ---------- the light experiment (single photon, half-silvered mirror) ---------- */
+  const lab = $('lab'), lc = lab.getContext('2d'), cap = $('labCap');
+  function caption(html) { cap.classList.remove('on'); setTimeout(() => { cap.innerHTML = html; cap.classList.add('on'); }, 180); }
+  // Plays the experiment; resolves after the detector clicks. `decide` is a promise for 'A' or 'B'.
+  function runExperiment(a, b, decide) {
+    return new Promise(resolve => {
+      const dpr = Math.min(devicePixelRatio || 1, 2), W = innerWidth, H = innerHeight;
+      lab.width = W * dpr; lab.height = H * dpr; lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const narrow = W < 600;
+      const src = { x: W / 2, y: H * .86 }, bs = { x: W / 2, y: H * .56 };
+      const spread = Math.min(W * (narrow ? .34 : .3), 380);
+      const det = { A: { x: W / 2 - spread, y: H * .3 }, B: { x: W / 2 + spread, y: H * .3 } };
+      const names = { A: a, B: b };
+      let picked = null, clickAt = 0, start = performance.now();
+      const T1 = reduce ? 300 : 1100, T2 = reduce ? 300 : 1300;   // to the mirror, then along both paths
+      decide.then(v => { picked = v; });
+      lab.classList.add('on');
+      caption('A single particle of light is on its way…');
+      let said2 = false, said3 = false;
+      const glow = (x, y, r, col, a = 1) => {
+        const g = lc.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(.25, col.replace('A', a * .9)); g.addColorStop(1, col.replace('A', 0));
+        lc.fillStyle = g; lc.beginPath(); lc.arc(x, y, r, 0, Math.PI * 2); lc.fill();
+      };
+      const lerp = (p, q, k) => ({ x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k });
+      function frame(now) {
+        const t = now - start;
+        lc.clearRect(0, 0, W, H);
+        lc.fillStyle = 'rgba(2,3,12,.55)'; lc.fillRect(0, 0, W, H);
+        // paths
+        lc.lineWidth = 2; lc.setLineDash([6, 8]); lc.strokeStyle = 'rgba(160,190,255,.35)';
+        lc.beginPath(); lc.moveTo(src.x, src.y); lc.lineTo(bs.x, bs.y); lc.lineTo(det.A.x, det.A.y);
+        lc.moveTo(bs.x, bs.y); lc.lineTo(det.B.x, det.B.y); lc.stroke(); lc.setLineDash([]);
+        // light source
+        glow(src.x, src.y, 26, 'rgba(255,220,140,A)', .8);
+        lc.fillStyle = '#2a2350'; lc.fillRect(src.x - 22, src.y + 8, 44, 16);
+        // half-silvered mirror
+        lc.save(); lc.translate(bs.x, bs.y); lc.rotate(Math.PI / 4);
+        const mg = lc.createLinearGradient(-30, 0, 30, 0); mg.addColorStop(0, 'rgba(200,230,255,.2)'); mg.addColorStop(.5, 'rgba(230,245,255,.9)'); mg.addColorStop(1, 'rgba(200,230,255,.2)');
+        lc.fillStyle = mg; lc.fillRect(-32, -5, 64, 10); lc.restore();
+        // detectors
+        for (const k of ['A', 'B']) {
+          const d = det[k], hit = picked === k && clickAt, lost = picked && picked !== k && clickAt;
+          const pulse = hit ? Math.max(0, 1 - (t - clickAt) / 900) : 0;
+          if (hit) glow(d.x, d.y, 60 + pulse * 120, 'rgba(159,232,255,A)', .9);
+          lc.fillStyle = hit ? '#e9fbff' : lost ? 'rgba(60,64,110,.6)' : '#3a3f7a';
+          lc.strokeStyle = hit ? '#9fe8ff' : 'rgba(170,190,255,.6)'; lc.lineWidth = 2;
+          lc.beginPath(); lc.arc(d.x, d.y, 22, 0, Math.PI * 2); lc.fill(); lc.stroke();
+          lc.fillStyle = hit ? '#0a0820' : '#fff'; lc.font = '700 18px Cinzel, serif'; lc.textAlign = 'center'; lc.textBaseline = 'middle';
+          lc.fillText(k, d.x, d.y + 1);
+          lc.globalAlpha = lost ? .35 : 1;
+          lc.fillStyle = '#fff'; lc.font = `600 ${narrow ? 15 : 19}px Inter, sans-serif`; lc.textBaseline = 'top';
+          const label = names[k].length > 22 ? names[k].slice(0, 21) + '…' : names[k];
+          lc.fillText(label, d.x, d.y + 32); lc.globalAlpha = 1;
+        }
+        // the photon
+        if (t < T1) {
+          const p = lerp(src, bs, t / T1); glow(p.x, p.y, 18, 'rgba(255,240,170,A)', 1);
+        } else if (!clickAt) {
+          if (!said2) { said2 = true; caption('Now it’s on <b>both</b> paths at once…<small>Until something measures it, physics says it hasn’t picked.</small>'); }
+          const k = Math.min(1, (t - T1) / T2), flick = .45 + .25 * Math.sin(t / 45);
+          const pa = lerp(bs, det.A, k), pb = lerp(bs, det.B, k);
+          glow(pa.x, pa.y, 18, 'rgba(200,190,255,A)', flick); glow(pb.x, pb.y, 18, 'rgba(200,190,255,A)', flick);
+          if (k >= 1 && picked) clickAt = t;         // waits at the detectors until the real reading arrives
+        } else if (!said3) {
+          said3 = true; caption(`Measured! It’s <b>${picked}</b>.`);
+        }
+        if (clickAt && t - clickAt > (reduce ? 500 : 1300)) { lab.classList.remove('on'); cap.classList.remove('on'); resolve(); return; }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    });
+  }
 
   function makeHalves(a, b) {
     const pts = []; for (let y = 0; y <= 100; y += 4) pts.push([50 + (Math.random()*5 - 2.5), y]);
@@ -283,9 +454,9 @@
     $('err').textContent = ''; busy = true;
 
     intro.classList.add('hidden'); document.body.classList.add('splitting');
-    status.textContent = 'Measuring the quantum vacuum…'; status.classList.add('on');
-    const [q] = await Promise.all([getQuantum(), wait(1800)]);
-    status.classList.remove('on');
+    const qp = getQuantum();
+    await runExperiment(a, b, qp.then(v => (v.value % 2 === 0 ? 'A' : 'B')));
+    const q = await qp;
 
     const [L, R] = makeHalves(a, b);
     sky.style.opacity = 0;
@@ -307,9 +478,17 @@
     mine.style.filter = 'brightness(1.25) saturate(1.2)';
     await wait(1400);
 
-    splits++; window.labTrack && labTrack('split'); $('count').textContent = `Universes split: ${splits}`;
-    $('you').textContent = `You are in ${pickA ? 'Universe A' : 'Universe B'}: ${pickA ? a : b}.`;
-    $('other').textContent = `In the other universe, another you is going to ${(pickA ? b : a).replace(/^./, s => s.toLowerCase())}.`;
+    splits++; window.labTrack && labTrack('split');
+    if (total !== null) { total++; paintTally(); }
+    last = { mine: pickA ? a : b, theirs: pickA ? b : a, letter: pickA ? 'A' : 'B', q };
+    $('youTag').textContent = `In this universe (${last.letter})`;
+    $('you').textContent = last.mine;
+    $('other').textContent = last.theirs;
+    const hex = q.bytes.map(v => v.toString(16).padStart(2, '0').toUpperCase()).join('');
+    last.id = '#' + (hex.length > 4 ? hex.slice(0, 4) + '-' + hex.slice(4) : hex);
+    $('uid').textContent = last.id;
+    $('uidLink').style.display = q.where === 'home' ? '' : 'none';
+    $('nth').textContent = total !== null ? `That was universe number ${fmt(total)} split on AugieLab.` : '';
     $('proof').innerHTML = q.where === 'home'
       ? `Quantum reading: <b>${q.value}</b> (${pickA ? 'even → A' : 'odd → B'}), measured just now from particles of light by the Crypta Labs QCicada in Mark's home lab near Portland, Oregon.`
       : q.quantum
@@ -326,6 +505,71 @@
     halves.innerHTML = ''; crack.classList.remove('draw'); crack.style.opacity = 1;
     sky.style.opacity = 1; intro.classList.remove('hidden'); document.body.classList.remove('splitting'); busy = false;
   });
+  /* ---------- postcard ---------- */
+  function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 3200); }
+  function wrap(c, text, maxW) {
+    const words = text.split(' '), lines = []; let line = '';
+    for (const w of words) { const test = line ? line + ' ' + w : w; if (c.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test; }
+    lines.push(line); return lines.slice(0, 2);
+  }
+  async function makePostcard() {
+    await document.fonts.ready;
+    const W = 1200, H = 630, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const c = cv.getContext('2d');
+    const img = new Image(); img.src = skyURL; await img.decode().catch(() => {});
+    const s = Math.max(W / img.width, H / img.height) || 1;
+    c.drawImage(img, (W - img.width * s) / 2, (H - img.height * s) / 2, img.width * s, img.height * s);
+    c.fillStyle = 'rgba(3,4,18,.55)'; c.fillRect(0, 0, W, H);
+    // the rift down the middle
+    const rift = c.createLinearGradient(W * .44, 0, W * .56, 0);
+    rift.addColorStop(0, 'rgba(160,140,255,0)'); rift.addColorStop(.5, 'rgba(230,245,255,.55)'); rift.addColorStop(1, 'rgba(160,140,255,0)');
+    c.fillStyle = rift; c.fillRect(W * .44, 0, W * .12, H);
+    c.textAlign = 'center'; c.fillStyle = '#fff';
+    c.font = '700 54px Cinzel, serif'; c.shadowColor = 'rgba(150,170,255,.9)'; c.shadowBlur = 24;
+    c.fillText('I split the universe.', W / 2, 100); c.shadowBlur = 0;
+    c.font = '500 26px Inter, sans-serif'; c.fillStyle = '#ffd9f2';
+    c.fillText('A particle of light decided for me.', W / 2, 148);
+    const box = (x, tag, text, bright) => {
+      c.fillStyle = bright ? 'rgba(120,170,255,.25)' : 'rgba(255,255,255,.06)';
+      c.strokeStyle = bright ? 'rgba(180,220,255,.9)' : 'rgba(180,190,255,.45)'; c.lineWidth = 3;
+      if (!bright) c.setLineDash([10, 10]);
+      c.beginPath(); c.roundRect(x, 210, 470, 230, 26); c.fill(); c.stroke(); c.setLineDash([]);
+      c.fillStyle = bright ? '#9fe8ff' : '#c9a8ff'; c.font = '600 22px Inter, sans-serif'; c.fillText(tag, x + 235, 260);
+      c.fillStyle = bright ? '#fff' : 'rgba(230,234,255,.8)'; c.font = `700 ${bright ? 46 : 38}px Cinzel, serif`;
+      const lines = wrap(c, text, 420);
+      lines.forEach((l, i) => c.fillText(l, x + 235, 340 + (i - (lines.length - 1) / 2) * 52));
+    };
+    box(90, 'THIS UNIVERSE', last.mine, true);
+    box(640, 'ANOTHER ME, RIGHT NOW', last.theirs, false);
+    c.fillStyle = '#c9d2f0'; c.font = '500 24px Inter, sans-serif';
+    const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    c.fillText(`Universe ${last.id} · ${date}`, W / 2, 510);
+    c.fillStyle = '#9fe8ff'; c.font = '600 28px Inter, sans-serif';
+    c.fillText('Split your own: augielab.dev/split', W / 2, 570);
+    return new Promise(r => cv.toBlob(r, 'image/png'));
+  }
+  $('share').addEventListener('click', async () => {
+    if (!last) return;
+    const btn = $('share'); btn.disabled = true;
+    try {
+      const blob = await makePostcard();
+      const file = new File([blob], 'universe-postcard.png', { type: 'image/png' });
+      const text = `A particle of light chose "${last.mine}" for me. Another me got "${last.theirs}". Split your own universe:`;
+      window.labTrack && labTrack('share');
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'I split the universe', text: text + ' https://augielab.dev/split/' });
+      } else {
+        const url = URL.createObjectURL(blob), aEl = document.createElement('a');
+        aEl.href = url; aEl.download = 'universe-postcard.png'; document.body.appendChild(aEl); aEl.click(); aEl.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        toast('Postcard saved to your downloads. Attach it to a text or email!');
+      }
+    } catch (e) {
+      if (e && e.name !== 'AbortError') toast('Couldn’t make the postcard on this device, sorry.');
+    }
+    btn.disabled = false;
+  });
+
   // Info window
   const info = $('info'), infoBtn = $('infoBtn');
   const openInfo = () => { info.classList.add('open'); $('infoClose').focus(); };
