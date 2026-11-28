@@ -114,6 +114,10 @@
   button.ghost { color: #eef2ff; background: rgba(255,255,255,.08); border: 1px solid rgba(200,210,255,.45); box-shadow: none; }
   .savepic { margin-top: .8rem; font-size: .95rem; color: #aeb8de; }
   .savepic a { color: var(--glow); font-weight: 600; }
+  #home { position: fixed; top: 14px; left: 16px; z-index: 25; padding: .55rem 1rem; font-size: 1.05rem; font-weight: 600; color: #e8ecff; text-decoration: none;
+    background: rgba(10,14,40,.7); border: 1px solid rgba(160,190,255,.45); border-radius: 999px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  #home:hover { box-shadow: 0 0 20px rgba(140,160,255,.5); }
+  body.splitting #home { opacity: 0; pointer-events: none; }
   #toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); z-index: 40; padding: .8rem 1.2rem; border-radius: 14px; font-size: 1rem;
     background: rgba(20,22,60,.95); border: 1px solid rgba(170,190,255,.5); opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
@@ -141,7 +145,7 @@
     font-family: Inter, sans-serif; font-size: 1.6rem; line-height: 1; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.3); box-shadow: none; }
   #info .close:hover { background: rgba(255,255,255,.18); transform: none; }
   footer { text-align: right; padding: 0 16px 0 200px; }
-  @media (max-width: 600px) { footer { display: none; } #intro, #result { padding-bottom: 84px; } .steps { gap: 6px; } .steps li { flex-direction: column; align-items: center; text-align: center; gap: .35rem; padding: .6rem .4rem; font-size: .85rem; }
+  @media (max-width: 600px) { footer { display: none; } #intro, #result { padding-top: 64px; } #intro, #result { padding-bottom: 84px; } .steps { gap: 6px; } .steps li { flex-direction: column; align-items: center; text-align: center; gap: .35rem; padding: .6rem .4rem; font-size: .85rem; }
     .sub { font-size: 1.05rem; margin-bottom: 1rem; } h1 { font-size: 2rem; } .tagline { margin-top: .6rem; font-size: 1.05rem; } .sub { margin-top: .6rem; }
     #result .card { padding: 1.5rem 1.1rem; } .w { padding: .8rem .95rem; }
     .worlds { grid-template-columns: 1fr; } }
@@ -150,6 +154,7 @@
 </head>
 <body>
 <canvas id="sky"></canvas>
+<a id="home" href="/">← AugieLab</a>
 <div id="riftLight"></div>
 <div id="halves"></div>
 <svg id="crack" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline pathLength="1" points=""/></svg>
