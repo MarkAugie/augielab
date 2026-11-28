@@ -99,6 +99,26 @@
   }
 
 
+
+  /* ---------- live quantum status strip ---------- */
+  .qstat { max-width: 980px; margin: 0 auto 14px; display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; text-decoration: none;
+    background: #10161D; color: #DDE6EE; border-radius: 12px; padding: 12px 18px; border: 1px solid #263240; box-shadow: 0 10px 26px -16px rgba(0,0,0,.6); }
+  .qstat:hover { border-color: #3BE37A; } .qstat:focus-visible { outline: 3px solid #8FD3FF; outline-offset: 3px; }
+  .qdot { width: 16px; height: 16px; border-radius: 50%; flex: none; background: #6B7785; }
+  .qstat[data-state="online"] .qdot { background: #3BE37A; box-shadow: 0 0 0 0 rgba(59,227,122,.6); animation: qpulse 1.8s infinite; }
+  .qstat[data-state="offline"] .qdot { background: #F6A623; }
+  @keyframes qpulse { 0% { box-shadow: 0 0 0 0 rgba(59,227,122,.55); } 70% { box-shadow: 0 0 0 12px rgba(59,227,122,0); } 100% { box-shadow: 0 0 0 0 rgba(59,227,122,0); } }
+  .qmain { display: flex; flex-direction: column; line-height: 1.25; }
+  .qmain b { font: 700 1.02rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #fff; }
+  .qstat[data-state="online"] .qmain b { color: #3BE37A; }
+  .qstat[data-state="offline"] .qmain b { color: #F6C35A; }
+  .qmain span { font-size: .85rem; color: #93A2B2; }
+  .qnums { display: flex; gap: 16px; flex-wrap: wrap; font: 600 .92rem "IBM Plex Mono", ui-monospace, monospace; color: #C8D3DD; }
+  .qnums i { font-style: normal; color: #93A2B2; font-family: "IBM Plex Sans", sans-serif; font-weight: 500; font-size: .82rem; margin-left: 4px; }
+  .qgo { margin-left: auto; font: 700 .9rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #8FD3FF; white-space: nowrap; }
+  @media (max-width: 720px) { .qstat { padding: 12px 14px; } .qgo { margin-left: 0; } .qnums { gap: 10px 14px; } }
+  @media (prefers-reduced-motion: reduce) { .qstat[data-state="online"] .qdot { animation: none; } }
+
   /* ---------- view switch ---------- */
   .views { max-width: 980px; margin: -8px auto 18px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
   .views-lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #5A6573; }
@@ -302,6 +322,13 @@
   <p class="intro"><b>Mark “Augie” Aughenbaugh</b><br>HPC and AI-cluster support · 20 years in Intel labs.<br>GPU-cluster tools up top; quantum, surveying and game-night fun below.</p>
 </header>
 
+<a class="qstat" id="qstat" href="/inside/" data-state="checking" aria-live="polite">
+  <span class="qdot" aria-hidden="true"></span>
+  <span class="qmain"><b id="qTitle">Checking the quantum generator…</b><span id="qWhere">Oak Grove, Oregon</span></span>
+  <span class="qnums" id="qNums"></span>
+  <span class="qgo">Inside the lab →</span>
+</a>
+
 <nav class="views" aria-label="How to show the projects">
   <span class="views-lbl">View as</span>
   <div class="views-seg" role="group">
@@ -348,6 +375,13 @@
     </a>
 
     <div class="blank" role="heading" aria-level="2">Quantum experiments</div>
+
+    <a class="unit live" href="/inside/">
+      <span class="led" aria-hidden="true"></span>
+      <span class="tape">Inside the lab</span>
+      <span class="desc">The real quantum random number generator behind these pages, live: watch its numbers stream, see how light becomes numbers, and check a reading it signed itself.</span>
+      <span class="state">Live · quantum</span>
+    </a>
 
     <a class="unit live" href="/split/">
       <span class="led" aria-hidden="true"></span>
@@ -626,6 +660,9 @@
       why: 'Talk to a dead server through its back door.',
       text: 'Every big server has a tiny side computer (the BMC) that works even when the server is frozen or off. This tool writes the exact commands to power-cycle it, read its hardware logs and sensors, check inventory, change the boot order, or mount a rescue disk, in Redfish, ipmitool, Python and more. It knows each vendor\'s quirks and has recovery playbooks. Press a ▶ Demo button to try it on a pretend broken server with six hidden problems.' },
     // ---------- Quantum ----------
+    { s: 1, href: '/inside/', name: 'Inside the lab', tags: ['Quantum', 'Physics'],
+      why: 'A real quantum random number generator, live, in Oak Grove.',
+      text: 'Meet the machine behind every dice roll and shuffle on this site: a Crypta Labs QCicada on a Raspberry Pi. See its live status, watch its numbers stream as quantum static, follow a particle of light all the way to your screen, and press Prove it: the stick signs a reading with its own built-in key and your browser checks it. Plus myth-busters, like why it does not need absolute zero.' },
     { s: 1, href: '/split/', name: 'Split the universe', tags: ['Quantum', 'Physics'],
       why: 'Can\'t decide? Do both.',
       text: 'Type two choices. A real quantum measurement picks one. Under the many-worlds idea in physics, every quantum outcome happens somewhere, so in another universe, another you takes the other path. It is a fun way to make a decision, with a friendly explanation of the strangest idea in physics.' },
@@ -887,6 +924,45 @@
   let start = new URLSearchParams(location.search).get('view');
   if (!start) { try { start = localStorage.getItem('lab-view'); } catch (e) {} }
   show(start || DEFAULT_VIEW);
+})();
+</script>
+
+<script>
+// Live status of the home quantum generator (Crypta Labs QCicada on a Raspberry Pi in Oak Grove).
+(() => {
+  const el = document.getElementById('qstat'), title = document.getElementById('qTitle'), nums = document.getElementById('qNums');
+  let shown = null, target = null, t0 = 0, from = 0, timer = null;
+  const fmt = (n) => Math.round(n).toLocaleString('en-US');
+  function paint(h) {
+    if (!h || !h.ok) {
+      el.dataset.state = 'offline';
+      title.textContent = 'Quantum generator offline';
+      nums.innerHTML = '<span>Pages are using your browser’s generator for now</span>';
+      target = null; return;
+    }
+    el.dataset.state = 'online';
+    title.textContent = 'Quantum generator online';
+    const tests = h.health_flags && Object.values(h.health_flags).some(Boolean) ? 'self-tests: check' : 'self-tests passing';
+    const bits = (h.stick_generated || 0) * 8;
+    if (target === null) { shown = bits; } from = shown ?? bits; target = bits; t0 = performance.now();
+    nums.innerHTML = `<span><span id="qBits">${fmt(shown)}</span><i>quantum bits measured</i></span><span>~${fmt(Math.round((h.stick_speed || 0) / 1000) * 1000)}<i>bits a second</i></span><span>${tests}</span>`;
+  }
+  // count up smoothly between readings, so the number moves like a live meter
+  function tick(now) {
+    if (target !== null) {
+      const k = Math.min(1, (now - t0) / 5000); shown = from + (target - from) * k;
+      const b = document.getElementById('qBits'); if (b) b.textContent = fmt(shown);
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  async function poll() {
+    try { const r = await fetch('/api/qrng?health=1', { cache: 'no-store' }); paint(await r.json()); } catch (e) { paint(null); }
+  }
+  function start() { if (!timer) { poll(); timer = setInterval(poll, 5000); } }
+  function stop() { clearInterval(timer); timer = null; }
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  start();
 })();
 </script>
 <script src="/lab/track.js" defer></script>

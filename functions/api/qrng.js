@@ -9,7 +9,8 @@
 //   QRNG_KEY  (secret)  the key from ~/qrng/qrng.env on the Pi
 //   QRNG_URL  (optional) defaults to https://qrng.augielab.dev
 //
-// /api/qrng?health=1 returns the stick's status (no key or secrets in it) for the stats page.
+// /api/qrng?health=1 returns the stick's status (no key or secrets in it) for the status strip and lab page.
+// /api/qrng?signed=1 returns 32 fresh bytes signed by the stick's own key, for the "Prove it" button.
 
 const CHUNK = 4096;          // the Pi hands out at most 4096 bytes per request
 const MAX_N = 16384;         // a few pages ask for big batches; split them into chunks
@@ -36,10 +37,27 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
 
   if (url.searchParams.has('health')) {
+    // Every visitor's status strip polls this; keep one answer for 4 seconds so the Pi isn't asked by each of them.
+    const cache = caches.default, ck = new Request(new URL('/__qrng_health_cache', url).toString());
+    const hit = await cache.match(ck);
+    if (hit) return json(await hit.json(), hit.status);
+    let body, status = 200;
     try {
       const h = await ask(env, '/health');
-      const keep = ['ok', 'buffer_bytes', 'read_total', 'served_total', 'requests', 'uptime_s', 'serial', 'firmware', 'stick_speed', 'stick_test_failures', 'health_flags', 'error'];
-      return json(Object.fromEntries(keep.filter((k) => k in h).map((k) => [k, h[k]])));
+      const keep = ['ok', 'buffer_bytes', 'read_total', 'served_total', 'requests', 'uptime_s', 'serial', 'firmware', 'hw_info', 'stick_speed', 'stick_generated', 'health_flags', 'error'];
+      body = Object.fromEntries(keep.filter((k) => k in h).map((k) => [k, h[k]]));
+    } catch (e) {
+      body = { ok: false, error: 'quantum generator offline' }; status = 503;
+    }
+    const store = new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=4' } });
+    try { await cache.put(ck, store); } catch (e) {}
+    return json(body, status);
+  }
+
+  if (url.searchParams.has('signed')) {
+    try {
+      const s = await ask(env, '/signed?n=32');
+      return json(s, s.ok ? 200 : 503);
     } catch (e) {
       return json({ ok: false, error: 'quantum generator offline' }, 503);
     }

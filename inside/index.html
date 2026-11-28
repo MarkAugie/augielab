@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside the Lab · A real quantum random number generator · AugieLab</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="description" content="A real quantum random number generator runs in Mark's house in Oak Grove, Oregon. Watch its numbers stream live, see how they get from particles of light to your screen, and check a reading signed by the device itself.">
+<meta property="og:title" content="Inside the lab: a live quantum random number generator">
+<meta property="og:description" content="Particles of light in, unpredictable numbers out, live. No absolute zero required. Watch the stream and check a signed reading yourself.">
+<meta property="og:url" content="https://augielab.dev/inside/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,500&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script src="/lab/qrng-guard.js"></script>
+<style>
+  :root {
+    --bg: #05080D; --panel: #0C121B; --line: #1E2A3A; --text: #EEF3F8; --dim: #AEBCCB; --soft: #7D8EA2;
+    --q: #3BE37A; --q2: #7DF9FF; --amber: #F6A623; --bad: #FF6B7A; --photon: #FFD36E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 20px; background: var(--bg); }
+  body { min-height: 100vh; color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.55; padding: 18px 18px 110px;
+    background: radial-gradient(ellipse 80% 640px at 50% -80px, rgba(59,227,122,.13), transparent 70%), var(--bg); }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .top { display: flex; justify-content: flex-end; }
+  .top a { color: var(--dim); text-decoration: none; font-weight: 600; }
+  .top a:hover, .top a:focus-visible { color: var(--text); }
+  a { color: var(--q2); }
+  h1 { font: 800 clamp(2.5rem, 7.5vw, 4.6rem)/1 "Fraunces", Georgia, serif; letter-spacing: -.015em; margin-top: 6px; }
+  h1 em { font-weight: 500; color: var(--q); }
+  .sub { margin-top: 14px; font-size: 1.15rem; color: var(--dim); max-width: 64ch; }
+  h2 { font: 700 1.6rem/1.15 "Fraunces", Georgia, serif; margin: 46px 0 8px; }
+  .lead { color: var(--dim); max-width: 68ch; }
+  .lbl { font: 700 .8rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); }
+
+  /* status */
+  .status { margin-top: 26px; display: grid; grid-template-columns: auto 1fr; gap: 18px 22px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+  .beacon { width: 26px; height: 26px; border-radius: 50%; background: #5A6675; }
+  .status[data-state="online"] .beacon { background: var(--q); animation: pulse 1.8s infinite; }
+  .status[data-state="offline"] .beacon { background: var(--amber); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59,227,122,.6); } 70% { box-shadow: 0 0 0 18px rgba(59,227,122,0); } 100% { box-shadow: 0 0 0 0 rgba(59,227,122,0); } }
+  .st-title { font: 700 1.3rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+  .status[data-state="online"] .st-title { color: var(--q); }
+  .status[data-state="offline"] .st-title { color: var(--amber); }
+  .st-sub { color: var(--dim); font-size: .95rem; }
+  .meters { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .meter { background: #080D14; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .meter .v { font: 600 1.35rem/1.2 "IBM Plex Mono", ui-monospace, monospace; margin-top: 4px; color: var(--text); word-break: break-all; }
+  .meter .v.big { color: var(--q); }
+  .meter small { display: block; color: var(--soft); font-size: .8rem; margin-top: 2px; }
+
+  /* stream */
+  .stream { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .pane { background: #03060A; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; position: relative; }
+  .pane .lbl { position: absolute; top: 10px; left: 12px; background: rgba(3,6,10,.8); padding: 3px 8px; border-radius: 6px; z-index: 1; }
+  #rain { display: block; width: 100%; height: 340px; image-rendering: pixelated; }
+  #hex { height: 340px; overflow: hidden; padding: 40px 14px 10px; font: 500 .9rem/1.55 "IBM Plex Mono", ui-monospace, monospace; color: var(--q); }
+  #hex div { white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  #hex div:first-child { color: #CFFFE0; text-shadow: 0 0 8px rgba(59,227,122,.7); }
+  #hex.off { color: var(--amber); }
+  #hex.off div:first-child { color: #FFE2A8; text-shadow: none; }
+  .streamnote { margin-top: 8px; color: var(--soft); font-size: .92rem; }
+
+  /* pipeline */
+  .pipe { margin-top: 18px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; position: relative; }
+  .step { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px 14px; margin: 0 12px 0 0; }
+  .step:last-child { margin-right: 0; }
+  .step:not(:last-child)::after { content: ""; position: absolute; right: -13px; top: 50%; width: 14px; height: 2px; background: var(--q); opacity: .6; }
+  .step .ic { font-size: 1.6rem; line-height: 1; }
+  .step h3 { font: 700 1rem/1.2 "IBM Plex Sans Condensed", sans-serif; letter-spacing: .04em; text-transform: uppercase; margin: 10px 0 6px; color: var(--q2); }
+  .step p { font-size: .88rem; color: var(--dim); line-height: 1.45; }
+  .step .n { position: absolute; top: 12px; right: 12px; font: 600 .78rem "IBM Plex Mono", monospace; color: var(--soft); }
+  .flow { height: 6px; margin: 14px 0 0; border-radius: 3px; background: linear-gradient(90deg, var(--photon), var(--q), var(--q2)); background-size: 200% 100%; animation: flow 3s linear infinite; opacity: .8; }
+  @keyframes flow { to { background-position: -200% 0; } }
+
+  /* prove it */
+  .prove { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+  .btn { font: 700 1rem "IBM Plex Sans", sans-serif; padding: 12px 18px; border-radius: 10px; cursor: pointer; border: 1px solid #2C4058; background: #12202F; color: var(--text); }
+  .btn:hover { border-color: var(--text); }
+  .btn.primary { background: var(--q); color: #002312; border-color: var(--q); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--photon); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .proof { margin-top: 16px; display: grid; gap: 10px; }
+  .field { background: #080D14; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .field code { display: block; margin-top: 4px; font: 500 .9rem/1.5 "IBM Plex Mono", ui-monospace, monospace; color: var(--text); word-break: break-all; }
+  .field code mark { background: var(--bad); color: #fff; border-radius: 3px; padding: 0 2px; }
+  .verdict { margin-top: 4px; padding: 14px 16px; border-radius: 12px; font-size: 1.08rem; font-weight: 600; }
+  .verdict.ok { background: rgba(59,227,122,.1); border: 1px solid rgba(59,227,122,.45); color: #BFFFD6; }
+  .verdict.no { background: rgba(255,107,122,.1); border: 1px solid rgba(255,107,122,.5); color: #FFC9CF; }
+  .verdict.wait { background: rgba(125,249,255,.06); border: 1px solid rgba(125,249,255,.3); color: var(--dim); font-weight: 500; }
+  .small { color: var(--soft); font-size: .9rem; margin-top: 10px; }
+
+  /* myths */
+  .myths { margin-top: 14px; display: grid; gap: 10px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0 18px; }
+  summary { cursor: pointer; list-style: none; padding: 16px 0; font: 600 1.1rem/1.3 "IBM Plex Sans", sans-serif; display: flex; gap: 12px; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font: 600 1.3rem "IBM Plex Mono", monospace; color: var(--q); width: 1ch; flex: none; }
+  details[open] summary::before { content: "−"; }
+  details p { color: var(--dim); padding: 0 0 16px 2.2ch; }
+  details p + p { margin-top: -6px; }
+
+  /* uses */
+  .uses { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .uses a { text-decoration: none; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: .95rem; }
+  .uses a:hover { border-color: var(--q); color: var(--q); }
+
+  .kit { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kit div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .kit b { display: block; font: 700 1rem "IBM Plex Sans Condensed", sans-serif; letter-spacing: .03em; text-transform: uppercase; color: var(--q2); }
+  .kit span { color: var(--dim); font-size: .9rem; }
+  footer { margin-top: 50px; color: var(--soft); font-size: .9rem; text-align: center; }
+
+  @media (max-width: 1000px) {
+    .pipe { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .step { margin: 0; }
+    .step:not(:last-child)::after { display: none; }
+    .kit { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 720px) {
+    html { font-size: 18px; }
+    body { padding: 14px 12px 110px; }
+    .meters { grid-template-columns: 1fr 1fr; }
+    .stream { grid-template-columns: 1fr; }
+    #rain, #hex { height: 260px; }
+    .pipe { grid-template-columns: 1fr; }
+    .kit { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { .status[data-state="online"] .beacon, .flow { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a href="/">← AugieLab</a></nav>
+  <h1>Inside the <em>lab</em></h1>
+  <p class="sub">A real quantum random number generator runs in Mark's house in Oak Grove, Oregon. It turns particles of light into numbers that nobody, and nothing, can predict. Every dice roll, card shuffle and universe split on this site comes from it. Here it is, live.</p>
+
+  <section class="status" id="status" data-state="checking" aria-live="polite">
+    <div class="beacon" aria-hidden="true"></div>
+    <div><div class="st-title" id="stTitle">Checking the generator…</div><div class="st-sub" id="stSub">Asking the Raspberry Pi in Oak Grove for its status.</div></div>
+    <div class="meters">
+      <div class="meter"><div class="lbl">Quantum bits measured</div><div class="v big" id="mBits">–</div><small>since the stick last powered on</small></div>
+      <div class="meter"><div class="lbl">Speed</div><div class="v" id="mSpeed">–</div><small>random bits a second</small></div>
+      <div class="meter"><div class="lbl">Ready to hand out</div><div class="v" id="mBuf">–</div><small>fresh bytes waiting on the Pi</small></div>
+      <div class="meter"><div class="lbl">Self-tests</div><div class="v" id="mTests">–</div><small id="mUp">NIST health checks, run by the stick itself</small></div>
+    </div>
+  </section>
+
+  <h2>The stream</h2>
+  <p class="lead">These are the generator's numbers, arriving right now. On the left, each tiny square is one byte (0 is black, 255 is bright). On the right, the same bytes in hex. No two visitors ever see the same ones: each byte is handed out once.</p>
+  <div class="stream">
+    <div class="pane"><span class="lbl">Quantum static</span><canvas id="rain" aria-label="Live picture of quantum random bytes as squares of light and dark"></canvas></div>
+    <div class="pane"><span class="lbl">Hex stream</span><div id="hex" aria-label="Live quantum random bytes in hexadecimal"></div></div>
+  </div>
+  <p class="streamnote" id="streamNote">Connecting…</p>
+
+  <h2>From a particle of light to your screen</h2>
+  <p class="lead">Six steps, a fraction of a second, all at room temperature.</p>
+  <div class="pipe">
+    <div class="step"><span class="n">1</span><div class="ic">✨</div><h3>Light</h3><p>Inside the stick, a tiny light source shines on a sensor. Light arrives as individual particles, photons, and exactly how many land in any instant is a quantum event: not just unknown, but undecided until it's measured.</p></div>
+    <div class="step"><span class="n">2</span><div class="ic">🔬</div><h3>The QCicada</h3><p>A Crypta Labs QCicada, a USB stick, turns that photon noise into bits. It keeps checking itself with NIST health tests and stops if anything looks wrong.</p></div>
+    <div class="step"><span class="n">3</span><div class="ic">⚗️</div><h3>Refining</h3><p>Raw sensor readings have small quirks. The stick runs them through SHA-256 (NIST SP 800-90B conditioning), so what comes out is evenly spread. See it in <a href="/refinery/">the Refinery</a>.</p></div>
+    <div class="step"><span class="n">4</span><div class="ic">🍓</div><h3>Raspberry Pi 5</h3><p>A small computer in Mark's house keeps 256 KB of quantum bytes ready, refills it constantly, and recovers by itself if the stick hiccups.</p></div>
+    <div class="step"><span class="n">5</span><div class="ic">🔒</div><h3>Secure tunnel</h3><p>An encrypted Cloudflare Tunnel carries the bytes out. Nothing is opened to the internet at home, and a secret key means only this website can ask.</p></div>
+    <div class="step"><span class="n">6</span><div class="ic">🎲</div><h3>Your screen</h3><p>The page you're on uses them to roll dice, shuffle cards, throw darts and split universes. If the generator is ever offline, pages quietly use your browser's generator and say so.</p></div>
+  </div>
+  <div class="flow" aria-hidden="true"></div>
+
+  <h2>Prove it</h2>
+  <p class="lead">Anyone can claim their numbers are quantum. This stick can back it up: it has its own secret signing key built in, and it signs numbers the moment it makes them. Your browser checks the signature right here, with no help from this website. Change even one byte and the check fails.</p>
+  <div class="prove">
+    <div class="row" style="margin-top:0">
+      <button class="btn primary" id="getSigned" type="button">Get a signed reading</button>
+      <button class="btn" id="tamper" type="button" disabled>Tamper with one byte</button>
+      <button class="btn" id="restore" type="button" disabled>Undo the tampering</button>
+    </div>
+    <div class="proof" id="proof" hidden>
+      <div class="field"><span class="lbl">32 random bytes, straight from the stick</span><code id="pData"></code></div>
+      <div class="field"><span class="lbl">The stick's signature (ECDSA P-256)</span><code id="pSig"></code></div>
+      <div class="field"><span class="lbl">The stick's public key · <span id="pWho"></span></span><code id="pKey"></code></div>
+      <div class="verdict wait" id="pVerdict">Checking…</div>
+    </div>
+    <p class="small">How it works: the stick signs with a private key that never leaves it. The public key above can only confirm signatures, never make them, so a matching signature means these exact bytes came out of this exact stick. Crypta Labs also gave the stick a certificate vouching that its key belongs to a genuine QCicada; checking that last link needs Crypta Labs' own public key, which isn't on this page yet.</p>
+  </div>
+
+  <h2>Myth-busters</h2>
+  <p class="lead">Questions people actually ask.</p>
+  <div class="myths">
+    <details><summary>Doesn't this need to be cooled to near absolute zero?</summary>
+      <p>No, and it's a great question, because some quantum machines do. Quantum <em>computers</em> keep their qubits a few thousandths of a degree above absolute zero, because any warmth would scramble the delicate states they calculate with.</p>
+      <p>A quantum random number generator does the opposite. It doesn't need to protect anything; it just <em>measures</em> something that quantum physics makes unpredictable. That works at room temperature, on a stick smaller than your thumb.</p></details>
+    <details><summary>So is this a quantum computer?</summary>
+      <p>No. A quantum computer calculates with qubits. This generator measures quantum events and turns the results into numbers. It's a quantum <em>measuring</em> device, which is why it fits in a USB port.</p></details>
+    <details><summary>Isn't my computer's random number maker good enough?</summary>
+      <p>For security, your browser's generator is excellent; banks rely on it. But it's a formula. Started from the same seed, it gives the same numbers every time, so in principle it's predictable. A quantum measurement isn't the result of any formula or seed. As far as physics knows, the outcome isn't decided until it happens.</p>
+      <p>For dice and card games you'd never notice the difference. That's what makes it fun: same odds, deeper story. Watch both kinds race in <a href="/showdown/">the Randomness Showdown</a>.</p></details>
+    <details><summary>How do you know it's really quantum?</summary>
+      <p>Three ways. The physics: photon counts are a textbook quantum effect. The tests: the stick runs NIST health checks on itself constantly, and the numbers pass standard randomness tests. And the signature: the "Prove it" check above shows the bytes came from this device, unaltered.</p></details>
+    <details><summary>How fast is it?</summary>
+      <p>About 100,000 random bits a second, roughly 12,000 bytes. That's plenty for every page on this site at once. Big data-center quantum generators run far faster, billions of bits a second, but they cost a lot more than a USB stick.</p></details>
+    <details><summary>What if it's unplugged, or the power goes out?</summary>
+      <p>Every page notices within seconds and switches to your browser's generator, and the dot at the bottom of the page turns from green to yellow. When the generator comes back, pages switch back by themselves.</p></details>
+    <details><summary>Could someone else use it or drain it?</summary>
+      <p>Only this website holds the key that lets it ask the Pi for numbers, and the key never reaches your browser. Each page asks for small batches and waits politely if the generator is busy or offline.</p></details>
+  </div>
+
+  <h2>What runs on it</h2>
+  <p class="lead">Every one of these gets its randomness from the generator above.</p>
+  <div class="uses">
+    <a href="/split/">Split the universe</a><a href="/glitch/">Simulation detector</a><a href="/showdown/">Randomness showdown</a><a href="/future/">Feel the future</a><a href="/muons/">Muon rain</a><a href="/darts/">Quantum darts</a><a href="/dice/">Quantum dice</a><a href="/passwords/">Quantum passwords</a><a href="/benford/">Benford's law</a><a href="/fibonacci/">Coincidence hunter</a><a href="/chaos/">The chaos game</a><a href="/coast/">How long is the coast?</a><a href="/lightning/">Lightning &amp; frost</a><a href="/jukebox/">Schrödinger's jukebox</a><a href="/monkeys/">Infinite monkeys</a><a href="/gps/">Where am I, really?</a><a href="/mexican/">Mexican train</a><a href="/train/">The miracle train</a><a href="/dominoes/">Dominoes</a><a href="/nopeek/">Seven card no peek</a><a href="/bridge/">The quantum dealer</a><a href="/puzzle/">Picture shuffle</a><a href="/ss/">Early or late?</a>
+  </div>
+
+  <h2>The kit</h2>
+  <div class="kit">
+    <div><b>Crypta Labs QCicada</b><span id="kStick">USB quantum random number generator, light-based.</span></div>
+    <div><b>Raspberry Pi 5</b><span>Runs the generator service from an NVMe drive. Keeps a buffer and restarts itself if needed.</span></div>
+    <div><b>Cloudflare Tunnel</b><span>Encrypted, outbound-only link from the Pi. No open ports at home.</span></div>
+    <div><b>Cloudflare Pages</b><span>Hosts this site; a small server function holds the key and fetches the numbers.</span></div>
+  </div>
+
+  <footer>Built by Mark Aughenbaugh · <a href="/">AugieLab</a></footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Math.round(n).toLocaleString('en-US');
+
+  /* ---------------- status ---------------- */
+  let online = null, bitsShown = null, bitsFrom = 0, bitsTo = null, t0 = 0;
+  function paintStatus(h) {
+    const s = $('status');
+    if (!h || !h.ok) {
+      online = false; s.dataset.state = 'offline';
+      $('stTitle').textContent = 'Generator offline';
+      $('stSub').textContent = 'The Pi or the stick isn’t answering right now. Pages are using your browser’s generator until it’s back.';
+      ['mSpeed', 'mBuf', 'mTests'].forEach((k) => ($(k).textContent = '–'));
+      return;
+    }
+    online = true; s.dataset.state = 'online';
+    $('stTitle').textContent = 'Generator online';
+    $('stSub').textContent = `Crypta Labs QCicada ${h.serial || ''}${h.hw_info ? ' (' + h.hw_info + ')' : ''} · Raspberry Pi 5 · Oak Grove, Oregon`;
+    const bits = (h.stick_generated || 0) * 8;
+    if (bitsTo === null) bitsShown = bits;
+    bitsFrom = bitsShown ?? bits; bitsTo = bits; t0 = performance.now();
+    $('mSpeed').textContent = '~' + fmt(Math.round((h.stick_speed || 0) / 1000) * 1000);
+    $('mBuf').textContent = fmt(h.buffer_bytes || 0);
+    const bad = h.health_flags && Object.values(h.health_flags).some(Boolean);
+    $('mTests').textContent = bad ? 'Check' : 'Passing';
+    $('mTests').style.color = bad ? 'var(--amber)' : 'var(--q)';
+    if (h.uptime_s) $('mUp').textContent = `NIST health checks · service up ${h.uptime_s > 86400 ? Math.floor(h.uptime_s / 86400) + ' d ' : ''}${Math.floor((h.uptime_s % 86400) / 3600)} h ${Math.floor((h.uptime_s % 3600) / 60)} min`;
+    if (h.serial) $('kStick').textContent = `Serial ${h.serial}. USB quantum random number generator that measures light.`;
+  }
+  async function pollStatus() {
+    try { const r = await fetch('/api/qrng?health=1', { cache: 'no-store' }); paintStatus(await r.json()); } catch (e) { paintStatus(null); }
+  }
+
+  /* ---------------- stream ---------------- */
+  const cv = $('rain'), cx = cv.getContext('2d');
+  const COLS = 48;
+  let cell = 8, rows = 40, img = null;
+  function sizeRain() {
+    const w = cv.clientWidth, h = cv.clientHeight;
+    cell = Math.max(4, Math.floor(w / COLS)); rows = Math.ceil(h / cell);
+    cv.width = COLS * cell; cv.height = rows * cell;
+    cx.fillStyle = '#03060A'; cx.fillRect(0, 0, cv.width, cv.height);
+  }
+  sizeRain(); addEventListener('resize', sizeRain);
+  let queue = [], streamLive = false;
+  async function fetchBytes() {
+    if (queue.length > 1024) return;
+    try {
+      const r = await fetch('/api/qrng?n=512', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok || !Array.isArray(j.values)) throw 0;
+      queue.push(...j.values); streamLive = true;
+    } catch (e) {
+      streamLive = false;
+      const a = new Uint8Array(512); crypto.getRandomValues(a); queue.push(...a);
+    }
+    $('hex').classList.toggle('off', !streamLive);
+    $('streamNote').textContent = streamLive
+      ? 'Live from the QCicada in Oak Grove. About 250 bytes a second, so the generator has plenty left for everyone else.'
+      : 'The generator is offline, so for now this stream shows your browser’s random numbers (in amber).';
+  }
+  const hexLines = [];
+  function drawRow() {
+    if (queue.length < COLS) return;
+    const row = queue.splice(0, COLS);
+    // scroll the picture down one row and paint the new row at the top
+    cx.drawImage(cv, 0, 0, cv.width, cv.height - cell, 0, cell, cv.width, cv.height - cell);
+    row.forEach((v, i) => {
+      if (streamLive) cx.fillStyle = `rgb(${Math.round(v * 0.55)},${v},${Math.round(v * 0.75)})`;
+      else cx.fillStyle = `rgb(${v},${Math.round(v * 0.66)},${Math.round(v * 0.15)})`;
+      cx.fillRect(i * cell, 0, cell - (cell > 5 ? 1 : 0), cell - (cell > 5 ? 1 : 0));
+    });
+    hexLines.unshift(row.slice(0, 16).map((v) => v.toString(16).padStart(2, '0')).join(' '));
+    if (hexLines.length > 18) hexLines.length = 18;
+    $('hex').innerHTML = hexLines.map((l) => `<div>${l}</div>`).join('');
+  }
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setInterval(() => { if (!document.hidden) drawRow(); }, reduce ? 1000 : 190);
+  setInterval(() => { if (!document.hidden) fetchBytes(); }, 2000);
+  fetchBytes();
+
+  function tick(now) {
+    if (bitsTo !== null) { const k = Math.min(1, (now - t0) / 5000); bitsShown = bitsFrom + (bitsTo - bitsFrom) * k; $('mBits').textContent = fmt(bitsShown); }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  pollStatus(); setInterval(() => { if (!document.hidden) pollStatus(); }, 5000);
+
+  /* ---------------- prove it ---------------- */
+  const hexToBytes = (h) => Uint8Array.from(h.match(/../g).map((x) => parseInt(x, 16)));
+  const toHex = (b) => Array.from(b, (v) => v.toString(16).padStart(2, '0')).join('');
+  const group = (h) => h.replace(/(.{8})/g, '$1 ').trim();
+  let signed = null, data = null, flipped = -1;
+  async function verify() {
+    const v = $('pVerdict');
+    try {
+      const key = await crypto.subtle.importKey('raw', Uint8Array.from([4, ...hexToBytes(signed.pub_key)]), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+      const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, hexToBytes(signed.signature), data);
+      v.className = 'verdict ' + (ok ? 'ok' : 'no');
+      v.textContent = ok
+        ? `✓ Signature valid. Your browser just confirmed these 32 bytes came from QCicada ${signed.serial || ''}, unaltered.`
+        : `✗ Signature does NOT match. Byte ${flipped + 1} was changed, so the stick's signature no longer fits. Nobody can forge a new one without the key locked inside the stick.`;
+    } catch (e) {
+      v.className = 'verdict no'; v.textContent = 'Your browser couldn’t run the check (it needs a modern browser on a secure https page).';
+    }
+  }
+  function showData() {
+    const h = toHex(data);
+    $('pData').textContent = group(h);
+    if (flipped >= 0) {
+      const pairs = h.match(/../g).map((p, i) => (i === flipped ? `<mark>${p}</mark>` : p));
+      let out = ''; pairs.forEach((p, i) => { out += p; if (i % 4 === 3 && i < pairs.length - 1) out += ' '; });
+      $('pData').innerHTML = out;
+    }
+  }
+  $('getSigned').addEventListener('click', async () => {
+    const b = $('getSigned'); b.disabled = true; b.textContent = 'Asking the stick…';
+    $('proof').hidden = false; $('pVerdict').className = 'verdict wait'; $('pVerdict').textContent = 'Asking the stick for a signed reading…';
+    try {
+      const r = await fetch('/api/qrng?signed=1', { cache: 'no-store' }); const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'not available');
+      signed = j; data = hexToBytes(j.data); flipped = -1;
+      showData();
+      $('pSig').textContent = group(j.signature);
+      $('pKey').textContent = group(j.pub_key);
+      $('pWho').textContent = `QCicada ${j.serial || ''}`;
+      $('tamper').disabled = false; $('restore').disabled = true;
+      await verify();
+      if (window.labTrack) labTrack('proof');
+    } catch (e) {
+      $('pVerdict').className = 'verdict no';
+      $('pVerdict').textContent = /2 seconds/.test(String(e.message)) ? 'The stick signs one reading every 2 seconds. Try again in a moment.' : 'The generator is offline right now, so it can’t sign a reading. Try again later.';
+    }
+    setTimeout(() => { b.disabled = false; b.textContent = 'Get another signed reading'; }, 2200);
+  });
+  $('tamper').addEventListener('click', () => {
+    if (!signed) return;
+    data = hexToBytes(signed.data); flipped = Math.floor(Math.random() * data.length);
+    data[flipped] ^= 1 << Math.floor(Math.random() * 8);   // flip a single bit
+    showData(); $('restore').disabled = false; verify();
+  });
+  $('restore').addEventListener('click', () => {
+    if (!signed) return;
+    data = hexToBytes(signed.data); flipped = -1; showData(); $('restore').disabled = true; verify();
+  });
+})();
+</script>
+<script src="/lab/track.js" defer></script>
+</body>
+</html>
